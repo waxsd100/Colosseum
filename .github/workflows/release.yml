@@ -27,6 +27,7 @@ jobs:
 
       - name: Build
         run: |
+          chmod +x gradlew
           VERSION="${GITHUB_REF_NAME#v}"
           ./gradlew build -Pversion=${VERSION}
 
