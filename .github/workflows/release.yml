@@ -26,12 +26,14 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build
-        run: ./gradlew build
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ./gradlew build -Pversion=${VERSION}
 
       - name: Rename JAR
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          cp build/libs/CasinoCore-*.jar CasinoCore-${VERSION}.jar
+          cp build/libs/CasinoCore-${VERSION}.jar ./CasinoCore-${VERSION}.jar
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
