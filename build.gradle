@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'io.wax100'
-version = '1.0-SNAPSHOT'
+version = findProperty('version') ?: '1.0-SNAPSHOT'
 
 repositories {
     mavenCentral()

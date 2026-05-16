@@ -31,7 +31,7 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           ./gradlew build -Pversion=${VERSION}
 
-      - name: Rename JAR
+      - name: Prepare JAR
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           cp build/libs/CasinoCore-${VERSION}.jar ./CasinoCore-${VERSION}.jar
