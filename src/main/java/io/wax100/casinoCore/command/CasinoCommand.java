@@ -10,6 +10,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
+import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -65,6 +66,11 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
         }
         manager.setCasinoActive(true);
 
+        // ゲームモード切替 + keepInventory ON
+        if (sender instanceof Player) {
+            manager.applyAdventureMode((Player) sender);
+        }
+
         Bukkit.broadcastMessage(Messages.SEPARATOR);
         Bukkit.broadcastMessage(Messages.PREFIX + ChatColor.GREEN + "カジノモードが "
                 + ChatColor.YELLOW + ChatColor.BOLD + "ON "
@@ -88,6 +94,7 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
         Bukkit.broadcastMessage(Messages.SEPARATOR);
 
         manager.cashoutAllPlayers();
+        manager.restoreGameModes();
         manager.setCasinoActive(false);
         manager.clearAllSessionData();
 

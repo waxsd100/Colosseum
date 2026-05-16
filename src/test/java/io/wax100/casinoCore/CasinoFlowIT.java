@@ -39,16 +39,20 @@ import static org.mockito.Mockito.*;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class CasinoFlowIT {
 
-    @Mock private CasinoCore plugin;
-    @Mock private Economy economy;
-    @Mock private Player player;
-    @Mock private PlayerInventory inventory;
-    @Mock private Command command;
-
+    private final UUID playerId = UUID.randomUUID();
+    @Mock
+    private CasinoCore plugin;
+    @Mock
+    private Economy economy;
+    @Mock
+    private Player player;
+    @Mock
+    private PlayerInventory inventory;
+    @Mock
+    private Command command;
     private ChipManager chipManager;
     private CasinoManager casinoManager;
     private ChipCommand chipCommand;
-    private final UUID playerId = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {

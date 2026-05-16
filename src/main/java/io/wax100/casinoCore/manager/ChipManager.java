@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * チップの定義・生成・変換・インベントリ操作を管理するクラス
@@ -24,20 +25,34 @@ public class ChipManager {
      * 額面の大きい順（貪欲法用）
      */
     private static final Chip[] DENOMINATIONS_DESC;
+    /**
+     * チップに使用される全マテリアル
+     */
+    private static final Set<Material> CHIP_MATERIALS;
     private static final NumberFormat NUMBER_FORMAT = NumberFormat.getNumberInstance(Locale.JAPAN);
 
     static {
         Chip[] values = Chip.values();
         DENOMINATIONS_DESC = new Chip[values.length];
+        Set<Material> materials = new java.util.HashSet<>();
         for (int i = 0; i < values.length; i++) {
             DENOMINATIONS_DESC[i] = values[values.length - 1 - i];
+            materials.add(values[i].getMaterial());
         }
+        CHIP_MATERIALS = java.util.Collections.unmodifiableSet(materials);
     }
 
     private final NamespacedKey chipKey;
 
     public ChipManager(CasinoCore plugin) {
         this.chipKey = new NamespacedKey(plugin, "casino_chip");
+    }
+
+    /**
+     * チップに使用されるマテリアルかどうか判定する
+     */
+    public static boolean isChipMaterial(Material material) {
+        return CHIP_MATERIALS.contains(material);
     }
 
     /**

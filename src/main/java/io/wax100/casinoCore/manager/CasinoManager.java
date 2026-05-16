@@ -6,10 +6,16 @@ import io.wax100.casinoCore.util.Messages;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.GameMode;
+import org.bukkit.GameRule;
+import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import java.io.File;
 import java.io.IOException;
@@ -18,6 +24,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.logging.Level;
 
@@ -35,7 +42,12 @@ public class CasinoManager {
      * 累計損益ランキング (UUID -> 累計損益)
      */
     private final Map<UUID, Long> ranking = new LinkedHashMap<>();
+    /**
+     * カジノ開始前のゲームモード保存 (UUID -> GameMode)
+     */
+    private final Map<UUID, GameMode> savedGameModes = new HashMap<>();
     private boolean casinoActive;
+    private boolean savedKeepInventory;
     private File dataFile;
     private FileConfiguration dataConfig;
 
@@ -84,6 +96,97 @@ public class CasinoManager {
         return sorted.subList(0, Math.min(sorted.size(), limit));
     }
 
+    // ── ゲームモード管理 ──
+
+    /**
+     * 全プレイヤーのゲームモードを保存し、管理者以外をアドベンチャーに変更する。
+     * keepInventory を ON にする。
+     *
+     * @param executor casino on を実行した管理者
+     */
+    public void applyAdventureMode(Player executor) {
+        // keepInventory 保存 & ON
+        World world = executor.getWorld();
+        Boolean current = world.getGameRuleValue(GameRule.KEEP_INVENTORY);
+        savedKeepInventory = current != null && current;
+        world.setGameRule(GameRule.KEEP_INVENTORY, true);
+
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            if (p.equals(executor) || p.isOp() || p.hasPermission("casino.admin")) {
+                continue;
+            }
+            savedGameModes.put(p.getUniqueId(), p.getGameMode());
+            p.setGameMode(GameMode.ADVENTURE);
+            giveCasinoShears(p);
+        }
+    }
+
+    /**
+     * 全プレイヤーのゲームモードを元に戻し、keepInventory を復元する。
+     * カジノシザースを回収する。
+     */
+    public void restoreGameModes() {
+        for (Map.Entry<UUID, GameMode> entry : savedGameModes.entrySet()) {
+            Player p = Bukkit.getPlayer(entry.getKey());
+            if (p != null && p.isOnline()) {
+                p.setGameMode(entry.getValue());
+                removeCasinoShears(p);
+            }
+        }
+        savedGameModes.clear();
+
+        // keepInventory 復元
+        World world = Bukkit.getWorlds().get(0);
+        world.setGameRule(GameRule.KEEP_INVENTORY, savedKeepInventory);
+    }
+
+    /**
+     * カジノ中に参加したプレイヤーのゲームモードを保存してアドベンチャーにする。
+     */
+    public void applyAdventureModeToPlayer(Player player) {
+        if (player.isOp() || player.hasPermission("casino.admin")) return;
+        savedGameModes.put(player.getUniqueId(), player.getGameMode());
+        player.setGameMode(GameMode.ADVENTURE);
+        giveCasinoShears(player);
+    }
+
+    /**
+     * カーペット破壊用のカジノシザースを配布する（CanDestroy 付き）
+     */
+    private void giveCasinoShears(Player player) {
+        ItemStack shears = new ItemStack(Material.SHEARS);
+        ItemMeta meta = shears.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(ChatColor.GOLD.toString() + ChatColor.BOLD + "カジノシザース");
+            meta.setLore(java.util.Arrays.asList(
+                    ChatColor.GRAY + "カジノチップ（カーペット）を",
+                    ChatColor.GRAY + "回収するためのハサミです。"
+            ));
+            // 識別用タグ
+            meta.getPersistentDataContainer().set(
+                    new org.bukkit.NamespacedKey(plugin, "casino_shears"),
+                    org.bukkit.persistence.PersistentDataType.BYTE, (byte) 1
+            );
+            shears.setItemMeta(meta);
+        }
+        player.getInventory().addItem(shears);
+    }
+
+    /**
+     * カジノシザースをインベントリから回収する
+     */
+    private void removeCasinoShears(Player player) {
+        org.bukkit.NamespacedKey shearsKey = new org.bukkit.NamespacedKey(plugin, "casino_shears");
+        for (ItemStack item : player.getInventory().getContents()) {
+            if (item != null && item.getType() == Material.SHEARS && item.hasItemMeta()) {
+                if (Objects.requireNonNull(item.getItemMeta()).getPersistentDataContainer().has(
+                        shearsKey, org.bukkit.persistence.PersistentDataType.BYTE)) {
+                    player.getInventory().remove(item);
+                }
+            }
+        }
+    }
+
     // ── 換金処理 ──
 
     /**
@@ -106,6 +209,27 @@ public class CasinoManager {
 
         if (totalValue == 0 && purchased == 0) return;
 
+        // 不正検知: 購入額を超えるチップを保持している場合、管理者に通知
+        if (totalValue > purchased) {
+            long excess = totalValue - purchased;
+            String alert = Messages.PREFIX + ChatColor.RED + "[不正検知] "
+                    + ChatColor.YELLOW + player.getName()
+                    + ChatColor.RED + " の手持ちチップが購入額を超過しています"
+                    + " (購入: " + ChatColor.WHITE + ChipManager.formatAmount(purchased) + " E"
+                    + ChatColor.RED + " / 手持ち: " + ChatColor.WHITE + ChipManager.formatAmount(totalValue) + " E"
+                    + ChatColor.RED + " / 超過: " + ChatColor.WHITE + "+" + ChipManager.formatAmount(excess) + " E"
+                    + ChatColor.RED + ")";
+            for (Player op : Bukkit.getOnlinePlayers()) {
+                if (op.isOp() || op.hasPermission("casino.admin")) {
+                    op.sendMessage(alert);
+                }
+            }
+            plugin.getLogger().warning("[不正検知] " + player.getName()
+                    + " 購入: " + ChipManager.formatAmount(purchased) + " E"
+                    + " / 手持ち: " + ChipManager.formatAmount(totalValue) + " E"
+                    + " / 超過: +" + ChipManager.formatAmount(excess) + " E");
+        }
+
         Map<Chip, Integer> breakdown = chipManager.removeAllChips(player);
         if (totalValue > 0) {
             economy.depositPlayer(player, totalValue);
@@ -126,29 +250,51 @@ public class CasinoManager {
                                     long netResult, Map<Chip, Integer> breakdown) {
         player.sendMessage(Messages.SEPARATOR);
 
+        // 購入額・換金額・損益の内訳
+        if (purchased > 0) {
+            player.sendMessage(Messages.PREFIX + ChatColor.GRAY + "購入額: "
+                    + ChatColor.WHITE + ChipManager.formatAmount(purchased) + " E");
+        }
         if (totalValue > 0) {
-            player.sendMessage(Messages.PREFIX + ChatColor.GREEN + "チップを換金しました。"
-                    + ChatColor.YELLOW + ChipManager.formatAmount(totalValue) + " E "
-                    + ChatColor.GREEN + "が返金されました。");
+            player.sendMessage(Messages.PREFIX + ChatColor.GRAY + "換金額: "
+                    + ChatColor.WHITE + ChipManager.formatAmount(totalValue) + " E");
         }
 
         if (purchased > 0) {
+            String sign;
+            ChatColor color;
+            if (netResult > 0) {
+                sign = "+";
+                color = ChatColor.GREEN;
+            } else if (netResult < 0) {
+                sign = "";
+                color = ChatColor.RED;
+            } else {
+                sign = "±";
+                color = ChatColor.YELLOW;
+            }
+            player.sendMessage(Messages.PREFIX + ChatColor.GRAY + "損　益: "
+                    + color + sign + ChipManager.formatAmount(netResult) + " E");
+            player.sendMessage("");
+
             String resultMsg;
             if (netResult > 0) {
                 resultMsg = ChatColor.GREEN + "今回の結果: "
-                        + ChatColor.YELLOW + ChipManager.formatAmount(netResult) + " E "
-                        + ChatColor.GREEN + "の " + ChatColor.GOLD + ChatColor.BOLD + "勝ち "
-                        + ChatColor.RESET + ChatColor.GREEN + "です！";
+                        + ChatColor.GOLD + ChatColor.BOLD + "勝ち "
+                        + ChatColor.RESET + ChatColor.GREEN + "(+"
+                        + ChipManager.formatAmount(netResult) + " E)";
             } else if (netResult < 0) {
                 resultMsg = ChatColor.RED + "今回の結果: "
-                        + ChatColor.YELLOW + ChipManager.formatAmount(Math.abs(netResult)) + " E "
-                        + ChatColor.RED + "の " + ChatColor.DARK_RED + ChatColor.BOLD + "負け "
-                        + ChatColor.RESET + ChatColor.RED + "です...";
+                        + ChatColor.DARK_RED + ChatColor.BOLD + "負け "
+                        + ChatColor.RESET + ChatColor.RED + "("
+                        + ChipManager.formatAmount(netResult) + " E)";
             } else {
                 resultMsg = ChatColor.YELLOW + "今回の結果: "
-                        + ChatColor.GRAY + "±0 E " + ChatColor.YELLOW + "（引き分け）";
+                        + ChatColor.GRAY + "引き分け (±0 E)";
             }
             player.sendMessage(Messages.PREFIX + resultMsg);
+        } else if (totalValue > 0) {
+            player.sendMessage(Messages.PREFIX + ChatColor.GREEN + "チップを換金しました。");
         }
 
         player.sendMessage(Messages.SEPARATOR);

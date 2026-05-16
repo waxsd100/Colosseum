@@ -200,4 +200,25 @@ class ChipManagerTest {
                     Map.of(Chip.CHIP_100, 64, Chip.CHIP_1000, 1)));
         }
     }
+
+    // ── isChipMaterial ──
+
+    @Nested
+    @DisplayName("isChipMaterial")
+    class IsChipMaterialTest {
+        @Test
+        void チップ素材はtrue() {
+            for (Chip chip : Chip.values()) {
+                assertTrue(ChipManager.isChipMaterial(chip.getMaterial()),
+                        chip.name() + " の素材が判定されない");
+            }
+        }
+
+        @Test
+        void チップ以外の素材はfalse() {
+            assertFalse(ChipManager.isChipMaterial(org.bukkit.Material.STONE));
+            assertFalse(ChipManager.isChipMaterial(org.bukkit.Material.DIAMOND));
+            assertFalse(ChipManager.isChipMaterial(org.bukkit.Material.SHEARS));
+        }
+    }
 }

@@ -33,5 +33,8 @@ public class CasinoListener implements Listener {
         player.sendMessage(Messages.PREFIX + ChatColor.GRAY + "/chip <額面> <枚数> でチップを購入できます。");
         player.sendMessage(Messages.PREFIX + ChatColor.GRAY + "/chip info でチップ一覧を確認できます。");
         player.sendMessage("");
+
+        // カジノ中に参加したプレイヤーもアドベンチャーモードに
+        plugin.getCasinoManager().applyAdventureModeToPlayer(player);
     }
 }
