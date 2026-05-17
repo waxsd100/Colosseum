@@ -28,7 +28,7 @@ repositories {
 dependencies {
     compileOnly("org.spigotmc:spigot-api:1.20.1-R0.1-SNAPSHOT")
     compileOnly("com.github.MilkBowl:VaultAPI:1.7.1")
-    compileOnly("com.github.waxsd100:BindingCurseLib:v1.0.0")
+    implementation("com.github.waxsd100:BindingCurseLib:v1.0.0")
     implementation("de.tr7zw:item-nbt-api:2.14.1")
 
     testImplementation("org.spigotmc:spigot-api:1.20.1-R0.1-SNAPSHOT")
@@ -46,6 +46,7 @@ test {
 shadowJar {
     archiveClassifier.set('')
     relocate 'de.tr7zw.changeme.nbtapi', 'io.wax100.casinoCore.nbtapi'
+    relocate 'io.wax100.bindingCurseLib', 'io.wax100.casinoCore.bindingCurseLib'
 }
 
 build.dependsOn shadowJar
