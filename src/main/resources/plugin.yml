@@ -12,7 +12,7 @@ commands:
     permission: casino.admin
   chip:
     description: チップの購入・情報コマンド
-    usage: /chip <額面> <枚数> | /chip <金額> | /chip info | /chip balance
+    usage: /chip <額面> <枚数> | /chip <金額> | /chip info | /chip balance | /chip cashout
 
 permissions:
   casino.admin:
