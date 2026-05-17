@@ -39,6 +39,13 @@ public final class CasinoCore extends JavaPlugin {
     @Override
     public void onDisable() {
         if (casinoManager != null) {
+            if (casinoManager.isCasinoActive()) {
+                casinoManager.cashoutAllPlayers();
+                casinoManager.restoreGameModes();
+                casinoManager.setCasinoActive(false);
+                casinoManager.clearAllSessionData();
+                getLogger().info("カジノモードを強制終了しました。");
+            }
             casinoManager.saveData();
         }
         getLogger().info("CasinoCore が無効化されました。");

@@ -225,11 +225,11 @@ public class ChipManager {
      * チップの額面定義（低額→高額順）
      */
     public enum Chip {
-        CHIP_1(Material.BROWN_CARPET, 1, "茶", ChatColor.DARK_GRAY),
+        CHIP_1(Material.BROWN_CARPET, 1, "茶", ChatColor.DARK_RED),
         CHIP_5(Material.PURPLE_CARPET, 5, "紫", ChatColor.DARK_PURPLE),
         CHIP_10(Material.BLUE_CARPET, 10, "青", ChatColor.BLUE),
         CHIP_50(Material.LIGHT_BLUE_CARPET, 50, "水", ChatColor.AQUA),
-        CHIP_100(Material.MAGENTA_CARPET, 100, "薄紫", ChatColor.LIGHT_PURPLE),
+        CHIP_100(Material.MAGENTA_CARPET, 100, "浅葱", ChatColor.DARK_AQUA),
         CHIP_500(Material.GREEN_CARPET, 500, "緑", ChatColor.DARK_GREEN),
         CHIP_1000(Material.LIME_CARPET, 1000, "黄緑", ChatColor.GREEN),
         CHIP_5000(Material.YELLOW_CARPET, 5000, "黄", ChatColor.YELLOW),

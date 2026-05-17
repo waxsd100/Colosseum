@@ -104,6 +104,14 @@ class ChipManagerTest {
                     .map(Chip::getMaterial).distinct().count();
             assertEquals(Chip.values().length, distinct);
         }
+
+        @Test
+        void チャットカラーは重複しない() {
+            long distinct = java.util.Arrays.stream(Chip.values())
+                    .map(Chip::getChatColor).distinct().count();
+            assertEquals(Chip.values().length, distinct,
+                    "ChatColor が重複しているチップがあります");
+        }
     }
 
     // ── breakdownAmount ──

@@ -48,6 +48,7 @@ public class CasinoManager {
     private final Map<UUID, GameMode> savedGameModes = new HashMap<>();
     private boolean casinoActive;
     private boolean savedKeepInventory;
+    private String savedWorldName;
     private File dataFile;
     private FileConfiguration dataConfig;
 
@@ -70,7 +71,7 @@ public class CasinoManager {
     // ── 購入記録 ──
 
     public void recordPurchase(UUID playerId, long amount) {
-        sessionPurchases.merge(playerId, amount, Long::sum);
+        sessionPurchases.merge(playerId, amount, (a, b) -> a + b);
         saveData();
     }
 
@@ -86,7 +87,7 @@ public class CasinoManager {
     // ── ランキング ──
 
     public void updateRanking(UUID playerId, long netResult) {
-        ranking.merge(playerId, netResult, Long::sum);
+        ranking.merge(playerId, netResult, (a, b) -> a + b);
         saveData();
     }
 
@@ -107,6 +108,7 @@ public class CasinoManager {
     public void applyAdventureMode(Player executor) {
         // keepInventory 保存 & ON
         World world = executor.getWorld();
+        savedWorldName = world.getName();
         Boolean current = world.getGameRuleValue(GameRule.KEEP_INVENTORY);
         savedKeepInventory = current != null && current;
         world.setGameRule(GameRule.KEEP_INVENTORY, true);
@@ -135,16 +137,20 @@ public class CasinoManager {
         }
         savedGameModes.clear();
 
-        // keepInventory 復元
-        World world = Bukkit.getWorlds().get(0);
-        world.setGameRule(GameRule.KEEP_INVENTORY, savedKeepInventory);
+        // keepInventory 復元（casino on を実行したワールドに対して復元する）
+        World world = savedWorldName != null ? Bukkit.getWorld(savedWorldName) : Bukkit.getWorlds().get(0);
+        if (world != null) {
+            world.setGameRule(GameRule.KEEP_INVENTORY, savedKeepInventory);
+        }
+        savedWorldName = null;
     }
 
     /**
      * カジノ中に参加したプレイヤーのゲームモードを保存してアドベンチャーにする。
      */
     public void applyAdventureModeToPlayer(Player player) {
-        if (player.isOp() || player.hasPermission("casino.admin")) return;
+        if (player.isOp() || player.hasPermission("casino.admin"))
+            return;
         savedGameModes.put(player.getUniqueId(), player.getGameMode());
         player.setGameMode(GameMode.ADVENTURE);
         giveCasinoShears(player);
@@ -160,13 +166,11 @@ public class CasinoManager {
             meta.setDisplayName(ChatColor.GOLD.toString() + ChatColor.BOLD + "カジノシザース");
             meta.setLore(java.util.Arrays.asList(
                     ChatColor.GRAY + "カジノチップ（カーペット）を",
-                    ChatColor.GRAY + "回収するためのハサミです。"
-            ));
+                    ChatColor.GRAY + "回収するためのハサミです。"));
             // 識別用タグ
             meta.getPersistentDataContainer().set(
                     new org.bukkit.NamespacedKey(plugin, "casino_shears"),
-                    org.bukkit.persistence.PersistentDataType.BYTE, (byte) 1
-            );
+                    org.bukkit.persistence.PersistentDataType.BYTE, (byte) 1);
             shears.setItemMeta(meta);
         }
         player.getInventory().addItem(shears);
@@ -201,34 +205,24 @@ public class CasinoManager {
     }
 
     /**
+     * 単一プレイヤーのチップを換金する（/chip cashout 用）
+     */
+    public void cashoutSinglePlayer(Player player) {
+        cashoutPlayer(player, plugin.getChipManager(), plugin.getEconomy());
+        // 個別換金後は購入記録をリセットし、次回の損益計算がずれないようにする
+        sessionPurchases.remove(player.getUniqueId());
+        saveData();
+    }
+
+    /**
      * 個別プレイヤーのチップを換金し、結果を通知する
      */
     private void cashoutPlayer(Player player, ChipManager chipManager, Economy economy) {
         long totalValue = chipManager.calculateTotalValue(player);
         long purchased = getSessionPurchases(player.getUniqueId());
 
-        if (totalValue == 0 && purchased == 0) return;
-
-        // 不正検知: 購入額を超えるチップを保持している場合、管理者に通知
-        if (totalValue > purchased) {
-            long excess = totalValue - purchased;
-            String alert = Messages.PREFIX + ChatColor.RED + "[不正検知] "
-                    + ChatColor.YELLOW + player.getName()
-                    + ChatColor.RED + " の手持ちチップが購入額を超過しています"
-                    + " (購入: " + ChatColor.WHITE + ChipManager.formatAmount(purchased) + " E"
-                    + ChatColor.RED + " / 手持ち: " + ChatColor.WHITE + ChipManager.formatAmount(totalValue) + " E"
-                    + ChatColor.RED + " / 超過: " + ChatColor.WHITE + "+" + ChipManager.formatAmount(excess) + " E"
-                    + ChatColor.RED + ")";
-            for (Player op : Bukkit.getOnlinePlayers()) {
-                if (op.isOp() || op.hasPermission("casino.admin")) {
-                    op.sendMessage(alert);
-                }
-            }
-            plugin.getLogger().warning("[不正検知] " + player.getName()
-                    + " 購入: " + ChipManager.formatAmount(purchased) + " E"
-                    + " / 手持ち: " + ChipManager.formatAmount(totalValue) + " E"
-                    + " / 超過: +" + ChipManager.formatAmount(excess) + " E");
-        }
+        if (totalValue == 0 && purchased == 0)
+            return;
 
         Map<Chip, Integer> breakdown = chipManager.removeAllChips(player);
         if (totalValue > 0) {
@@ -320,7 +314,6 @@ public class CasinoManager {
                 + ChatColor.GRAY + "): " + ChatColor.WHITE + count + " 枚";
     }
 
-
     // ── 永続化 ──
 
     private void loadData() {
@@ -337,12 +330,18 @@ public class CasinoManager {
         casinoActive = dataConfig.getBoolean("casino-active", false);
         loadUuidMap("ranking", ranking);
         loadUuidMap("session-purchases", sessionPurchases);
+        savedKeepInventory = dataConfig.getBoolean("saved-keep-inventory", false);
+        savedWorldName = dataConfig.getString("saved-world-name", null);
+        loadGameModes();
     }
 
     public void saveData() {
         dataConfig.set("casino-active", casinoActive);
         saveUuidMap("ranking", ranking);
         saveUuidMap("session-purchases", sessionPurchases);
+        dataConfig.set("saved-keep-inventory", savedKeepInventory);
+        dataConfig.set("saved-world-name", savedWorldName);
+        saveGameModes();
         try {
             dataConfig.save(dataFile);
         } catch (IOException e) {
@@ -352,7 +351,8 @@ public class CasinoManager {
 
     private void loadUuidMap(String section, Map<UUID, Long> target) {
         ConfigurationSection sec = dataConfig.getConfigurationSection(section);
-        if (sec == null) return;
+        if (sec == null)
+            return;
         for (String key : sec.getKeys(false)) {
             try {
                 target.put(UUID.fromString(key), sec.getLong(key));
@@ -366,6 +366,28 @@ public class CasinoManager {
         dataConfig.set(section, null);
         for (Map.Entry<UUID, Long> entry : source.entrySet()) {
             dataConfig.set(section + "." + entry.getKey().toString(), entry.getValue());
+        }
+    }
+
+    private void loadGameModes() {
+        ConfigurationSection sec = dataConfig.getConfigurationSection("saved-game-modes");
+        if (sec == null)
+            return;
+        for (String key : sec.getKeys(false)) {
+            try {
+                UUID uuid = UUID.fromString(key);
+                GameMode mode = GameMode.valueOf(sec.getString(key, "SURVIVAL"));
+                savedGameModes.put(uuid, mode);
+            } catch (IllegalArgumentException e) {
+                plugin.getLogger().warning("無効なゲームモードデータ (saved-game-modes): " + key);
+            }
+        }
+    }
+
+    private void saveGameModes() {
+        dataConfig.set("saved-game-modes", null);
+        for (Map.Entry<UUID, GameMode> entry : savedGameModes.entrySet()) {
+            dataConfig.set("saved-game-modes." + entry.getKey().toString(), entry.getValue().name());
         }
     }
 }

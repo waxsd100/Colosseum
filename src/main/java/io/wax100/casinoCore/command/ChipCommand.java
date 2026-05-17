@@ -48,6 +48,9 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
             case "balance":
                 handleBalance(player);
                 return true;
+            case "cashout":
+                handleCashout(player);
+                return true;
             default:
                 break;
         }
@@ -121,6 +124,10 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
 
         Map<Chip, Integer> breakdown = plugin.getChipManager().breakdownAmount(amount);
         long actualTotal = calcTotal(breakdown);
+        if (actualTotal == 0) {
+            player.sendMessage(Messages.PREFIX + ChatColor.RED + "指定した金額ではチップに変換できません。");
+            return;
+        }
         if (!executePurchase(player, breakdown, actualTotal)) {
             return;
         }
@@ -227,12 +234,26 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
         player.sendMessage("");
     }
 
+    private void handleCashout(Player player) {
+        if (!plugin.getCasinoManager().isCasinoActive()) {
+            player.sendMessage(Messages.PREFIX + ChatColor.RED + "カジノモードがOFFのため、換金できません。");
+            return;
+        }
+        long totalValue = plugin.getChipManager().calculateTotalValue(player);
+        if (totalValue == 0) {
+            player.sendMessage(Messages.PREFIX + ChatColor.YELLOW + "換金できるチップがありません。");
+            return;
+        }
+        plugin.getCasinoManager().cashoutSinglePlayer(player);
+    }
+
     private void sendUsage(Player player) {
         player.sendMessage(Messages.PREFIX + ChatColor.GRAY + "使い方:");
         player.sendMessage(ChatColor.YELLOW + "  /chip <額面> <枚数> " + ChatColor.GRAY + "- 指定額面のチップを購入");
         player.sendMessage(ChatColor.YELLOW + "  /chip <金額> " + ChatColor.GRAY + "- 金額分のチップを自動分割で購入");
         player.sendMessage(ChatColor.YELLOW + "  /chip info " + ChatColor.GRAY + "- チップ一覧を表示");
         player.sendMessage(ChatColor.YELLOW + "  /chip balance " + ChatColor.GRAY + "- 手持ちチップの確認");
+        player.sendMessage(ChatColor.YELLOW + "  /chip cashout " + ChatColor.GRAY + "- 手持ちチップを換金する");
     }
 
     // ── タブ補完 ──
@@ -241,10 +262,7 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> result = new ArrayList<>();
         if (args.length == 1) {
-            List<String> opts = new ArrayList<>(Arrays.asList("info", "balance"));
-            for (Chip c : Chip.values()) {
-                opts.add(String.valueOf(c.getValue()));
-            }
+            List<String> opts = new ArrayList<>(Arrays.asList("info", "balance", "cashout"));
             String input = args[0].toLowerCase();
             for (String s : opts) {
                 if (s.startsWith(input)) {
