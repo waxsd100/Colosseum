@@ -1,10 +1,8 @@
 package io.wax100.casinoCore.manager;
 
+import io.wax100.bindingCurseLib.BindingCurseManager;
 import io.wax100.casinoCore.CasinoCore;
 import net.milkbowl.vault.economy.Economy;
-import org.bukkit.GameMode;
-import org.bukkit.World;
-import org.bukkit.entity.Player;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -16,6 +14,8 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import java.io.File;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
 
@@ -25,7 +25,7 @@ import static org.mockito.Mockito.*;
 
 /**
  * CasinoManager の単体テスト
- * ゲームモード管理・セッション記録・個別換金ロジックを検証する
+ * カジノ状態管理・セッション記録・ランキング・BindingCurseManager 統合を検証する
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -37,7 +37,7 @@ class CasinoManagerTest {
     @Mock
     private Economy economy;
     @Mock
-    private World world;
+    private BindingCurseManager bindingCurseManager;
     private CasinoManager casinoManager;
 
     @BeforeEach
@@ -48,8 +48,8 @@ class CasinoManagerTest {
         when(plugin.getLogger()).thenReturn(Logger.getLogger("CasinoCore"));
         when(plugin.getEconomy()).thenReturn(economy);
 
-        casinoManager = spy(new CasinoManager(plugin));
-        // サーバー不在時 ItemStack.getItemMeta() = null のためシザース配布をスキップ
+        casinoManager = spy(new CasinoManager(plugin, bindingCurseManager));
+        // サーバー不在時 ItemStack/NBT操作が動作しないためシザース配布をスキップ
         doNothing().when(casinoManager).applyAdventureModeToPlayer(any());
     }
 
@@ -75,6 +75,13 @@ class CasinoManagerTest {
             casinoManager.setCasinoActive(false);
             assertFalse(casinoManager.isCasinoActive());
         }
+
+        @Test
+        void 連続でONにしても状態は変わらない() {
+            casinoManager.setCasinoActive(true);
+            casinoManager.setCasinoActive(true);
+            assertTrue(casinoManager.isCasinoActive());
+        }
     }
 
     // ── 購入記録 ──
@@ -99,6 +106,32 @@ class CasinoManagerTest {
             casinoManager.recordPurchase(playerId, 5000);
             casinoManager.clearAllSessionData();
             assertEquals(0, casinoManager.getSessionPurchases(playerId));
+        }
+
+        @Test
+        void 複数プレイヤーの記録は独立している() {
+            UUID player2 = UUID.randomUUID();
+            casinoManager.recordPurchase(playerId, 10000);
+            casinoManager.recordPurchase(player2, 20000);
+
+            assertEquals(10000, casinoManager.getSessionPurchases(playerId));
+            assertEquals(20000, casinoManager.getSessionPurchases(player2));
+        }
+
+        @Test
+        void クリア後も再記録できる() {
+            casinoManager.recordPurchase(playerId, 5000);
+            casinoManager.clearAllSessionData();
+            casinoManager.recordPurchase(playerId, 3000);
+            assertEquals(3000, casinoManager.getSessionPurchases(playerId));
+        }
+
+        @Test
+        void 大量の購入記録が正しく累計される() {
+            for (int i = 0; i < 100; i++) {
+                casinoManager.recordPurchase(playerId, 100);
+            }
+            assertEquals(10000, casinoManager.getSessionPurchases(playerId));
         }
     }
 
@@ -130,79 +163,57 @@ class CasinoManagerTest {
             }
             assertEquals(5, casinoManager.getSortedRanking(5).size());
         }
+
+        @Test
+        void ランキングは降順() {
+            UUID p1 = UUID.randomUUID();
+            UUID p2 = UUID.randomUUID();
+            UUID p3 = UUID.randomUUID();
+            casinoManager.updateRanking(p1, 1000);
+            casinoManager.updateRanking(p2, 5000);
+            casinoManager.updateRanking(p3, 3000);
+
+            List<Map.Entry<UUID, Long>> ranking = casinoManager.getSortedRanking(10);
+            assertEquals(p2, ranking.get(0).getKey());
+            assertEquals(p3, ranking.get(1).getKey());
+            assertEquals(p1, ranking.get(2).getKey());
+        }
+
+        @Test
+        void 負の損益もランキングに含まれる() {
+            UUID p1 = UUID.randomUUID();
+            casinoManager.updateRanking(p1, -5000);
+
+            var ranking = casinoManager.getSortedRanking(10);
+            assertEquals(1, ranking.size());
+            assertEquals(-5000, ranking.get(0).getValue());
+        }
+
+        @Test
+        void limit_0は空リスト() {
+            casinoManager.updateRanking(UUID.randomUUID(), 1000);
+            assertEquals(0, casinoManager.getSortedRanking(0).size());
+        }
+
+        @Test
+        void ランキングが空の場合は空リスト() {
+            assertEquals(0, casinoManager.getSortedRanking(10).size());
+        }
     }
 
-    // ── 個別換金のセッションリセット ──
+    // ── BindingCurseManager 統合 ──
 
     @Nested
-    @DisplayName("個別換金セッションリセット")
-    class CashoutSessionResetTest {
+    @DisplayName("BindingCurseManager 統合")
+    class BindingCurseIntegrationTest {
         @Test
-        void cashoutSinglePlayerで購入記録がリセットされる() {
-            casinoManager.recordPurchase(playerId, 10000);
-            assertEquals(10000, casinoManager.getSessionPurchases(playerId));
-
-            // cashoutSinglePlayer をスタブ化（chipManager/economy が必要なため内部処理をスキップ）
-            doNothing().when(casinoManager).cashoutSinglePlayer(any());
-            // 直接リセットロジックをテスト
-            casinoManager.recordPurchase(playerId, 5000);
-            casinoManager.clearAllSessionData();
-
-            assertEquals(0, casinoManager.getSessionPurchases(playerId));
+        void getBindingCurseManagerが正しいインスタンスを返す() {
+            assertSame(bindingCurseManager, casinoManager.getBindingCurseManager());
         }
 
         @Test
-        void 複数プレイヤーで個別リセットは他に影響しない() {
-            UUID player2 = UUID.randomUUID();
-            casinoManager.recordPurchase(playerId, 10000);
-            casinoManager.recordPurchase(player2, 20000);
-
-            // playerId の記録だけ手動削除（cashoutSinglePlayer の内部動作を模倣）
-            casinoManager.recordPurchase(playerId, -casinoManager.getSessionPurchases(playerId));
-            // merge で 0 にはなるが remove とは異なる。clearAllSessionData のテスト
-            assertEquals(20000, casinoManager.getSessionPurchases(player2));
-        }
-    }
-
-    // ── ゲームモード管理 ──
-
-    @Nested
-    @DisplayName("ゲームモード管理")
-    class GameModeTest {
-
-        private CasinoManager gameModeManager;
-
-        @BeforeEach
-        void init() {
-            gameModeManager = spy(new CasinoManager(plugin));
-            // giveCasinoShears は ItemStack がサーバー不在で NPE になるためスキップ
-            doNothing().when(gameModeManager).applyAdventureModeToPlayer(any());
-        }
-
-        private Player createMockPlayer(boolean isOp) {
-            Player p = mock(Player.class);
-            when(p.getUniqueId()).thenReturn(UUID.randomUUID());
-            when(p.getGameMode()).thenReturn(GameMode.SURVIVAL);
-            when(p.isOp()).thenReturn(isOp);
-            when(p.hasPermission("casino.admin")).thenReturn(isOp);
-            return p;
-        }
-
-        @Test
-        void 途中参加の非管理者に対してメソッドが呼ばれる() {
-            Player player = createMockPlayer(false);
-            gameModeManager.applyAdventureModeToPlayer(player);
-            verify(gameModeManager).applyAdventureModeToPlayer(player);
-        }
-
-        @Test
-        void 管理者は対象外() {
-            Player admin = createMockPlayer(true);
-            // applyAdventureModeToPlayer は doNothing でスタブされているが、
-            // 実装では isOp チェックで何もしないことを単体テストで確認済み
-            // ここではメソッドが呼ばれること自体を確認
-            gameModeManager.applyAdventureModeToPlayer(admin);
-            verify(gameModeManager).applyAdventureModeToPlayer(admin);
+        void getBindingCurseManagerがnullでない() {
+            assertNotNull(casinoManager.getBindingCurseManager());
         }
     }
 }

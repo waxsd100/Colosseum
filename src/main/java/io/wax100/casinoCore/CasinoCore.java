@@ -1,5 +1,7 @@
 package io.wax100.casinoCore;
 
+import io.wax100.bindingCurseLib.BindingCurseListener;
+import io.wax100.bindingCurseLib.BindingCurseManager;
 import io.wax100.casinoCore.command.CasinoCommand;
 import io.wax100.casinoCore.command.ChipCommand;
 import io.wax100.casinoCore.listener.CasinoListener;
@@ -15,6 +17,7 @@ public final class CasinoCore extends JavaPlugin {
     private Economy economy;
     private ChipManager chipManager;
     private CasinoManager casinoManager;
+    private BindingCurseManager bindingCurseManager;
 
     @Override
     public void onEnable() {
@@ -26,12 +29,14 @@ public final class CasinoCore extends JavaPlugin {
             return;
         }
 
+        bindingCurseManager = new BindingCurseManager(this);
         chipManager = new ChipManager(this);
-        casinoManager = new CasinoManager(this);
+        casinoManager = new CasinoManager(this, bindingCurseManager);
 
         registerCommand("casino", new CasinoCommand(this));
         registerCommand("chip", new ChipCommand(this));
         getServer().getPluginManager().registerEvents(new CasinoListener(this), this);
+        getServer().getPluginManager().registerEvents(new BindingCurseListener(this, bindingCurseManager), this);
 
         getLogger().info("CasinoCore が有効化されました！");
     }

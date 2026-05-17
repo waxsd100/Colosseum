@@ -2,12 +2,14 @@ plugins {
     id 'java'
     id 'eclipse'
     id("xyz.jpenilla.run-paper") version "2.3.1"
+    id("com.gradleup.shadow") version "9.0.0-beta12"
 }
 
 group = 'io.wax100'
 version = findProperty('version') ?: '1.0-SNAPSHOT'
 
 repositories {
+    mavenLocal()
     mavenCentral()
     maven {
         name = "spigotmc-repo"
@@ -17,22 +19,36 @@ repositories {
         name = "jitpack"
         url = "https://jitpack.io"
     }
+    maven {
+        name = "codemc"
+        url = "https://repo.codemc.io/repository/maven-public/"
+    }
 }
 
 dependencies {
     compileOnly("org.spigotmc:spigot-api:1.20.1-R0.1-SNAPSHOT")
     compileOnly("com.github.MilkBowl:VaultAPI:1.7.1")
+    compileOnly("io.wax100:binding-curse-lib:1.0.0")
+    implementation("de.tr7zw:item-nbt-api:2.14.1")
 
     testImplementation("org.spigotmc:spigot-api:1.20.1-R0.1-SNAPSHOT")
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
     testImplementation("org.mockito:mockito-core:5.11.0")
     testImplementation("org.mockito:mockito-junit-jupiter:5.11.0")
     testImplementation("com.github.MilkBowl:VaultAPI:1.7.1")
+    testImplementation("io.wax100:binding-curse-lib:1.0.0")
 }
 
 test {
     useJUnitPlatform()
 }
+
+shadowJar {
+    archiveClassifier.set('')
+    relocate 'de.tr7zw.changeme.nbtapi', 'io.wax100.casinoCore.nbtapi'
+}
+
+build.dependsOn shadowJar
 
 tasks {
     runServer {
@@ -68,4 +84,8 @@ processResources {
     filesMatching('plugin.yml') {
         expand props
     }
+}
+
+jar {
+    archiveClassifier.set('slim')
 }

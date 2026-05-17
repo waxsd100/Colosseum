@@ -1,5 +1,7 @@
 package io.wax100.casinoCore.manager;
 
+import de.tr7zw.changeme.nbtapi.NBT;
+import de.tr7zw.changeme.nbtapi.iface.ReadWriteNBTList;
 import io.wax100.casinoCore.CasinoCore;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -11,6 +13,8 @@ import org.bukkit.persistence.PersistentDataType;
 
 import java.text.NumberFormat;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -31,15 +35,66 @@ public class ChipManager {
     private static final Set<Material> CHIP_MATERIALS;
     private static final NumberFormat NUMBER_FORMAT = NumberFormat.getNumberInstance(Locale.JAPAN);
 
+    /**
+     * チップ（カーペット）の CanPlaceOn に設定するブロック一覧。
+     * アドベンチャーモードでカーペットを設置可能にするための主要ブロック。
+     */
+    private static final String[] CAN_PLACE_ON_BLOCKS = {
+            // 木材系
+            "minecraft:oak_planks", "minecraft:spruce_planks", "minecraft:birch_planks",
+            "minecraft:jungle_planks", "minecraft:acacia_planks", "minecraft:dark_oak_planks",
+            "minecraft:mangrove_planks", "minecraft:cherry_planks", "minecraft:bamboo_planks",
+            "minecraft:crimson_planks", "minecraft:warped_planks",
+            // 石系
+            "minecraft:stone", "minecraft:cobblestone", "minecraft:stone_bricks",
+            "minecraft:mossy_stone_bricks", "minecraft:smooth_stone", "minecraft:polished_andesite",
+            "minecraft:polished_granite", "minecraft:polished_diorite", "minecraft:deepslate_bricks",
+            "minecraft:polished_deepslate", "minecraft:polished_blackstone",
+            // レンガ・テラコッタ
+            "minecraft:bricks", "minecraft:terracotta", "minecraft:white_terracotta",
+            "minecraft:gray_terracotta", "minecraft:black_terracotta", "minecraft:brown_terracotta",
+            "minecraft:red_terracotta", "minecraft:orange_terracotta",
+            // コンクリート
+            "minecraft:white_concrete", "minecraft:gray_concrete", "minecraft:black_concrete",
+            "minecraft:green_concrete", "minecraft:red_concrete", "minecraft:blue_concrete",
+            "minecraft:light_gray_concrete", "minecraft:brown_concrete",
+            // 羊毛
+            "minecraft:white_wool", "minecraft:gray_wool", "minecraft:black_wool",
+            "minecraft:green_wool", "minecraft:red_wool", "minecraft:blue_wool",
+            "minecraft:light_gray_wool", "minecraft:brown_wool",
+            // その他装飾
+            "minecraft:quartz_block", "minecraft:smooth_quartz", "minecraft:sandstone",
+            "minecraft:smooth_sandstone", "minecraft:red_sandstone", "minecraft:smooth_red_sandstone",
+            "minecraft:prismarine", "minecraft:dark_prismarine", "minecraft:purpur_block",
+            // 鉱石ブロック
+            "minecraft:gold_block", "minecraft:iron_block", "minecraft:diamond_block",
+            "minecraft:emerald_block", "minecraft:lapis_block", "minecraft:netherite_block",
+            // 自然系
+            "minecraft:dirt", "minecraft:grass_block", "minecraft:sand", "minecraft:gravel",
+            "minecraft:clay", "minecraft:mud_bricks",
+            // ガラス
+            "minecraft:glass", "minecraft:white_stained_glass", "minecraft:gray_stained_glass",
+            // カーペット自体（重ね置き用）
+            "minecraft:white_carpet", "minecraft:gray_carpet", "minecraft:black_carpet",
+            "minecraft:brown_carpet", "minecraft:red_carpet", "minecraft:orange_carpet",
+            "minecraft:yellow_carpet", "minecraft:lime_carpet", "minecraft:green_carpet",
+            "minecraft:light_blue_carpet", "minecraft:blue_carpet", "minecraft:purple_carpet",
+            "minecraft:magenta_carpet", "minecraft:pink_carpet",
+            // その他よく使われるブロック
+            "minecraft:obsidian", "minecraft:crying_obsidian", "minecraft:end_stone_bricks",
+            "minecraft:barrel", "minecraft:crafting_table", "minecraft:bookshelf",
+            "minecraft:hay_block", "minecraft:dried_kelp_block"
+    };
+
     static {
         Chip[] values = Chip.values();
         DENOMINATIONS_DESC = new Chip[values.length];
-        Set<Material> materials = new java.util.HashSet<>();
+        Set<Material> materials = new HashSet<>();
         for (int i = 0; i < values.length; i++) {
             DENOMINATIONS_DESC[i] = values[values.length - 1 - i];
             materials.add(values[i].getMaterial());
         }
-        CHIP_MATERIALS = java.util.Collections.unmodifiableSet(materials);
+        CHIP_MATERIALS = Collections.unmodifiableSet(materials);
     }
 
     private final NamespacedKey chipKey;
@@ -62,8 +117,11 @@ public class ChipManager {
         return NUMBER_FORMAT.format(amount);
     }
 
+    // ── アイテム生成 ──
+
     /**
-     * チップアイテムを生成する
+     * チップアイテムを生成する（CanPlaceOn 付き）。
+     * アドベンチャーモードでブロック上に設置できるよう CanPlaceOn NBT を設定する。
      */
     public ItemStack createChipItem(Chip chip, int amount) {
         ItemStack item = new ItemStack(chip.getMaterial(), amount);
@@ -77,20 +135,25 @@ public class ChipManager {
                     ChatColor.GRAY + "色: " + chip.getChatColor() + chip.getColorName()
             ));
             meta.getPersistentDataContainer().set(chipKey, PersistentDataType.LONG, chip.getValue());
+            meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_PLACED_ON);
             item.setItemMeta(meta);
         }
+        NBT.modify(item, nbt -> {
+            ReadWriteNBTList<String> canPlaceOn = nbt.getStringList("CanPlaceOn");
+            for (String block : CAN_PLACE_ON_BLOCKS) {
+                canPlaceOn.add(block);
+            }
+        });
         return item;
     }
 
-    // ── アイテム生成・判定 ──
+    // ── 判定 ──
 
     /**
      * アイテムがカジノチップかどうか判定する
      */
     public boolean isChip(ItemStack item) {
-        if (item == null || !item.hasItemMeta()) {
-            return false;
-        }
+        if (item == null || !item.hasItemMeta()) return false;
         return item.getItemMeta().getPersistentDataContainer().has(chipKey, PersistentDataType.LONG);
     }
 
@@ -98,9 +161,7 @@ public class ChipManager {
      * チップの額面を取得する
      */
     public long getChipValue(ItemStack item) {
-        if (!isChip(item)) {
-            return 0;
-        }
+        if (!isChip(item)) return 0;
         Long value = item.getItemMeta().getPersistentDataContainer().get(chipKey, PersistentDataType.LONG);
         return value != null ? value : 0;
     }
@@ -110,12 +171,12 @@ public class ChipManager {
      */
     public Chip getChipByValue(long value) {
         for (Chip chip : Chip.values()) {
-            if (chip.getValue() == value) {
-                return chip;
-            }
+            if (chip.getValue() == value) return chip;
         }
         return null;
     }
+
+    // ── 変換ロジック ──
 
     /**
      * 金額をチップに分割する（貪欲法: 大きい額面から順に）
@@ -132,8 +193,6 @@ public class ChipManager {
         }
         return result;
     }
-
-    // ── 変換ロジック ──
 
     /**
      * チップセットに必要なインベントリスロット数を計算する
@@ -187,7 +246,7 @@ public class ChipManager {
             if (item != null && isChip(item)) {
                 Chip chip = getChipByValue(getChipValue(item));
                 if (chip != null) {
-                    counts.put(chip, counts.get(chip) + item.getAmount());
+                    counts.merge(chip, item.getAmount(), Integer::sum);
                 }
             }
         }

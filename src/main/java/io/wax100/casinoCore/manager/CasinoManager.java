@@ -1,5 +1,8 @@
 package io.wax100.casinoCore.manager;
 
+import de.tr7zw.changeme.nbtapi.NBT;
+import de.tr7zw.changeme.nbtapi.iface.ReadWriteNBTList;
+import io.wax100.bindingCurseLib.BindingCurseManager;
 import io.wax100.casinoCore.CasinoCore;
 import io.wax100.casinoCore.manager.ChipManager.Chip;
 import io.wax100.casinoCore.util.Messages;
@@ -9,17 +12,22 @@ import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.GameRule;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,6 +42,9 @@ import java.util.logging.Level;
 public class CasinoManager {
 
     private final CasinoCore plugin;
+    private final NamespacedKey shearsKey;
+    private final BindingCurseManager bindingCurseManager;
+
     /**
      * セッション中の購入記録 (UUID -> 購入総額)
      */
@@ -46,15 +57,22 @@ public class CasinoManager {
      * カジノ開始前のゲームモード保存 (UUID -> GameMode)
      */
     private final Map<UUID, GameMode> savedGameModes = new HashMap<>();
+
     private boolean casinoActive;
     private boolean savedKeepInventory;
     private String savedWorldName;
     private File dataFile;
     private FileConfiguration dataConfig;
 
-    public CasinoManager(CasinoCore plugin) {
+    public CasinoManager(CasinoCore plugin, BindingCurseManager bindingCurseManager) {
         this.plugin = plugin;
+        this.shearsKey = new NamespacedKey(plugin, "casino_shears");
+        this.bindingCurseManager = bindingCurseManager;
         loadData();
+    }
+
+    public BindingCurseManager getBindingCurseManager() {
+        return bindingCurseManager;
     }
 
     // ── 状態管理 ──
@@ -71,7 +89,7 @@ public class CasinoManager {
     // ── 購入記録 ──
 
     public void recordPurchase(UUID playerId, long amount) {
-        sessionPurchases.merge(playerId, amount, (a, b) -> a + b);
+        sessionPurchases.merge(playerId, amount, Long::sum);
         saveData();
     }
 
@@ -87,7 +105,7 @@ public class CasinoManager {
     // ── ランキング ──
 
     public void updateRanking(UUID playerId, long netResult) {
-        ranking.merge(playerId, netResult, (a, b) -> a + b);
+        ranking.merge(playerId, netResult, Long::sum);
         saveData();
     }
 
@@ -100,13 +118,12 @@ public class CasinoManager {
     // ── ゲームモード管理 ──
 
     /**
-     * 全プレイヤーのゲームモードを保存し、管理者以外をアドベンチャーに変更する。
-     * keepInventory を ON にする。
+     * 全プレイヤーのゲームモードを保存し、アドベンチャーに変更する。
+     * 管理者も含めて全員が対象となる。keepInventory を ON にする。
      *
-     * @param executor casino on を実行した管理者
+     * @param executor casino on を実行したプレイヤー（ワールド判定に使用）
      */
     public void applyAdventureMode(Player executor) {
-        // keepInventory 保存 & ON
         World world = executor.getWorld();
         savedWorldName = world.getName();
         Boolean current = world.getGameRuleValue(GameRule.KEEP_INVENTORY);
@@ -114,9 +131,6 @@ public class CasinoManager {
         world.setGameRule(GameRule.KEEP_INVENTORY, true);
 
         for (Player p : Bukkit.getOnlinePlayers()) {
-            if (p.equals(executor) || p.isOp() || p.hasPermission("casino.admin")) {
-                continue;
-            }
             savedGameModes.put(p.getUniqueId(), p.getGameMode());
             p.setGameMode(GameMode.ADVENTURE);
             giveCasinoShears(p);
@@ -137,7 +151,6 @@ public class CasinoManager {
         }
         savedGameModes.clear();
 
-        // keepInventory 復元（casino on を実行したワールドに対して復元する）
         World world = savedWorldName != null ? Bukkit.getWorld(savedWorldName) : Bukkit.getWorlds().get(0);
         if (world != null) {
             world.setGameRule(GameRule.KEEP_INVENTORY, savedKeepInventory);
@@ -149,30 +162,43 @@ public class CasinoManager {
      * カジノ中に参加したプレイヤーのゲームモードを保存してアドベンチャーにする。
      */
     public void applyAdventureModeToPlayer(Player player) {
-        if (player.isOp() || player.hasPermission("casino.admin"))
-            return;
         savedGameModes.put(player.getUniqueId(), player.getGameMode());
         player.setGameMode(GameMode.ADVENTURE);
         giveCasinoShears(player);
     }
 
+    // ── シザース管理 ──
+
     /**
-     * カーペット破壊用のカジノシザースを配布する（CanDestroy 付き）
+     * カーペット破壊用のカジノシザースを配布する。
+     * CanDestroy NBT で全カーペット素材を指定し、アドベンチャーモードで破壊可能にする。
      */
     private void giveCasinoShears(Player player) {
         ItemStack shears = new ItemStack(Material.SHEARS);
         ItemMeta meta = shears.getItemMeta();
         if (meta != null) {
             meta.setDisplayName(ChatColor.GOLD.toString() + ChatColor.BOLD + "カジノシザース");
-            meta.setLore(java.util.Arrays.asList(
+            meta.setLore(Arrays.asList(
                     ChatColor.GRAY + "カジノチップ（カーペット）を",
                     ChatColor.GRAY + "回収するためのハサミです。"));
-            // 識別用タグ
-            meta.getPersistentDataContainer().set(
-                    new org.bukkit.NamespacedKey(plugin, "casino_shears"),
-                    org.bukkit.persistence.PersistentDataType.BYTE, (byte) 1);
+            meta.getPersistentDataContainer().set(shearsKey, PersistentDataType.BYTE, (byte) 1);
+            meta.setUnbreakable(true);
+            // 束縛の呪いを付与（BindingCurseLib の所有者判定に必要）
+            meta.addEnchant(Enchantment.BINDING_CURSE, 1, true);
+            meta.addItemFlags(
+                    ItemFlag.HIDE_DESTROYS,
+                    ItemFlag.HIDE_UNBREAKABLE,
+                    ItemFlag.HIDE_ENCHANTS);
             shears.setItemMeta(meta);
         }
+        NBT.modify(shears, nbt -> {
+            ReadWriteNBTList<String> canDestroy = nbt.getStringList("CanDestroy");
+            for (Chip chip : Chip.values()) {
+                canDestroy.add("minecraft:" + chip.getMaterial().getKey().getKey());
+            }
+        });
+        // BindingCurseLib で所有者を設定（このプレイヤーのみ使用可能）
+        bindingCurseManager.setItemOwner(shears, player);
         player.getInventory().addItem(shears);
     }
 
@@ -180,11 +206,10 @@ public class CasinoManager {
      * カジノシザースをインベントリから回収する
      */
     private void removeCasinoShears(Player player) {
-        org.bukkit.NamespacedKey shearsKey = new org.bukkit.NamespacedKey(plugin, "casino_shears");
         for (ItemStack item : player.getInventory().getContents()) {
             if (item != null && item.getType() == Material.SHEARS && item.hasItemMeta()) {
-                if (Objects.requireNonNull(item.getItemMeta()).getPersistentDataContainer().has(
-                        shearsKey, org.bukkit.persistence.PersistentDataType.BYTE)) {
+                if (Objects.requireNonNull(item.getItemMeta())
+                        .getPersistentDataContainer().has(shearsKey, PersistentDataType.BYTE)) {
                     player.getInventory().remove(item);
                 }
             }
@@ -209,7 +234,6 @@ public class CasinoManager {
      */
     public void cashoutSinglePlayer(Player player) {
         cashoutPlayer(player, plugin.getChipManager(), plugin.getEconomy());
-        // 個別換金後は購入記録をリセットし、次回の損益計算がずれないようにする
         sessionPurchases.remove(player.getUniqueId());
         saveData();
     }
@@ -221,8 +245,7 @@ public class CasinoManager {
         long totalValue = chipManager.calculateTotalValue(player);
         long purchased = getSessionPurchases(player.getUniqueId());
 
-        if (totalValue == 0 && purchased == 0)
-            return;
+        if (totalValue == 0 && purchased == 0) return;
 
         Map<Chip, Integer> breakdown = chipManager.removeAllChips(player);
         if (totalValue > 0) {
@@ -244,7 +267,6 @@ public class CasinoManager {
                                     long netResult, Map<Chip, Integer> breakdown) {
         player.sendMessage(Messages.SEPARATOR);
 
-        // 購入額・換金額・損益の内訳
         if (purchased > 0) {
             player.sendMessage(Messages.PREFIX + ChatColor.GRAY + "購入額: "
                     + ChatColor.WHITE + ChipManager.formatAmount(purchased) + " E");
@@ -255,8 +277,8 @@ public class CasinoManager {
         }
 
         if (purchased > 0) {
-            String sign;
             ChatColor color;
+            String sign;
             if (netResult > 0) {
                 sign = "+";
                 color = ChatColor.GREEN;
@@ -351,8 +373,7 @@ public class CasinoManager {
 
     private void loadUuidMap(String section, Map<UUID, Long> target) {
         ConfigurationSection sec = dataConfig.getConfigurationSection(section);
-        if (sec == null)
-            return;
+        if (sec == null) return;
         for (String key : sec.getKeys(false)) {
             try {
                 target.put(UUID.fromString(key), sec.getLong(key));
@@ -371,8 +392,7 @@ public class CasinoManager {
 
     private void loadGameModes() {
         ConfigurationSection sec = dataConfig.getConfigurationSection("saved-game-modes");
-        if (sec == null)
-            return;
+        if (sec == null) return;
         for (String key : sec.getKeys(false)) {
             try {
                 UUID uuid = UUID.fromString(key);

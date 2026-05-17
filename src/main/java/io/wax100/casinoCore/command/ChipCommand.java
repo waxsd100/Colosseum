@@ -93,7 +93,7 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
         Map<Chip, Integer> chips = new LinkedHashMap<>();
         chips.put(chip, count);
         long totalCost = denomination * count;
-        if (!executePurchase(player, chips, totalCost)) {
+        if (executePurchase(player, chips, totalCost)) {
             return;
         }
 
@@ -128,7 +128,7 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(Messages.PREFIX + ChatColor.RED + "指定した金額ではチップに変換できません。");
             return;
         }
-        if (!executePurchase(player, breakdown, actualTotal)) {
+        if (executePurchase(player, breakdown, actualTotal)) {
             return;
         }
 
@@ -159,25 +159,25 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
                     + ChatColor.RED + ", 所持: "
                     + ChatColor.YELLOW + ChipManager.formatAmount((long) economy.getBalance(player)) + " E"
                     + ChatColor.RED + "）");
-            return false;
+            return true;
         }
 
         int slotsNeeded = cm.calculateSlotsNeeded(chips);
         if (cm.countEmptySlots(player) < slotsNeeded) {
             player.sendMessage(Messages.PREFIX + ChatColor.RED
                     + "インベントリに空きがありません。（必要スロット: " + slotsNeeded + "）");
-            return false;
+            return true;
         }
 
         EconomyResponse resp = economy.withdrawPlayer(player, totalCost);
         if (!resp.transactionSuccess()) {
             player.sendMessage(Messages.PREFIX + ChatColor.RED + "購入に失敗しました: " + resp.errorMessage);
-            return false;
+            return true;
         }
 
         cm.giveChips(player, chips);
         plugin.getCasinoManager().recordPurchase(player.getUniqueId(), totalCost);
-        return true;
+        return false;
     }
 
     private long calcTotal(Map<Chip, Integer> chips) {

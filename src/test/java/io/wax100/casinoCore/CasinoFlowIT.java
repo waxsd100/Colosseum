@@ -1,5 +1,6 @@
 package io.wax100.casinoCore;
 
+import io.wax100.bindingCurseLib.BindingCurseManager;
 import io.wax100.casinoCore.command.ChipCommand;
 import io.wax100.casinoCore.manager.CasinoManager;
 import io.wax100.casinoCore.manager.ChipManager;
@@ -12,6 +13,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -24,7 +26,7 @@ import java.util.HashMap;
 import java.util.UUID;
 import java.util.logging.Logger;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -47,6 +49,8 @@ class CasinoFlowIT {
     private PlayerInventory inventory;
     @Mock
     private Command command;
+    @Mock
+    private BindingCurseManager bindingCurseManager;
     private ChipManager chipManager;
     private CasinoManager casinoManager;
     private ChipCommand chipCommand;
@@ -72,7 +76,7 @@ class CasinoFlowIT {
             return mockItem;
         }).when(chipManager).createChipItem(any(Chip.class), anyInt());
 
-        casinoManager = new CasinoManager(plugin);
+        casinoManager = new CasinoManager(plugin, bindingCurseManager);
         when(plugin.getChipManager()).thenReturn(chipManager);
         when(plugin.getCasinoManager()).thenReturn(casinoManager);
 
@@ -97,96 +101,249 @@ class CasinoFlowIT {
 
     // ── チップ購入（額面指定） ──
 
-    @Test
-    @DisplayName("/chip 100 5 → 500E が引き落とされる")
-    void 額面指定購入で正しい金額が引き落とされる() {
-        chipCommand.onCommand(player, command, "chip", new String[]{"100", "5"});
+    @Nested
+    @DisplayName("額面指定購入")
+    class DenominationPurchaseTest {
+        @Test
+        @DisplayName("/chip 100 5 → 500E が引き落とされる")
+        void 正しい金額が引き落とされる() {
+            chipCommand.onCommand(player, command, "chip", new String[]{"100", "5"});
 
-        verify(economy).withdrawPlayer(player, 500.0);
-    }
+            verify(economy).withdrawPlayer(player, 500.0);
+        }
 
-    @Test
-    @DisplayName("/chip 100 5 → createChipItem(CHIP_100, 5) が呼ばれる")
-    void 額面指定購入でチップが生成される() {
-        chipCommand.onCommand(player, command, "chip", new String[]{"100", "5"});
+        @Test
+        @DisplayName("/chip 100 5 → createChipItem(CHIP_100, 5) が呼ばれる")
+        void チップが生成される() {
+            chipCommand.onCommand(player, command, "chip", new String[]{"100", "5"});
 
-        verify(chipManager).createChipItem(Chip.CHIP_100, 5);
+            verify(chipManager).createChipItem(Chip.CHIP_100, 5);
+        }
+
+        @Test
+        @DisplayName("/chip 1000000 1 → 最高額チップの購入")
+        void 最高額チップが購入できる() {
+            chipCommand.onCommand(player, command, "chip", new String[]{"1000000", "1"});
+
+            verify(economy).withdrawPlayer(player, 1000000.0);
+            verify(chipManager).createChipItem(Chip.CHIP_1000000, 1);
+        }
+
+        @Test
+        @DisplayName("/chip 1 64 → 最低額チップの大量購入")
+        void 最低額チップを大量購入できる() {
+            chipCommand.onCommand(player, command, "chip", new String[]{"1", "64"});
+
+            verify(economy).withdrawPlayer(player, 64.0);
+            verify(chipManager).createChipItem(Chip.CHIP_1, 64);
+        }
     }
 
     // ── チップ購入（自動分割） ──
 
-    @Test
-    @DisplayName("/chip 12345 → 正しい合計金額が引き落とされる")
-    void 自動分割で正しい金額が引き落とされる() {
-        chipCommand.onCommand(player, command, "chip", new String[]{"12345"});
+    @Nested
+    @DisplayName("自動分割購入")
+    class AutoSplitPurchaseTest {
+        @Test
+        @DisplayName("/chip 12345 → 正しい合計金額が引き落とされる")
+        void 正しい金額が引き落とされる() {
+            chipCommand.onCommand(player, command, "chip", new String[]{"12345"});
 
-        verify(economy).withdrawPlayer(player, 12345.0);
+            verify(economy).withdrawPlayer(player, 12345.0);
+        }
+
+        @Test
+        @DisplayName("/chip 12345 → 5種類のチップが生成される")
+        void 複数チップが生成される() {
+            chipCommand.onCommand(player, command, "chip", new String[]{"12345"});
+
+            // 10000x1, 1000x2, 100x3, 10x4, 5x1
+            verify(chipManager).createChipItem(Chip.CHIP_10000, 1);
+            verify(chipManager).createChipItem(Chip.CHIP_1000, 2);
+            verify(chipManager).createChipItem(Chip.CHIP_100, 3);
+            verify(chipManager).createChipItem(Chip.CHIP_10, 4);
+            verify(chipManager).createChipItem(Chip.CHIP_5, 1);
+        }
+
+        @Test
+        @DisplayName("/chip 1000000 → 最高額1枚のみ")
+        void ぴったりの額面は1枚() {
+            chipCommand.onCommand(player, command, "chip", new String[]{"1000000"});
+
+            verify(chipManager).createChipItem(Chip.CHIP_1000000, 1);
+            verify(economy).withdrawPlayer(player, 1000000.0);
+        }
+
+        @Test
+        @DisplayName("/chip 1 → 最小額チップ1枚")
+        void 最小額は1E_チップ() {
+            chipCommand.onCommand(player, command, "chip", new String[]{"1"});
+
+            verify(chipManager).createChipItem(Chip.CHIP_1, 1);
+        }
     }
 
-    @Test
-    @DisplayName("/chip 12345 → 5種類のチップが生成される")
-    void 自動分割で複数チップが生成される() {
-        chipCommand.onCommand(player, command, "chip", new String[]{"12345"});
+    // ── バリデーション ──
 
-        // 10000x1, 1000x2, 100x3, 10x4, 5x1
-        verify(chipManager).createChipItem(Chip.CHIP_10000, 1);
-        verify(chipManager).createChipItem(Chip.CHIP_1000, 2);
-        verify(chipManager).createChipItem(Chip.CHIP_100, 3);
-        verify(chipManager).createChipItem(Chip.CHIP_10, 4);
-        verify(chipManager).createChipItem(Chip.CHIP_5, 1);
-    }
+    @Nested
+    @DisplayName("バリデーション")
+    class ValidationTest {
+        @Test
+        @DisplayName("カジノOFF時にチップ購入不可")
+        void カジノOFF時に購入できない() {
+            casinoManager.setCasinoActive(false);
 
-    // ── カジノOFF時 ──
+            chipCommand.onCommand(player, command, "chip", new String[]{"100", "1"});
 
-    @Test
-    @DisplayName("カジノOFF時にチップ購入不可")
-    void カジノOFF時に購入できない() {
-        casinoManager.setCasinoActive(false);
+            verify(economy, never()).withdrawPlayer(any(org.bukkit.OfflinePlayer.class), anyDouble());
+        }
 
-        chipCommand.onCommand(player, command, "chip", new String[]{"100", "1"});
+        @Test
+        @DisplayName("所持金不足で購入失敗")
+        void 所持金不足() {
+            when(economy.has(any(org.bukkit.OfflinePlayer.class), anyDouble())).thenReturn(false);
 
-        verify(economy, never()).withdrawPlayer(any(org.bukkit.OfflinePlayer.class), anyDouble());
-    }
+            chipCommand.onCommand(player, command, "chip", new String[]{"100000", "1"});
 
-    // ── 所持金不足 ──
+            verify(economy, never()).withdrawPlayer(any(org.bukkit.OfflinePlayer.class), anyDouble());
+        }
 
-    @Test
-    @DisplayName("所持金不足で購入失敗")
-    void 所持金不足() {
-        when(economy.has(any(org.bukkit.OfflinePlayer.class), anyDouble())).thenReturn(false);
+        @Test
+        @DisplayName("存在しない額面でエラー")
+        void 無効な額面() {
+            chipCommand.onCommand(player, command, "chip", new String[]{"999", "1"});
 
-        chipCommand.onCommand(player, command, "chip", new String[]{"100000", "1"});
+            verify(economy, never()).withdrawPlayer(any(org.bukkit.OfflinePlayer.class), anyDouble());
+        }
 
-        verify(economy, never()).withdrawPlayer(any(org.bukkit.OfflinePlayer.class), anyDouble());
-    }
+        @Test
+        @DisplayName("最大購入額を超えると購入不可")
+        void 最大購入額超過() {
+            chipCommand.onCommand(player, command, "chip", new String[]{"2000000"});
 
-    // ── 無効な額面 ──
+            verify(economy, never()).withdrawPlayer(any(org.bukkit.OfflinePlayer.class), anyDouble());
+        }
 
-    @Test
-    @DisplayName("存在しない額面でエラー")
-    void 無効な額面() {
-        chipCommand.onCommand(player, command, "chip", new String[]{"999", "1"});
+        @Test
+        @DisplayName("枚数0は購入不可")
+        void 枚数0は拒否() {
+            chipCommand.onCommand(player, command, "chip", new String[]{"100", "0"});
 
-        verify(economy, never()).withdrawPlayer(any(org.bukkit.OfflinePlayer.class), anyDouble());
+            verify(economy, never()).withdrawPlayer(any(org.bukkit.OfflinePlayer.class), anyDouble());
+        }
+
+        @Test
+        @DisplayName("負の枚数は購入不可")
+        void 負の枚数は拒否() {
+            chipCommand.onCommand(player, command, "chip", new String[]{"100", "-1"});
+
+            verify(economy, never()).withdrawPlayer(any(org.bukkit.OfflinePlayer.class), anyDouble());
+        }
+
+        @Test
+        @DisplayName("金額0は自動分割で購入不可")
+        void 金額0は拒否() {
+            chipCommand.onCommand(player, command, "chip", new String[]{"0"});
+
+            verify(economy, never()).withdrawPlayer(any(org.bukkit.OfflinePlayer.class), anyDouble());
+        }
+
+        @Test
+        @DisplayName("負の金額は自動分割で購入不可")
+        void 負の金額は拒否() {
+            chipCommand.onCommand(player, command, "chip", new String[]{"-100"});
+
+            verify(economy, never()).withdrawPlayer(any(org.bukkit.OfflinePlayer.class), anyDouble());
+        }
+
+        @Test
+        @DisplayName("インベントリ満杯で購入不可")
+        void インベントリ満杯() {
+            // 全スロットが埋まっている状態
+            ItemStack[] fullContents = new ItemStack[36];
+            for (int i = 0; i < fullContents.length; i++) {
+                fullContents[i] = mock(ItemStack.class);
+                when(fullContents[i].getType()).thenReturn(org.bukkit.Material.STONE);
+            }
+            when(inventory.getStorageContents()).thenReturn(fullContents);
+
+            chipCommand.onCommand(player, command, "chip", new String[]{"100", "1"});
+
+            verify(economy, never()).withdrawPlayer(any(org.bukkit.OfflinePlayer.class), anyDouble());
+        }
     }
 
     // ── 購入記録 ──
 
-    @Test
-    @DisplayName("購入額が CasinoManager に記録される")
-    void 購入記録() {
-        chipCommand.onCommand(player, command, "chip", new String[]{"5000", "2"});
+    @Nested
+    @DisplayName("購入記録")
+    class PurchaseRecordTest {
+        @Test
+        @DisplayName("購入額が CasinoManager に記録される")
+        void 購入記録() {
+            chipCommand.onCommand(player, command, "chip", new String[]{"5000", "2"});
 
-        assertEquals(10000, casinoManager.getSessionPurchases(playerId));
+            assertEquals(10000, casinoManager.getSessionPurchases(playerId));
+        }
+
+        @Test
+        @DisplayName("複数回の購入が累計される")
+        void 複数回購入の累計() {
+            chipCommand.onCommand(player, command, "chip", new String[]{"100", "5"});
+            chipCommand.onCommand(player, command, "chip", new String[]{"1000", "3"});
+
+            assertEquals(500 + 3000, casinoManager.getSessionPurchases(playerId));
+        }
     }
 
-    // ── 最大購入額超過 ──
+    // ── info / balance / cashout サブコマンド ──
 
-    @Test
-    @DisplayName("最大購入額を超えると購入不可")
-    void 最大購入額超過() {
-        chipCommand.onCommand(player, command, "chip", new String[]{"2000000"});
+    @Nested
+    @DisplayName("サブコマンド")
+    class SubCommandTest {
+        @Test
+        @DisplayName("/chip info → Economyへのアクセスなし、メッセージ送信のみ")
+        void infoはEconomy不使用() {
+            chipCommand.onCommand(player, command, "chip", new String[]{"info"});
 
-        verify(economy, never()).withdrawPlayer(any(org.bukkit.OfflinePlayer.class), anyDouble());
+            verify(economy, never()).withdrawPlayer(any(org.bukkit.OfflinePlayer.class), anyDouble());
+            verify(player, atLeastOnce()).sendMessage(anyString());
+        }
+
+        @Test
+        @DisplayName("/chip balance → メッセージ送信のみ")
+        void balanceはメッセージ送信() {
+            chipCommand.onCommand(player, command, "chip", new String[]{"balance"});
+
+            verify(economy, never()).withdrawPlayer(any(org.bukkit.OfflinePlayer.class), anyDouble());
+            verify(player, atLeastOnce()).sendMessage(anyString());
+        }
+
+        @Test
+        @DisplayName("/chip cashout → カジノOFF時はエラー")
+        void cashoutはカジノOFF時エラー() {
+            casinoManager.setCasinoActive(false);
+
+            chipCommand.onCommand(player, command, "chip", new String[]{"cashout"});
+
+            verify(economy, never()).depositPlayer(any(org.bukkit.OfflinePlayer.class), anyDouble());
+        }
+
+        @Test
+        @DisplayName("/chip → 引数なしでヘルプ表示")
+        void 引数なしでヘルプ() {
+            chipCommand.onCommand(player, command, "chip", new String[]{});
+
+            verify(economy, never()).withdrawPlayer(any(org.bukkit.OfflinePlayer.class), anyDouble());
+            verify(player, atLeastOnce()).sendMessage(anyString());
+        }
+
+        @Test
+        @DisplayName("不正な文字列引数でヘルプ表示")
+        void 不正な引数でヘルプ() {
+            chipCommand.onCommand(player, command, "chip", new String[]{"abc"});
+
+            verify(economy, never()).withdrawPlayer(any(org.bukkit.OfflinePlayer.class), anyDouble());
+        }
     }
 }
