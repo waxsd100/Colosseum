@@ -20,16 +20,44 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * /chip コマンドハンドラ
+ * {@code /chip} コマンドハンドラ。
+ *
+ * <p>チップの購入・確認・換金に関するサブコマンドを提供する。
+ * <ul>
+ *   <li>{@code /chip <額面> <枚数>} — 指定額面のチップを指定枚数購入</li>
+ *   <li>{@code /chip <金額>} — 金額分のチップを自動分割で購入（貪欲法）</li>
+ *   <li>{@code /chip info} — チップ額面一覧を表示</li>
+ *   <li>{@code /chip balance} — 手持ちチップの内訳と合計を表示</li>
+ *   <li>{@code /chip cashout} — 手持ちチップを換金して所持金に戻す</li>
+ * </ul>
+ *
+ * <p>購入系サブコマンドはカジノモードが ON のときのみ使用可能。
+ * {@code info} / {@code balance} / {@code cashout} はカジノモードに関係なく使用可能。
+ *
+ * @see ChipManager
+ * @see CasinoManager
  */
 public class ChipCommand implements CommandExecutor, TabCompleter {
 
+    /** プラグインインスタンス */
     private final CasinoCore plugin;
 
+    /**
+     * コンストラクタ。
+     *
+     * @param plugin CasinoCore プラグインインスタンス
+     */
     public ChipCommand(CasinoCore plugin) {
         this.plugin = plugin;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>第1引数を解析し、サブコマンド（{@code info}, {@code balance}, {@code cashout}）
+     * または数値（額面指定 / 金額指定）に応じて各ハンドラに振り分ける。
+     * プレイヤー以外からの実行は拒否する。
+     */
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
@@ -73,10 +101,15 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
-    // ── 購入処理 ──
-
     /**
-     * 額面指定モード: /chip [額面] [枚数]
+     * 額面指定モード: {@code /chip [額面] [枚数]}。
+     *
+     * <p>指定された額面のチップを指定枚数購入する。
+     * 無効な額面や 0 以下の枚数の場合はエラーメッセージを送信する。
+     *
+     * @param player       購入プレイヤー
+     * @param denomination 額面
+     * @param count        枚数
      */
     private void handleBuyDenomination(Player player, long denomination, int count) {
         Chip chip = plugin.getChipManager().getChipByValue(denomination);
@@ -107,7 +140,13 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
     }
 
     /**
-     * 自動分割モード: /chip [金額]
+     * 自動分割モード: {@code /chip [金額]}。
+     *
+     * <p>指定金額を貪欲法でチップに分割して購入する。
+     * 最大購入額 ({@code max-buy}) を超える場合はエラーを返す。
+     *
+     * @param player 購入プレイヤー
+     * @param amount 購入金額
      */
     private void handleBuyAutoSplit(Player player, long amount) {
         if (amount <= 0) {
@@ -145,9 +184,15 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
     }
 
     /**
-     * 購入の共通処理（バリデーション → 引き落とし → チップ付与 → 記録）
+     * 購入の共通処理（バリデーション → 引き落とし → チップ付与 → 記録）。
      *
-     * @return 成功した場合 true
+     * <p>所持金不足・インベントリ空き不足・引き落とし失敗の場合は
+     * エラーメッセージを送信し、購入を中止する。
+     *
+     * @param player    購入プレイヤー
+     * @param chips     購入するチップの内訳 (額面 → 枚数)
+     * @param totalCost 合計購入額
+     * @return エラーが発生し購入を中止した場合 {@code true}、成功した場合 {@code false}
      */
     private boolean executePurchase(Player player, Map<Chip, Integer> chips, long totalCost) {
         ChipManager cm = plugin.getChipManager();
@@ -180,6 +225,12 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
         return false;
     }
 
+    /**
+     * チップセットの合計金額を計算する。
+     *
+     * @param chips チップ内訳 (額面 → 枚数)
+     * @return 合計金額
+     */
     private long calcTotal(Map<Chip, Integer> chips) {
         long total = 0;
         for (Map.Entry<Chip, Integer> e : chips.entrySet()) {
@@ -188,8 +239,15 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
         return total;
     }
 
-    // ── 情報表示 ──
 
+
+    /**
+     * チップ額面一覧を表示する。
+     *
+     * <p>全{@link Chip}値を色付きで一覧表示する。
+     *
+     * @param player 対象プレイヤー
+     */
     private void handleInfo(Player player) {
         player.sendMessage("");
         player.sendMessage(ChatColor.GOLD.toString() + ChatColor.BOLD + "═══ チップ一覧 ═══");
@@ -202,6 +260,13 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
         player.sendMessage("");
     }
 
+    /**
+     * 手持ちチップの内訳と合計額を表示する。
+     *
+     * <p>チップを持っていない場合はその旨を表示する。
+     *
+     * @param player 対象プレイヤー
+     */
     private void handleBalance(Player player) {
         ChipManager cm = plugin.getChipManager();
         Map<Chip, Integer> counts = cm.countChips(player);
@@ -234,6 +299,15 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
         player.sendMessage("");
     }
 
+    /**
+     * 手持ちチップを換金する。
+     *
+     * <p>カジノモードが OFF の場合やチップを持っていない場合は
+     * エラーメッセージを送信する。
+     *
+     * @param player 対象プレイヤー
+     * @see CasinoManager#cashoutSinglePlayer(Player)
+     */
     private void handleCashout(Player player) {
         if (!plugin.getCasinoManager().isCasinoActive()) {
             player.sendMessage(Messages.PREFIX + ChatColor.RED + "カジノモードがOFFのため、換金できません。");
@@ -247,6 +321,11 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
         plugin.getCasinoManager().cashoutSinglePlayer(player);
     }
 
+    /**
+     * コマンドの使い方ヘルプを送信する。
+     *
+     * @param player 対象プレイヤー
+     */
     private void sendUsage(Player player) {
         player.sendMessage(Messages.PREFIX + ChatColor.GRAY + "使い方:");
         player.sendMessage(ChatColor.YELLOW + "  /chip <額面> <枚数> " + ChatColor.GRAY + "- 指定額面のチップを購入");
@@ -256,8 +335,14 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(ChatColor.YELLOW + "  /chip cashout " + ChatColor.GRAY + "- 手持ちチップを換金する");
     }
 
-    // ── タブ補完 ──
 
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>第1引数に対してサブコマンド（{@code info}, {@code balance}, {@code cashout}）の
+     * 前方一致補完を提供する。第2引数には枚数候補を提示する。
+     */
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> result = new ArrayList<>();

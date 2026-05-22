@@ -20,17 +20,40 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * /casino コマンドハンドラ
+ * {@code /casino} コマンドハンドラ。
+ *
+ * <p>サブコマンド:
+ * <ul>
+ *   <li>{@code /casino on} — カジノモードを開始し、全プレイヤーをアドベンチャーモードに切替</li>
+ *   <li>{@code /casino off} — カジノモードを終了し、全プレイヤーのチップを換金</li>
+ *   <li>{@code /casino status} — 現在のカジノモードの ON/OFF 状態を表示</li>
+ *   <li>{@code /casino ranking} — 累計損益ランキングを表示</li>
+ * </ul>
+ *
+ * @see CasinoManager
  */
 public class CasinoCommand implements CommandExecutor, TabCompleter {
 
+    /** サブコマンド一覧（タブ補完用） */
     private static final List<String> SUB_COMMANDS = Arrays.asList("on", "off", "status", "ranking");
+    /** プラグインインスタンス */
     private final CasinoCore plugin;
 
+    /**
+     * コンストラクタ。
+     *
+     * @param plugin CasinoCore プラグインインスタンス
+     */
     public CasinoCommand(CasinoCore plugin) {
         this.plugin = plugin;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>第1引数のサブコマンドに応じて各ハンドラメソッドに振り分ける。
+     * 引数がない場合や不明なサブコマンドの場合はヘルプを表示する。
+     */
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0) {
@@ -58,6 +81,14 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    /**
+     * カジノモードを開始する。
+     *
+     * <p>実行者がプレイヤーの場合、全プレイヤーをアドベンチャーモードに切り替え、
+     * keepInventory を有効化する。カジノモードが既に ON の場合は警告メッセージを送信する。
+     *
+     * @param sender コマンド実行者
+     */
     private void handleOn(CommandSender sender) {
         CasinoManager manager = plugin.getCasinoManager();
         if (manager.isCasinoActive()) {
@@ -82,6 +113,14 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
         Bukkit.broadcastMessage(Messages.SEPARATOR);
     }
 
+    /**
+     * カジノモードを終了する。
+     *
+     * <p>全プレイヤーのチップを換金し、ゲームモードを復元し、
+     * セッションデータをクリアする。カジノモードが既に OFF の場合は警告メッセージを送信する。
+     *
+     * @param sender コマンド実行者
+     */
     private void handleOff(CommandSender sender) {
         CasinoManager manager = plugin.getCasinoManager();
         if (!manager.isCasinoActive()) {
@@ -104,6 +143,11 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
         Bukkit.broadcastMessage(Messages.SEPARATOR);
     }
 
+    /**
+     * カジノモードの現在の状態（ON/OFF）を表示する。
+     *
+     * @param sender コマンド実行者
+     */
     private void handleStatus(CommandSender sender) {
         boolean active = plugin.getCasinoManager().isCasinoActive();
         String status = active
@@ -112,6 +156,13 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(Messages.PREFIX + ChatColor.GRAY + "カジノモード: " + status);
     }
 
+    /**
+     * 累計損益ランキングを表示する。
+     *
+     * <p>設定ファイルの {@code ranking-size} で表示件数を制御できる（デフォルト: 10）。
+     *
+     * @param sender コマンド実行者
+     */
     private void handleRanking(CommandSender sender) {
         int size = plugin.getConfig().getInt("ranking-size", 10);
         List<Map.Entry<UUID, Long>> sorted = plugin.getCasinoManager().getSortedRanking(size);
@@ -141,6 +192,11 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage("");
     }
 
+    /**
+     * コマンドの使い方ヘルプを送信する。
+     *
+     * @param sender コマンド実行者
+     */
     private void sendUsage(CommandSender sender) {
         sender.sendMessage(Messages.PREFIX + ChatColor.GRAY + "使い方:");
         sender.sendMessage(ChatColor.YELLOW + "  /casino on " + ChatColor.GRAY + "- カジノモード開始");
@@ -149,6 +205,11 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "  /casino ranking " + ChatColor.GRAY + "- ランキング表示");
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>第1引数に対してサブコマンドの前方一致補完を提供する。
+     */
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length != 1) return Collections.emptyList();

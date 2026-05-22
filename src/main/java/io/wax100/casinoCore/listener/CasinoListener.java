@@ -27,14 +27,26 @@ import org.bukkit.inventory.ItemStack;
  */
 public class CasinoListener implements Listener {
 
+    /** プラグインインスタンス */
     private final CasinoCore plugin;
 
+    /**
+     * コンストラクタ。
+     *
+     * @param plugin CasinoCore プラグインインスタンス
+     */
     public CasinoListener(CasinoCore plugin) {
         this.plugin = plugin;
     }
 
     /**
-     * プレイヤーログイン時にカジノモードの状態を通知する
+     * プレイヤーログイン時にカジノモードの状態を通知する。
+     *
+     * <p>カジノモードが ON の場合、案内メッセージを送信し、
+     * アドベンチャーモードを適用する。
+     * カジノモードが OFF の場合は何もしない。
+     *
+     * @param event プレイヤー参加イベント
      */
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
@@ -53,7 +65,12 @@ public class CasinoListener implements Listener {
 
     /**
      * チップカーペットを破壊した場合、メタデータ付きチップをドロップする。
-     * CanDestroy 設定によりアドベンチャーモードでも BlockBreakEvent が発火する。
+     *
+     * <p>CanDestroy 設定によりアドベンチャーモードでも {@link BlockBreakEvent} が発火する。
+     * バニラのカーペットドロップを抑制し、代わりに額面情報付きのチップアイテムをドロップする。
+     * カジノモードが OFF の場合やチップ用マテリアルでない場合は何もしない。
+     *
+     * @param event ブロック破壊イベント
      */
     @EventHandler
     public void onBlockBreak(BlockBreakEvent event) {
@@ -73,7 +90,10 @@ public class CasinoListener implements Listener {
     }
 
     /**
-     * マテリアルから対応するChipを検索する
+     * マテリアルから対応する {@link Chip} を検索する。
+     *
+     * @param material 検索対象のマテリアル
+     * @return 対応する Chip。見つからない場合は {@code null}
      */
     private Chip findChipByMaterial(Material material) {
         for (Chip chip : Chip.values()) {

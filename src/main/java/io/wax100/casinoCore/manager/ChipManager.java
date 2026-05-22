@@ -21,7 +21,20 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * チップの定義・生成・変換・インベントリ操作を管理するクラス
+ * チップの定義・生成・変換・インベントリ操作を管理するクラス。
+ *
+ * <p>主な責務:
+ * <ul>
+ *   <li>チップアイテムの生成（CanPlaceOn NBT 付き）</li>
+ *   <li>アイテムがカジノチップかどうかの判定</li>
+ *   <li>金額からチップへの分割（貪欲法）</li>
+ *   <li>プレイヤーインベントリへのチップ付与・回収・集計</li>
+ * </ul>
+ *
+ * <p>チップはカーペットアイテムとして実装され、{@link Chip} enum で額面と色が定義される。
+ *
+ * @see Chip
+ * @see CasinoManager
  */
 public class ChipManager {
 
@@ -33,6 +46,7 @@ public class ChipManager {
      * チップに使用される全マテリアル
      */
     private static final Set<Material> CHIP_MATERIALS;
+    /** 金額フォーマット用の日本ロケール数値フォーマッタ */
     private static final NumberFormat NUMBER_FORMAT = NumberFormat.getNumberInstance(Locale.JAPAN);
 
     /**
@@ -97,31 +111,47 @@ public class ChipManager {
         CHIP_MATERIALS = Collections.unmodifiableSet(materials);
     }
 
+    /** チップ識別用の {@link NamespacedKey}（PersistentDataContainer に額面を格納） */
     private final NamespacedKey chipKey;
 
+    /**
+     * コンストラクタ。
+     *
+     * @param plugin CasinoCore プラグインインスタンス
+     */
     public ChipManager(CasinoCore plugin) {
         this.chipKey = new NamespacedKey(plugin, "casino_chip");
     }
 
     /**
-     * チップに使用されるマテリアルかどうか判定する
+     * 指定されたマテリアルがチップに使用されるカーペットかどうか判定する。
+     *
+     * @param material 判定対象のマテリアル
+     * @return チップ用マテリアルの場合 {@code true}
      */
     public static boolean isChipMaterial(Material material) {
         return CHIP_MATERIALS.contains(material);
     }
 
     /**
-     * 金額をカンマ区切りでフォーマットする
+     * 金額をカンマ区切りでフォーマットする。
+     *
+     * @param amount フォーマットする金額
+     * @return カンマ区切り文字列（例: {@code "1,000,000"}）
      */
     public static String formatAmount(long amount) {
         return NUMBER_FORMAT.format(amount);
     }
 
-    // ── アイテム生成 ──
-
     /**
      * チップアイテムを生成する（CanPlaceOn 付き）。
-     * アドベンチャーモードでブロック上に設置できるよう CanPlaceOn NBT を設定する。
+     *
+     * <p>アドベンチャーモードでブロック上に設置できるよう CanPlaceOn NBT を設定する。
+     * アイテムの {@link org.bukkit.persistence.PersistentDataContainer} には額面が格納される。
+     *
+     * @param chip   チップ種別
+     * @param amount スタック数
+     * @return 生成されたチップアイテム
      */
     public ItemStack createChipItem(Chip chip, int amount) {
         ItemStack item = new ItemStack(chip.getMaterial(), amount);
@@ -147,10 +177,13 @@ public class ChipManager {
         return item;
     }
 
-    // ── 判定 ──
-
     /**
-     * アイテムがカジノチップかどうか判定する
+     * アイテムがカジノチップかどうか判定する。
+     *
+     * <p>{@link org.bukkit.persistence.PersistentDataContainer} にチップキーが存在するかで判定する。
+     *
+     * @param item 判定対象のアイテム
+     * @return カジノチップの場合 {@code true}
      */
     public boolean isChip(ItemStack item) {
         if (item == null || !item.hasItemMeta()) return false;
@@ -158,7 +191,10 @@ public class ChipManager {
     }
 
     /**
-     * チップの額面を取得する
+     * チップの額面を取得する。
+     *
+     * @param item チップアイテム
+     * @return 額面。チップでない場合は {@code 0}
      */
     public long getChipValue(ItemStack item) {
         if (!isChip(item)) return 0;
@@ -167,7 +203,10 @@ public class ChipManager {
     }
 
     /**
-     * 額面からChip enumを取得する
+     * 額面から対応する {@link Chip} enum 値を取得する。
+     *
+     * @param value 額面
+     * @return 対応する Chip。見つからない場合は {@code null}
      */
     public Chip getChipByValue(long value) {
         for (Chip chip : Chip.values()) {
@@ -176,10 +215,14 @@ public class ChipManager {
         return null;
     }
 
-    // ── 変換ロジック ──
-
     /**
-     * 金額をチップに分割する（貪欲法: 大きい額面から順に）
+     * 金額をチップに分割する（貪欲法: 大きい額面から順に）。
+     *
+     * <p>指定金額を最少枚数のチップに分割する。
+     * 最小額面未満の端数は切り捨てられる。
+     *
+     * @param amount 分割する金額
+     * @return チップ内訳 (額面 → 枚数)
      */
     public Map<Chip, Integer> breakdownAmount(long amount) {
         Map<Chip, Integer> result = new LinkedHashMap<>();
@@ -195,7 +238,12 @@ public class ChipManager {
     }
 
     /**
-     * チップセットに必要なインベントリスロット数を計算する
+     * チップセットに必要なインベントリスロット数を計算する。
+     *
+     * <p>1スロットあたり最大 64 アイテムとして計算する。
+     *
+     * @param chips チップ内訳 (額面 → 枚数)
+     * @return 必要スロット数
      */
     public int calculateSlotsNeeded(Map<Chip, Integer> chips) {
         int slots = 0;
@@ -206,7 +254,10 @@ public class ChipManager {
     }
 
     /**
-     * プレイヤーの空きスロット数を数える
+     * プレイヤーのストレージインベントリの空きスロット数を数える。
+     *
+     * @param player 対象プレイヤー
+     * @return 空きスロット数
      */
     public int countEmptySlots(Player player) {
         int empty = 0;
@@ -218,10 +269,13 @@ public class ChipManager {
         return empty;
     }
 
-    // ── インベントリ操作 ──
-
     /**
-     * プレイヤーにチップを付与する
+     * プレイヤーにチップを付与する。
+     *
+     * <p>64 アイテムを超える場合は複数スタックに分割して付与する。
+     *
+     * @param player 付与対象プレイヤー
+     * @param chips  付与するチップの内訳 (額面 → 枚数)
      */
     public void giveChips(Player player, Map<Chip, Integer> chips) {
         for (Map.Entry<Chip, Integer> entry : chips.entrySet()) {
@@ -235,7 +289,12 @@ public class ChipManager {
     }
 
     /**
-     * プレイヤーのインベントリ内のチップを数える
+     * プレイヤーのインベントリ内のチップを種類別に数える。
+     *
+     * <p>全 {@link Chip} 種別のエントリが含まれる（所持が 0 の種別も含む）。
+     *
+     * @param player 対象プレイヤー
+     * @return チップの集計結果 (額面 → 枚数)
      */
     public Map<Chip, Integer> countChips(Player player) {
         Map<Chip, Integer> counts = new LinkedHashMap<>();
@@ -246,7 +305,9 @@ public class ChipManager {
             if (item != null && isChip(item)) {
                 Chip chip = getChipByValue(getChipValue(item));
                 if (chip != null) {
-                    counts.merge(chip, item.getAmount(), Integer::sum);
+                    Integer current = counts.get(chip);
+                    int currentVal = current != null ? current : 0;
+                    counts.put(chip, currentVal + item.getAmount());
                 }
             }
         }
@@ -254,7 +315,10 @@ public class ChipManager {
     }
 
     /**
-     * プレイヤーの手持ちチップの合計額を計算する
+     * プレイヤーの手持ちチップの合計額を計算する。
+     *
+     * @param player 対象プレイヤー
+     * @return チップの合計額
      */
     public long calculateTotalValue(Player player) {
         long total = 0;
@@ -267,7 +331,12 @@ public class ChipManager {
     }
 
     /**
-     * プレイヤーのインベントリから全チップを回収し、内訳を返す
+     * プレイヤーのインベントリから全チップを回収し、内訳を返す。
+     *
+     * <p>回収前に {@link #countChips(Player)} で内訳を記録してから削除する。
+     *
+     * @param player 対象プレイヤー
+     * @return 回収したチップの内訳 (額面 → 枚数)
      */
     public Map<Chip, Integer> removeAllChips(Player player) {
         Map<Chip, Integer> removed = countChips(player);
@@ -281,7 +350,10 @@ public class ChipManager {
     }
 
     /**
-     * チップの額面定義（低額→高額順）
+     * チップの額面定義（低額→高額順）。
+     *
+     * <p>各チップはカーペットの {@link Material} に対応し、
+     * 額面・色名・チャット色が定義される。
      */
     public enum Chip {
         CHIP_1(Material.BROWN_CARPET, 1, "茶", ChatColor.DARK_RED),
@@ -298,11 +370,23 @@ public class ChipManager {
         CHIP_500000(Material.WHITE_CARPET, 500000, "白", ChatColor.WHITE),
         CHIP_1000000(Material.BLACK_CARPET, 1000000, "黒", ChatColor.DARK_GRAY);
 
+        /** カーペットのマテリアル */
         private final Material material;
+        /** 額面（E 単位） */
         private final long value;
+        /** 色名（日本語） */
         private final String colorName;
+        /** チャット表示色 */
         private final ChatColor chatColor;
 
+        /**
+         * コンストラクタ。
+         *
+         * @param material  カーペットのマテリアル
+         * @param value     額面（E 単位）
+         * @param colorName 色名（日本語）
+         * @param chatColor チャット表示色
+         */
         Chip(Material material, long value, String colorName, ChatColor chatColor) {
             this.material = material;
             this.value = value;
@@ -310,18 +394,38 @@ public class ChipManager {
             this.chatColor = chatColor;
         }
 
+        /**
+         * カーペットのマテリアルを取得する。
+         *
+         * @return マテリアル
+         */
         public Material getMaterial() {
             return material;
         }
 
+        /**
+         * 額面を取得する。
+         *
+         * @return 額面（E 単位）
+         */
         public long getValue() {
             return value;
         }
 
+        /**
+         * 色名（日本語）を取得する。
+         *
+         * @return 色名
+         */
         public String getColorName() {
             return colorName;
         }
 
+        /**
+         * チャット表示色を取得する。
+         *
+         * @return {@link ChatColor}
+         */
         public ChatColor getChatColor() {
             return chatColor;
         }
