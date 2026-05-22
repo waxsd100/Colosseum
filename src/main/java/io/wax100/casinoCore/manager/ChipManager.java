@@ -46,7 +46,9 @@ public class ChipManager {
      * チップに使用される全マテリアル
      */
     private static final Set<Material> CHIP_MATERIALS;
-    /** 金額フォーマット用の日本ロケール数値フォーマッタ */
+    /**
+     * 金額フォーマット用の日本ロケール数値フォーマッタ
+     */
     private static final NumberFormat NUMBER_FORMAT = NumberFormat.getNumberInstance(Locale.JAPAN);
 
     /**
@@ -111,7 +113,9 @@ public class ChipManager {
         CHIP_MATERIALS = Collections.unmodifiableSet(materials);
     }
 
-    /** チップ識別用の {@link NamespacedKey}（PersistentDataContainer に額面を格納） */
+    /**
+     * チップ識別用の {@link NamespacedKey}（PersistentDataContainer に額面を格納）
+     */
     private final NamespacedKey chipKey;
 
     /**
@@ -370,13 +374,21 @@ public class ChipManager {
         CHIP_500000(Material.WHITE_CARPET, 500000, "白", ChatColor.WHITE),
         CHIP_1000000(Material.BLACK_CARPET, 1000000, "黒", ChatColor.DARK_GRAY);
 
-        /** カーペットのマテリアル */
+        /**
+         * カーペットのマテリアル
+         */
         private final Material material;
-        /** 額面（E 単位） */
+        /**
+         * 額面（E 単位）
+         */
         private final long value;
-        /** 色名（日本語） */
+        /**
+         * 色名（日本語）
+         */
         private final String colorName;
-        /** チャット表示色 */
+        /**
+         * チャット表示色
+         */
         private final ChatColor chatColor;
 
         /**

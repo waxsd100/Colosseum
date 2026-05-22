@@ -39,15 +39,16 @@ import java.util.logging.Level;
 /**
  * カジノの状態管理・購入記録・換金処理・ランキングを管理するクラス。
  *
- * <p>主な責務:
+ * <p>
+ * 主な責務:
  * <ul>
- *   <li>カジノモードの ON/OFF 状態管理</li>
- *   <li>セッション中のチップ購入記録の追跡</li>
- *   <li>累計損益ランキングの更新・取得</li>
- *   <li>アドベンチャーモードへの切り替えと復元</li>
- *   <li>カジノシザースの配布・回収</li>
- *   <li>チップの換金処理と結果通知</li>
- *   <li>{@code data.yml} へのデータ永続化</li>
+ * <li>カジノモードの ON/OFF 状態管理</li>
+ * <li>セッション中のチップ購入記録の追跡</li>
+ * <li>累計損益ランキングの更新・取得</li>
+ * <li>アドベンチャーモードへの切り替えと復元</li>
+ * <li>カジノシザースの配布・回収</li>
+ * <li>チップの換金処理と結果通知</li>
+ * <li>{@code data.yml} へのデータ永続化</li>
  * </ul>
  *
  * @see ChipManager
@@ -55,11 +56,17 @@ import java.util.logging.Level;
  */
 public class CasinoManager {
 
-    /** プラグインインスタンス */
+    /**
+     * プラグインインスタンス
+     */
     private final CasinoCore plugin;
-    /** カジノシザース識別用の {@link NamespacedKey} */
+    /**
+     * カジノシザース識別用の {@link NamespacedKey}
+     */
     private final NamespacedKey shearsKey;
-    /** 束縛の呪いアイテム所有者管理マネージャ */
+    /**
+     * 束縛の呪いアイテム所有者管理マネージャ
+     */
     private final BindingCurseManager bindingCurseManager;
 
     /**
@@ -75,21 +82,32 @@ public class CasinoManager {
      */
     private final Map<UUID, GameMode> savedGameModes = new HashMap<>();
 
-    /** カジノモードの稼働状態 */
+    /**
+     * カジノモードの稼働状態
+     */
     private boolean casinoActive;
-    /** カジノ開始前の keepInventory ゲームルール値 */
+    /**
+     * カジノ開始前の keepInventory ゲームルール値
+     */
     private boolean savedKeepInventory;
-    /** カジノ開始時のワールド名（keepInventory 復元用） */
+    /**
+     * カジノ開始時のワールド名（keepInventory 復元用）
+     */
     private String savedWorldName;
-    /** 永続化データファイル ({@code data.yml}) */
+    /**
+     * 永続化データファイル ({@code data.yml})
+     */
     private File dataFile;
-    /** 永続化データの設定オブジェクト */
+    /**
+     * 永続化データの設定オブジェクト
+     */
     private FileConfiguration dataConfig;
 
     /**
      * コンストラクタ。
      *
-     * <p>データファイル ({@code data.yml}) から保存済みの状態を読み込む。
+     * <p>
+     * データファイル ({@code data.yml}) から保存済みの状態を読み込む。
      *
      * @param plugin              CasinoCore プラグインインスタンス
      * @param bindingCurseManager 束縛の呪いアイテム管理マネージャ
@@ -121,6 +139,7 @@ public class CasinoManager {
 
     /**
      * カジノの稼働状態を設定する。
+     *
      * @param active true: 稼働中, false: 停止中
      */
     public void setCasinoActive(boolean active) {
@@ -131,7 +150,8 @@ public class CasinoManager {
     /**
      * プレイヤーのチップ購入を記録する。
      *
-     * <p>同一プレイヤーの複数回の購入は累算される。
+     * <p>
+     * 同一プレイヤーの複数回の購入は累算される。
      *
      * @param playerId プレイヤーの UUID
      * @param amount   購入額
@@ -156,7 +176,8 @@ public class CasinoManager {
     /**
      * 全プレイヤーのセッション購入データをクリアする。
      *
-     * <p>カジノモード終了時に呼び出される。
+     * <p>
+     * カジノモード終了時に呼び出される。
      */
     public void clearAllSessionData() {
         sessionPurchases.clear();
@@ -166,7 +187,8 @@ public class CasinoManager {
     /**
      * プレイヤーの累計損益ランキングを更新する。
      *
-     * <p>換金時に呼び出され、損益結果を累算する。
+     * <p>
+     * 換金時に呼び出され、損益結果を累算する。
      *
      * @param playerId  プレイヤーの UUID
      * @param netResult 今回の損益（正: 勝ち、負: 負け）
@@ -189,8 +211,6 @@ public class CasinoManager {
         sorted.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
         return sorted.subList(0, Math.min(sorted.size(), limit));
     }
-
-
 
     /**
      * 全プレイヤーのゲームモードを保存し、アドベンチャーに変更する。
@@ -236,7 +256,8 @@ public class CasinoManager {
     /**
      * カジノ中に参加したプレイヤーのゲームモードを保存してアドベンチャーにする。
      *
-     * <p>カジノ稼働中にログインしたプレイヤーに対して呼び出される。
+     * <p>
+     * カジノ稼働中にログインしたプレイヤーに対して呼び出される。
      * カジノシザースも同時に配布する。
      *
      * @param player 対象プレイヤー
@@ -247,12 +268,11 @@ public class CasinoManager {
         giveCasinoShears(player);
     }
 
-
-
     /**
      * カーペット破壊用のカジノシザースを配布する。
      *
-     * <p>CanDestroy NBT で全カーペット素材を指定し、アドベンチャーモードで破壊可能にする。
+     * <p>
+     * CanDestroy NBT で全カーペット素材を指定し、アドベンチャーモードで破壊可能にする。
      * 束縛の呪いを付与し、{@link BindingCurseManager} で所有者を設定することで、
      * 配布先のプレイヤーのみが使用可能になる。
      *
@@ -290,7 +310,8 @@ public class CasinoManager {
     /**
      * カジノシザースをインベントリから回収する。
      *
-     * <p>{@link PersistentDataType#BYTE} のカスタムキーを持つハサミを検索し、
+     * <p>
+     * {@link PersistentDataType#BYTE} のカスタムキーを持つハサミを検索し、
      * カジノシザースを削除する。
      *
      * @param player 対象プレイヤー
@@ -309,7 +330,8 @@ public class CasinoManager {
     /**
      * 全オンラインプレイヤーのチップを換金する。
      *
-     * <p>カジノモード終了時 ({@code /casino off}) に呼び出される。
+     * <p>
+     * カジノモード終了時 ({@code /casino off}) に呼び出される。
      */
     public void cashoutAllPlayers() {
         ChipManager chipManager = plugin.getChipManager();
@@ -322,7 +344,8 @@ public class CasinoManager {
     /**
      * 単一プレイヤーのチップを換金する。
      *
-     * <p>{@code /chip cashout} コマンドから呼び出される。
+     * <p>
+     * {@code /chip cashout} コマンドから呼び出される。
      * 換金後、当該プレイヤーのセッション購入記録を削除する。
      *
      * @param player 換金対象プレイヤー
@@ -336,7 +359,8 @@ public class CasinoManager {
     /**
      * 個別プレイヤーのチップを換金し、結果を通知する。
      *
-     * <p>チップの合計額を Vault 経済に預入し、損益結果をランキングに記録する。
+     * <p>
+     * チップの合計額を Vault 経済に預入し、損益結果をランキングに記録する。
      * 購入額・換金額がともに 0 の場合は何もしない。
      *
      * @param player      対象プレイヤー
@@ -366,7 +390,8 @@ public class CasinoManager {
     /**
      * 換金結果メッセージを送信する。
      *
-     * <p>購入額・換金額・損益・勝敗結果・売却内訳をフォーマットしてプレイヤーに送信する。
+     * <p>
+     * 購入額・換金額・損益・勝敗結果・売却内訳をフォーマットしてプレイヤーに送信する。
      *
      * @param player     対象プレイヤー
      * @param totalValue 換金合計額
@@ -375,7 +400,7 @@ public class CasinoManager {
      * @param breakdown  チップの売却内訳 (額面 → 枚数)
      */
     private void sendCashoutMessage(Player player, long totalValue, long purchased,
-            long netResult, Map<Chip, Integer> breakdown) {
+                                    long netResult, Map<Chip, Integer> breakdown) {
         player.sendMessage(Messages.SEPARATOR);
 
         if (purchased > 0) {
@@ -400,7 +425,7 @@ public class CasinoManager {
                 sign = "±";
                 color = ChatColor.YELLOW;
             }
-            player.sendMessage(Messages.PREFIX + ChatColor.GRAY + "損　益: "
+            player.sendMessage(Messages.PREFIX + ChatColor.GRAY + "損 益: "
                     + color + sign + ChipManager.formatAmount(netResult) + " E");
             player.sendMessage("");
 
@@ -457,7 +482,8 @@ public class CasinoManager {
     /**
      * {@code data.yml} からデータを読み込む。
      *
-     * <p>ファイルが存在しない場合は新規作成する。
+     * <p>
+     * ファイルが存在しない場合は新規作成する。
      * カジノ状態・ランキング・購入記録・ゲームモード保存データを復元する。
      */
 
@@ -483,7 +509,8 @@ public class CasinoManager {
     /**
      * 現在の状態を {@code data.yml} に保存する。
      *
-     * <p>カジノ状態・ランキング・購入記録・ゲームモード保存データを
+     * <p>
+     * カジノ状態・ランキング・購入記録・ゲームモード保存データを
      * ファイルに書き出す。各状態変更時およびプラグイン無効化時に呼び出される。
      */
     public void saveData() {
@@ -503,7 +530,8 @@ public class CasinoManager {
     /**
      * UUID をキーとする Long マップを設定ファイルから読み込む。
      *
-     * <p>無効な UUID キーは警告ログを出力してスキップする。
+     * <p>
+     * 無効な UUID キーは警告ログを出力してスキップする。
      *
      * @param section 設定ファイルのセクション名
      * @param target  読み込み先のマップ
@@ -524,7 +552,8 @@ public class CasinoManager {
     /**
      * UUID をキーとする Long マップを設定ファイルに書き出す。
      *
-     * <p>既存のセクションをクリアしてから書き込む。
+     * <p>
+     * 既存のセクションをクリアしてから書き込む。
      *
      * @param section 設定ファイルのセクション名
      * @param source  書き出すマップ
@@ -539,7 +568,8 @@ public class CasinoManager {
     /**
      * 保存済みゲームモードデータを設定ファイルから読み込む。
      *
-     * <p>無効な UUID やゲームモード値は警告ログを出力してスキップする。
+     * <p>
+     * 無効な UUID やゲームモード値は警告ログを出力してスキップする。
      */
     private void loadGameModes() {
         ConfigurationSection sec = dataConfig.getConfigurationSection("saved-game-modes");
@@ -548,7 +578,7 @@ public class CasinoManager {
         for (String key : sec.getKeys(false)) {
             try {
                 UUID uuid = UUID.fromString(key);
-                GameMode mode = GameMode.valueOf(sec.getString(key, "SURVIVAL"));
+                GameMode mode = GameMode.valueOf(sec.getString(key, GameMode.SURVIVAL.name()));
                 savedGameModes.put(uuid, mode);
             } catch (IllegalArgumentException e) {
                 plugin.getLogger().warning("無効なゲームモードデータ (saved-game-modes): " + key);

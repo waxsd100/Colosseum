@@ -32,13 +32,21 @@ import org.bukkit.plugin.java.JavaPlugin;
  */
 public final class CasinoCore extends JavaPlugin {
 
-    /** Vault 経済プラグインのインスタンス */
+    /**
+     * Vault 経済プラグインのインスタンス
+     */
     private Economy economy;
-    /** チップ管理マネージャ */
+    /**
+     * チップ管理マネージャ
+     */
     private ChipManager chipManager;
-    /** カジノ全体の状態管理マネージャ */
+    /**
+     * カジノ全体の状態管理マネージャ
+     */
     private CasinoManager casinoManager;
-    /** 束縛の呪いアイテム所有者管理マネージャ */
+    /**
+     * 束縛の呪いアイテム所有者管理マネージャ
+     */
     private BindingCurseManager bindingCurseManager;
 
     /**

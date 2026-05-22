@@ -39,7 +39,9 @@ import java.util.Map;
  */
 public class ChipCommand implements CommandExecutor, TabCompleter {
 
-    /** プラグインインスタンス */
+    /**
+     * プラグインインスタンス
+     */
     private final CasinoCore plugin;
 
     /**
@@ -240,7 +242,6 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
     }
 
 
-
     /**
      * チップ額面一覧を表示する。
      *
@@ -334,7 +335,6 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(ChatColor.YELLOW + "  /chip balance " + ChatColor.GRAY + "- 手持ちチップの確認");
         player.sendMessage(ChatColor.YELLOW + "  /chip cashout " + ChatColor.GRAY + "- 手持ちチップを換金する");
     }
-
 
 
     /**

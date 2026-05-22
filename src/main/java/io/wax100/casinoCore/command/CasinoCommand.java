@@ -34,9 +34,13 @@ import java.util.UUID;
  */
 public class CasinoCommand implements CommandExecutor, TabCompleter {
 
-    /** サブコマンド一覧（タブ補完用） */
+    /**
+     * サブコマンド一覧（タブ補完用）
+     */
     private static final List<String> SUB_COMMANDS = Arrays.asList("on", "off", "status", "ranking");
-    /** プラグインインスタンス */
+    /**
+     * プラグインインスタンス
+     */
     private final CasinoCore plugin;
 
     /**

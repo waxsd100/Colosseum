@@ -20,7 +20,9 @@ public final class Messages {
      */
     public static final String SEPARATOR = ChatColor.GOLD + "-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-";
 
-    /** インスタンス化禁止用のプライベートコンストラクタ */
+    /**
+     * インスタンス化禁止用のプライベートコンストラクタ
+     */
     private Messages() {
     }
 }

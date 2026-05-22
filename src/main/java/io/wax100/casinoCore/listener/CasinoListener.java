@@ -27,7 +27,9 @@ import org.bukkit.inventory.ItemStack;
  */
 public class CasinoListener implements Listener {
 
-    /** プラグインインスタンス */
+    /**
+     * プラグインインスタンス
+     */
     private final CasinoCore plugin;
 
     /**
