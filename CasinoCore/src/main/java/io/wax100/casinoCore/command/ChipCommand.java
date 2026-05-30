@@ -138,7 +138,7 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
         }
         Map<Chip, Integer> chips = new LinkedHashMap<>();
         chips.put(chip, count);
-        if (executePurchase(player, chips, totalCost)) {
+        if (!executePurchase(player, chips, totalCost)) {
             return;
         }
 
@@ -177,7 +177,7 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(Messages.CANNOT_CONVERT);
             return;
         }
-        if (executePurchase(player, breakdown, actualTotal)) {
+        if (!executePurchase(player, breakdown, actualTotal)) {
             return;
         }
 
@@ -202,7 +202,7 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
      * @param player    購入プレイヤー
      * @param chips     購入するチップの内訳 (額面 → 枚数)
      * @param totalCost 合計購入額
-     * @return エラーが発生し購入を中止した場合 {@code true}、成功した場合 {@code false}
+     * @return 購入が成功した場合 {@code true}、エラーが発生し中止した場合 {@code false}
      */
     private boolean executePurchase(Player player, Map<Chip, Integer> chips, long totalCost) {
         ChipManager cm = plugin.getChipManager();
@@ -210,24 +210,24 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
 
         if (!economy.has(player, totalCost)) {
             player.sendMessage(Messages.INSUFFICIENT_FUNDS);
-            return true;
+            return false;
         }
 
         int slotsNeeded = cm.calculateSlotsNeeded(chips);
         if (cm.countEmptySlots(player) < slotsNeeded) {
             player.sendMessage(Messages.INVENTORY_FULL);
-            return true;
+            return false;
         }
 
         EconomyResponse resp = economy.withdrawPlayer(player, totalCost);
         if (!resp.transactionSuccess()) {
             player.sendMessage(Messages.PREFIX + ChatColor.RED + "購入に失敗しました: " + resp.errorMessage);
-            return true;
+            return false;
         }
 
         cm.giveChips(player, chips);
         plugin.getCasinoManager().recordPurchase(player.getUniqueId(), totalCost);
-        return false;
+        return true;
     }
 
     /**

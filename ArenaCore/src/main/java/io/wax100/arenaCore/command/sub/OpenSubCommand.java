@@ -38,6 +38,17 @@ public class OpenSubCommand implements SubCommand {
             } else {
                 sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
                         + ArenaMessages.MSG_MIN_TEAMS_REQUIRED);
+                // メンバーが0人のチームを表示
+                for (String team : session.getTeamNames()) {
+                    boolean hasMember = session.getTeamSize(team) > 0
+                            || (session.isMobTeam(team)
+                                && session.getTeamAreaConfig(team) != null
+                                && !session.getTeamAreaConfig(team).scanEntities().isEmpty());
+                    if (!hasMember) {
+                        sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY
+                                + "  ✗ " + team + " (メンバーなし)");
+                    }
+                }
             }
             return;
         }

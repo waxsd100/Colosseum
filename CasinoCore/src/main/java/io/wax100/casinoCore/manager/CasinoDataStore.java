@@ -224,21 +224,51 @@ public class CasinoDataStore {
         }
 
         if (async && Bukkit.getServer() != null && plugin.isEnabled()) {
-            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-                synchronized (fileLock) {
-                    try {
-                        copy.save(dataFile);
-                    } catch (IOException e) {
-                        plugin.getLogger().log(Level.SEVERE, "data.ymlの非同期保存に失敗しました", e);
-                    }
-                }
-            });
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> saveToFileWithBackup(copy));
         } else {
-            synchronized (fileLock) {
-                try {
-                    copy.save(dataFile);
-                } catch (IOException e) {
-                    plugin.getLogger().log(Level.SEVERE, "data.ymlの保存に失敗しました", e);
+            saveToFileWithBackup(copy);
+        }
+    }
+
+    /**
+     * バックアップ付きでファイルに保存する。
+     *
+     * <p>保存前に既存ファイルを {@code .bak} にリネームし、保存成功後に削除する。
+     * 保存失敗時は {@code .bak} から復元を試みる。
+     *
+     * @param config 保存する設定オブジェクト
+     */
+    private void saveToFileWithBackup(YamlConfiguration config) {
+        File backupFile = new File(dataFile.getParentFile(), dataFile.getName() + ".bak");
+        synchronized (fileLock) {
+            // 既存ファイルをバックアップ
+            boolean backupCreated = false;
+            if (dataFile.exists()) {
+                // 古い .bak があれば削除
+                if (backupFile.exists()) {
+                    backupFile.delete();
+                }
+                backupCreated = dataFile.renameTo(backupFile);
+                if (!backupCreated) {
+                    plugin.getLogger().warning("data.yml のバックアップ作成に失敗しました。直接上書き保存します。");
+                }
+            }
+            try {
+                config.save(dataFile);
+                // 保存成功 — バックアップを削除
+                if (backupCreated && backupFile.exists()) {
+                    backupFile.delete();
+                }
+            } catch (IOException e) {
+                plugin.getLogger().log(Level.SEVERE, "data.ymlの保存に失敗しました", e);
+                // 保存失敗 — バックアップから復元を試みる
+                if (backupCreated && backupFile.exists()) {
+                    if (backupFile.renameTo(dataFile)) {
+                        plugin.getLogger().info("バックアップから data.yml を復元しました。");
+                    } else {
+                        plugin.getLogger().severe("data.yml の復元にも失敗しました。" +
+                                "バックアップファイル: " + backupFile.getAbsolutePath());
+                    }
                 }
             }
         }

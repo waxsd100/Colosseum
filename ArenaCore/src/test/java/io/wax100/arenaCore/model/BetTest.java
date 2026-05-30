@@ -63,6 +63,13 @@ class BetTest {
         }
 
         @Test
+        @DisplayName("負の金額でIllegalArgumentExceptionが発生する")
+        void negativeAmount_throwsIAE() {
+            assertThrows(IllegalArgumentException.class,
+                    () -> new Bet(UUID.randomUUID(), TEAM_RED, -1L));
+        }
+
+        @Test
         @DisplayName("大きな金額でBetを生成できる")
         void largeAmount_isPreserved() {
             long largeAmount = 1_000_000_000L;
@@ -107,6 +114,16 @@ class BetTest {
         void negativeAmount_subtracts() {
             bet.addAmount(-30L);
             assertEquals(70L, bet.getAmount());
+        }
+
+        @Test
+        @DisplayName("結果が負になる減算はIllegalArgumentExceptionが発生する")
+        void negativeResult_throwsIAE() {
+            // 100 - 200 = -100 → IAE
+            assertThrows(IllegalArgumentException.class,
+                    () -> bet.addAmount(-200L));
+            // 元の金額が変わっていないことも確認
+            assertEquals(100L, bet.getAmount());
         }
 
         @Test

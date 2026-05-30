@@ -74,6 +74,14 @@ public class ArenaBettingListener implements Listener {
             return;
         }
 
+        // 同座標にチップが既に設置されている場合はキャンセル
+        ArenaSession.PlacedChipInfo existingChip = session.getPlacedChip(event.getBlock().getLocation());
+        if (existingChip != null) {
+            event.setCancelled(true);
+            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "この場所には既にチップが置かれています。");
+            return;
+        }
+
         // 既に別のチームに賭けている場合
         io.wax100.arenaCore.model.Bet existingBet = session.getBet(player.getUniqueId());
         if (existingBet != null && !existingBet.getTeamName().equals(teamName)) {

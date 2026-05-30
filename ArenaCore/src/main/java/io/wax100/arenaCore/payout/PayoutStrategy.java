@@ -17,7 +17,7 @@ public interface PayoutStrategy {
      *
      * @param session      セッション
      * @param winningTeam  勝利チーム名
-     * @param houseEdge    手数料率 (0.0〜1.0)
+     * @param houseEdge    手数料率 (0.0〜1.0, 実装側で [0.0, 0.99] にクランプ)
      * @return 各プレイヤーの配当金額マップ (UUID → 配当額)
      */
     Map<UUID, Long> calculatePayouts(ArenaSession session, String winningTeam, double houseEdge);

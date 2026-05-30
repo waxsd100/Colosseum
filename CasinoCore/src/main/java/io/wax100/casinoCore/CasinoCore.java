@@ -93,14 +93,20 @@ public final class CasinoCore extends JavaPlugin {
     @Override
     public void onDisable() {
         if (casinoManager != null) {
-            if (casinoManager.isCasinoActive()) {
-                casinoManager.cashoutAllPlayers();
-                casinoManager.restoreGameModes();
-                casinoManager.setCasinoActive(false);
-                casinoManager.clearAllSessionData();
-                getLogger().info("カジノモードを強制終了しました。");
+            try {
+                if (casinoManager.isCasinoActive()) {
+                    casinoManager.cashoutAllPlayers();
+                    casinoManager.restoreGameModes();
+                    casinoManager.setCasinoActive(false);
+                    casinoManager.clearAllSessionData();
+                    getLogger().info("カジノモードを強制終了しました。");
+                }
+            } catch (Exception e) {
+                getLogger().severe("カジノモード終了処理中にエラーが発生しました: " + e.getMessage());
+                e.printStackTrace();
+            } finally {
+                casinoManager.saveData(false);
             }
-            casinoManager.saveData(false);
         }
         getLogger().info("CasinoCore が無効化されました。");
     }

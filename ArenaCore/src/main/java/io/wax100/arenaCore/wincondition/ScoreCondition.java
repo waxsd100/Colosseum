@@ -40,17 +40,24 @@ public class ScoreCondition implements WinCondition {
         // targetScore が 0 の場合は手動集計モード
         if (targetScore <= 0) return null;
 
-        // 勝利判定: 複数チームが同時に到達した場合はスコアが最も高いチームを選出
+        // 勝利判定: 複数チームが同時に到達した場合
         String winner = null;
         int highestScore = 0;
+        int highestCount = 0;
         for (String team : session.getTeamNames()) {
             int score = session.getScore(team);
-            if (score >= targetScore && score > highestScore) {
-                highestScore = score;
-                winner = team;
+            if (score >= targetScore) {
+                if (score > highestScore) {
+                    highestScore = score;
+                    winner = team;
+                    highestCount = 1;
+                } else if (score == highestScore) {
+                    highestCount++;
+                }
             }
         }
 
-        return winner;
+        // 同点で複数チームが最高スコアに到達した場合は手動判定に委ねる
+        return highestCount == 1 ? winner : null;
     }
 }

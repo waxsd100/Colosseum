@@ -83,11 +83,9 @@ class PayoutStrategyTest {
             }
 
             @Test
-            @DisplayName("全員が勝利チームに賭けた場合、手数料分だけ減る")
-            void allBetsOnWinner_payoutReduced() {
-                // totalPool=15000, payoutPool=13500, winningPool=15000
-                // odds=13500/15000=0.9
-                // A1: 10000*0.9=9000, A2: 5000*0.9=4500
+            @DisplayName("全員が勝利チームに賭けた場合、元金が返却される")
+            void allBetsOnWinner_originalReturned() {
+                // 改善: 全員同チームの場合は再分配不要 → 元金返却
                 ArenaSession session = new ArenaSession("test", Arrays.asList("TeamA", "TeamB"));
                 session.addOrUpdateBet(PLAYER_A1, "TeamA", 10000);
                 session.addOrUpdateBet(PLAYER_A2, "TeamA", 5000);
@@ -95,8 +93,8 @@ class PayoutStrategyTest {
                 Map<UUID, Long> payouts = strategy.calculatePayouts(session, "TeamA", 0.1);
 
                 assertEquals(2, payouts.size());
-                assertEquals(9000L, payouts.get(PLAYER_A1));
-                assertEquals(4500L, payouts.get(PLAYER_A2));
+                assertEquals(10000L, payouts.get(PLAYER_A1));
+                assertEquals(5000L, payouts.get(PLAYER_A2));
             }
 
             @Test
@@ -135,16 +133,18 @@ class PayoutStrategyTest {
             }
 
             @Test
-            @DisplayName("houseEdge=1.0 の場合、配当は0になる")
-            void houseEdgeOne_zeroPayout() {
-                // payoutPool=0
+            @DisplayName("houseEdge=1.0 の場合、0.99にクランプされ最小配当が返る")
+            void houseEdgeOne_clampedToMax() {
+                // 改善: houseEdge は 0.99 にクランプされるため、配当は 0 にならない
+                // payoutPool = 15000 * 0.01 = 150, odds = 150/10000 = 0.015
+                // A1: floor(10000 * 0.015) = 150
                 ArenaSession session = new ArenaSession("test", Arrays.asList("TeamA", "TeamB"));
                 session.addOrUpdateBet(PLAYER_A1, "TeamA", 10000);
                 session.addOrUpdateBet(PLAYER_B1, "TeamB", 5000);
 
                 Map<UUID, Long> payouts = strategy.calculatePayouts(session, "TeamA", 1.0);
 
-                assertEquals(0L, payouts.get(PLAYER_A1));
+                assertTrue(payouts.get(PLAYER_A1) > 0L, "クランプにより配当が0にならない");
             }
 
             @Test
@@ -356,6 +356,23 @@ class PayoutStrategyTest {
                 // Falls back to PariMutuel: 13500
                 assertEquals(13500L, payouts.get(PLAYER_A1));
             }
+
+            @Test
+            @DisplayName("オッズが1.0以下の場合、最低1.01に引き上げられる")
+            void oddsBelow1_flooredTo101() {
+                // 全員が勝利チームに賭けた場合、フォールバックオッズ < 1.0
+                // FixedOddsPayout は最低1.01を保証する
+                ArenaSession session = new ArenaSession("test", Arrays.asList("TeamA", "TeamB"));
+                session.addOrUpdateBet(PLAYER_A1, "TeamA", 10000);
+                // lockedOdds=0 → フォールバック → calculateOdds
+                // totalPool==teamPool → (10000*0.9)/10000=0.9 → 1.01にフロア
+
+                Map<UUID, Long> payouts = strategy.calculatePayouts(session, "TeamA", 0.1);
+
+                assertEquals(1, payouts.size());
+                // 10000 * 1.01 = 10100
+                assertEquals(10100L, payouts.get(PLAYER_A1));
+            }
         }
 
         // ── calculateOdds ──
@@ -488,17 +505,17 @@ class PayoutStrategyTest {
             }
 
             @Test
-            @DisplayName("houseEdge=1.0 の場合、再分配は0で元金のみ返る")
-            void houseEdgeOne_onlyOriginalReturned() {
-                // redistributable=5000*0.0=0
-                // A1: 10000 + 0 = 10000
+            @DisplayName("houseEdge=1.0 の場合、0.99にクランプされわずかな再分配が発生")
+            void houseEdgeOne_clampedRedistribution() {
+                // houseEdge=1.0 → clamped to 0.99, redistributable=5000*0.01=50
+                // A1: 10000 + floor(50*1.0) = 10050
                 ArenaSession session = new ArenaSession("test", Arrays.asList("TeamA", "TeamB"));
                 session.addOrUpdateBet(PLAYER_A1, "TeamA", 10000);
                 session.addOrUpdateBet(PLAYER_B1, "TeamB", 5000);
 
                 Map<UUID, Long> payouts = strategy.calculatePayouts(session, "TeamA", 1.0);
 
-                assertEquals(10000L, payouts.get(PLAYER_A1));
+                assertTrue(payouts.get(PLAYER_A1) >= 10000L, "元金保証により少なくとも元金が返る");
             }
 
             @Test

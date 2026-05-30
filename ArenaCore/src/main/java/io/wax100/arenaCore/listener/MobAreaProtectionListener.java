@@ -90,8 +90,6 @@ public class MobAreaProtectionListener implements Listener {
     public void onBlockIgnite(BlockIgniteEvent event) {
         if (!plugin.getArenaManager().hasActiveSession()) return;
 
-        if (event.getCause() == BlockIgniteEvent.IgniteCause.FLINT_AND_STEEL) return;
-
         if (isInAnyWaitingArea(event.getBlock().getLocation())) {
             event.setCancelled(true);
         }

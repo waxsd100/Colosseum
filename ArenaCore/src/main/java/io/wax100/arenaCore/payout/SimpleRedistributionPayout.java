@@ -29,8 +29,8 @@ public class SimpleRedistributionPayout implements PayoutStrategy {
 
         if (winningPool <= 0) return payouts;
 
-        // houseEdge を [0.0, 1.0) にクランプ
-        double clampedEdge = Math.max(0.0, Math.min(houseEdge, 1.0));
+        // houseEdge を [0.0, 0.99] にクランプして再分配額が 0 になるのを防止
+        double clampedEdge = Math.max(0.0, Math.min(houseEdge, 0.99));
         // 負けチームの賭け金から手数料を引いた分を再分配
         double redistributable = losingPool * (1.0 - clampedEdge);
 
@@ -56,7 +56,7 @@ public class SimpleRedistributionPayout implements PayoutStrategy {
 
         if (teamPool <= 0) return 0.0;
 
-        double clampedEdge = Math.max(0.0, Math.min(houseEdge, 1.0));
+        double clampedEdge = Math.max(0.0, Math.min(houseEdge, 0.99));
         double redistributable = losingPool * (1.0 - clampedEdge);
         // 最低でも 1.0 (元金返却)
         return Math.max(1.0, 1.0 + (redistributable / teamPool));

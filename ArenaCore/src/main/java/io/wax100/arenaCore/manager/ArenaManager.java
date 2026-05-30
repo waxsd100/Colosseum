@@ -1,6 +1,9 @@
 package io.wax100.arenaCore.manager;
 
 import io.wax100.arenaCore.ArenaCore;
+import io.wax100.arenaCore.event.ArenaBettingCloseEvent;
+import io.wax100.arenaCore.event.ArenaBettingOpenEvent;
+import io.wax100.arenaCore.event.ArenaWinnerDeclaredEvent;
 import io.wax100.arenaCore.model.ArenaSession;
 import io.wax100.arenaCore.model.ArenaState;
 import io.wax100.arenaCore.model.TeamAreaConfig;
@@ -49,10 +52,14 @@ public class ArenaManager {
      * 闘技場セッションを作成する。
      */
     public ArenaSession createArena(String name, List<String> teamNames) {
-        if (activeSession != null) return null;
+        if (activeSession != null) {
+            plugin.getLogger().warning("セッション作成失敗: 既にアクティブなセッションが存在します (" + activeSession.getName() + ")");
+            return null;
+        }
         activeSession = new ArenaSession(name, teamNames);
         eliminatedPlayers.clear();
         regionManager.clearRegions();
+        plugin.getLogger().info("闘技場セッション作成: " + name + " (チーム数: " + teamNames.size() + ")");
         return activeSession;
     }
 
@@ -101,7 +108,16 @@ public class ArenaManager {
         }
         if (teamsWithMembers < 2) return false;
 
+        // カスタムイベント発火（キャンセル可能）
+        ArenaBettingOpenEvent openEvent = new ArenaBettingOpenEvent(activeSession);
+        Bukkit.getPluginManager().callEvent(openEvent);
+        if (openEvent.isCancelled()) {
+            plugin.getLogger().info("賭け受付開始がイベントリスナーによりキャンセルされました。");
+            return false;
+        }
+
         activeSession.setState(ArenaState.BETTING);
+        plugin.getLogger().info("賭け受付を開始しました: " + activeSession.getName());
 
         int interval = plugin.getConfig().getInt("odds-broadcast-interval", 30);
         if (interval > 0) {
@@ -126,6 +142,10 @@ public class ArenaManager {
         activeSession.setState(ArenaState.ACTIVE);
         stopOddsBroadcast();
         eliminatedPlayers.clear();
+
+        // カスタムイベント発火（情報通知・キャンセル不可）
+        Bukkit.getPluginManager().callEvent(new ArenaBettingCloseEvent(activeSession));
+        plugin.getLogger().info("試合を開始しました: " + activeSession.getName());
 
         // プレイヤー待機場からスキャンして登録＋TP
         scanAndTeleportPlayers();
@@ -234,8 +254,11 @@ public class ArenaManager {
         if (activeSession == null || activeSession.getState() != ArenaState.ACTIVE) return false;
         if (!activeSession.hasTeam(winningTeam)) return false;
 
+        stopOddsBroadcast();
+
         activeSession.setWinningTeam(winningTeam);
         activeSession.setState(ArenaState.FINISHED);
+        plugin.getLogger().info("勝者宣言: " + winningTeam + " (セッション: " + activeSession.getName() + ")");
 
         int winnerIndex = activeSession.getTeamNames().indexOf(winningTeam);
         ChatColor winnerColor = ArenaMessages.getTeamColor(winnerIndex);
@@ -248,6 +271,9 @@ public class ArenaManager {
         Bukkit.broadcastMessage("");
 
         bettingManager.calculateAndDistributePayout(activeSession, winningTeam);
+
+        // カスタムイベント発火（情報通知）
+        Bukkit.getPluginManager().callEvent(new ArenaWinnerDeclaredEvent(activeSession, winningTeam));
 
         // 残存Mobをワールドから削除
         cleanupMobs();
@@ -265,6 +291,7 @@ public class ArenaManager {
      */
     public boolean cancelArena() {
         if (activeSession == null) return false;
+        plugin.getLogger().warning("闘技場セッションがキャンセルされました: " + activeSession.getName());
         stopOddsBroadcast();
 
         bettingManager.refundAll(activeSession);

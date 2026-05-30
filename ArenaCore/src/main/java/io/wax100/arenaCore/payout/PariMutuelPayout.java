@@ -29,8 +29,18 @@ public class PariMutuelPayout implements PayoutStrategy {
 
         if (totalPool <= 0 || winningPool <= 0) return payouts;
 
-        // houseEdge を [0.0, 1.0) にクランプして負の配当プールを防止
-        double clampedEdge = Math.max(0.0, Math.min(houseEdge, 1.0));
+        // 全員が勝利チームに賭けた場合は再分配不要 → 元金返却
+        if (totalPool == winningPool) {
+            for (Bet bet : session.getBets().values()) {
+                if (bet.getTeamName().equals(winningTeam)) {
+                    payouts.put(bet.getPlayerId(), bet.getAmount());
+                }
+            }
+            return payouts;
+        }
+
+        // houseEdge を [0.0, 0.99] にクランプして配当プールが 0 になるのを防止
+        double clampedEdge = Math.max(0.0, Math.min(houseEdge, 0.99));
         double payoutPool = totalPool * (1.0 - clampedEdge);
         double odds = payoutPool / winningPool;
 
@@ -52,7 +62,10 @@ public class PariMutuelPayout implements PayoutStrategy {
 
         if (totalPool <= 0 || teamPool <= 0) return 0.0;
 
-        double clampedEdge = Math.max(0.0, Math.min(houseEdge, 1.0));
+        // 全員が同一チームに賭けた場合はオッズ 1.0（元金返却相当）
+        if (totalPool == teamPool) return 1.0;
+
+        double clampedEdge = Math.max(0.0, Math.min(houseEdge, 0.99));
         double payoutPool = totalPool * (1.0 - clampedEdge);
         return payoutPool / teamPool;
     }

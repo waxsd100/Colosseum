@@ -33,9 +33,9 @@ public class FixedOddsPayout implements PayoutStrategy {
                     // ロックされていない場合は現在のオッズを使用
                     odds = calculateOdds(session, winningTeam, houseEdge);
                 }
-                // オッズが 0 以下の場合は最低限元金を返す
-                if (odds <= 0) {
-                    odds = 1.0;
+                // オッズが 1.0 以下の場合は最低限わずかな利益を保証（1%）
+                if (odds <= 1.0) {
+                    odds = 1.01;
                 }
                 // Math.floor で切り捨て: プールを超過しない保証
                 long payout = Math.max(0L, (long) Math.floor(bet.getAmount() * odds));
@@ -53,7 +53,7 @@ public class FixedOddsPayout implements PayoutStrategy {
 
         if (totalPool <= 0 || teamPool <= 0) return 0.0;
 
-        double clampedEdge = Math.max(0.0, Math.min(houseEdge, 1.0));
+        double clampedEdge = Math.max(0.0, Math.min(houseEdge, 0.99));
         double payoutPool = totalPool * (1.0 - clampedEdge);
         return payoutPool / teamPool;
     }

@@ -201,10 +201,16 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
         Bukkit.broadcastMessage(Messages.PREFIX + ChatColor.RED + "カジノモードを終了します。チップを換金します...");
         Bukkit.broadcastMessage(Messages.SEPARATOR);
 
-        manager.cashoutAllPlayers();
-        manager.restoreGameModes();
-        manager.setCasinoActive(false);
-        manager.clearAllSessionData();
+        try {
+            manager.cashoutAllPlayers();
+        } catch (Exception e) {
+            plugin.getLogger().severe("換金処理中にエラーが発生しました: " + e.getMessage());
+            e.printStackTrace();
+        } finally {
+            manager.restoreGameModes();
+            manager.setCasinoActive(false);
+            manager.clearAllSessionData();
+        }
 
         Bukkit.broadcastMessage(Messages.SEPARATOR);
         Bukkit.broadcastMessage(Messages.PREFIX + ChatColor.RED + "カジノモードを終了しました。");
@@ -257,10 +263,9 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
             int rank = 1;
             for (Map.Entry<UUID, Long> entry : sorted) {
                 PlayerStats stats = plugin.getCasinoManager().getStatsForPlayer(entry.getKey());
-                String name = stats != null && stats.getName() != null
+                String name = (stats != null && stats.getName() != null)
                         ? stats.getName()
-                        : Bukkit.getOfflinePlayer(entry.getKey()).getName();
-                if (name == null) name = "???";
+                        : "???";
                 long value = entry.getValue();
                 String prefix = value >= 0
                         ? ChatColor.GREEN + "+"

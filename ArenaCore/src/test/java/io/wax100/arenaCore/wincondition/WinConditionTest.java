@@ -415,19 +415,17 @@ class WinConditionTest {
             }
 
             @Test
-            @DisplayName("目標到達した最初のチームが勝利する")
-            void firstTeamToReachTarget_wins() {
+            @DisplayName("同点で複数チームが同時到達した場合は手動判定に委ねる")
+            void tiedTeamsReachTarget_defersToManual() {
                 Set<UUID> eliminated = new HashSet<>();
 
                 // A dies → B=1, C=1
                 assertNull(condition.checkWinOnDeath(session, PLAYER_A1, eliminated));
-                // A dies → B=2, C=2 → first checked team wins
+                // A dies → B=2, C=2 → 同点のため手動判定
                 String winner = condition.checkWinOnDeath(session, PLAYER_A1, eliminated);
 
-                // TeamB or TeamC should win (whichever is iterated first)
-                assertNotNull(winner);
-                assertTrue(winner.equals("TeamB") || winner.equals("TeamC"),
-                        "TeamB または TeamC のいずれかが勝利するはず");
+                // 同点のため null（手動判定に委ねる）
+                assertNull(winner, "同点で複数チームが到達した場合は null を返すべき");
             }
         }
 

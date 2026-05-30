@@ -103,6 +103,20 @@ class ArenaSessionTest {
             assertThrows(IllegalArgumentException.class,
                     () -> new ArenaSession("Empty", Collections.emptyList()));
         }
+
+        @Test
+        @DisplayName("nullのセッション名でNPEが発生する")
+        void nullName_throwsNPE() {
+            assertThrows(NullPointerException.class,
+                    () -> new ArenaSession(null, TWO_TEAMS));
+        }
+
+        @Test
+        @DisplayName("nullのチーム名リストでNPEが発生する")
+        void nullTeamList_throwsNPE() {
+            assertThrows(NullPointerException.class,
+                    () -> new ArenaSession("test", null));
+        }
     }
 
     // ========================================================================
@@ -344,28 +358,30 @@ class ArenaSessionTest {
         }
 
         @Test
-        @DisplayName("異なるチームへの賭けは新しい賭けに置き換わる")
-        void differentTeam_replacesBet() {
+        @DisplayName("異なるチームへの賭けはIllegalStateExceptionをスローする")
+        void differentTeam_throwsException() {
             UUID player = UUID.randomUUID();
             session.addOrUpdateBet(player, TEAM_RED, 100L);
-            session.addOrUpdateBet(player, TEAM_BLUE, 200L);
+            assertThrows(IllegalStateException.class,
+                    () -> session.addOrUpdateBet(player, TEAM_BLUE, 200L));
 
+            // 既存の賭けは変更されていないことを確認
             Bet bet = session.getBet(player);
-            assertEquals(TEAM_BLUE, bet.getTeamName());
-            assertEquals(200L, bet.getAmount());
+            assertEquals(TEAM_RED, bet.getTeamName());
+            assertEquals(100L, bet.getAmount());
         }
 
         @Test
-        @DisplayName("異なるチームへの置き換え後に再び同一チームへ加算できる")
-        void replaceAndThenAccumulate() {
+        @DisplayName("同一チームへの連続加算は正常に動作する")
+        void sameTeam_multipleAccumulate() {
             UUID player = UUID.randomUUID();
             session.addOrUpdateBet(player, TEAM_RED, 100L);
-            session.addOrUpdateBet(player, TEAM_BLUE, 200L);
-            session.addOrUpdateBet(player, TEAM_BLUE, 50L);
+            session.addOrUpdateBet(player, TEAM_RED, 200L);
+            session.addOrUpdateBet(player, TEAM_RED, 50L);
 
             Bet bet = session.getBet(player);
-            assertEquals(TEAM_BLUE, bet.getTeamName());
-            assertEquals(250L, bet.getAmount());
+            assertEquals(TEAM_RED, bet.getTeamName());
+            assertEquals(350L, bet.getAmount());
         }
 
         @Test
@@ -489,15 +505,16 @@ class ArenaSessionTest {
         }
 
         @Test
-        @DisplayName("チームを切り替えた場合は新しい金額だけが反映される")
-        void teamSwitch_onlyNewAmountCounted() {
+        @DisplayName("チーム切り替えはIllegalStateExceptionとなり、元の賭けが保持される")
+        void teamSwitch_throwsAndPreservesOriginal() {
             UUID player = UUID.randomUUID();
             session.addOrUpdateBet(player, TEAM_RED, 100L);
-            session.addOrUpdateBet(player, TEAM_BLUE, 200L);
+            assertThrows(IllegalStateException.class,
+                    () -> session.addOrUpdateBet(player, TEAM_BLUE, 200L));
 
-            assertEquals(200L, session.getTotalPool());
-            assertEquals(0L, session.getTeamPool(TEAM_RED));
-            assertEquals(200L, session.getTeamPool(TEAM_BLUE));
+            assertEquals(100L, session.getTotalPool());
+            assertEquals(100L, session.getTeamPool(TEAM_RED));
+            assertEquals(0L, session.getTeamPool(TEAM_BLUE));
         }
     }
 
@@ -529,6 +546,13 @@ class ArenaSessionTest {
         @DisplayName("加算しなければ0のまま")
         void noAdd_remainsZero() {
             assertEquals(0L, session.getEntryFeePool());
+        }
+
+        @Test
+        @DisplayName("負の参加費はIllegalArgumentExceptionをスローする")
+        void negativeFee_throwsIAE() {
+            assertThrows(IllegalArgumentException.class,
+                    () -> session.addEntryFee(-1L));
         }
     }
 
@@ -847,6 +871,41 @@ class ArenaSessionTest {
 
             threeTeamSession.addOrUpdateBet(UUID.randomUUID(), teamGreen, 100L);
             assertEquals(100L, threeTeamSession.getTeamPool(teamGreen));
+        }
+    }
+
+    // ========================================================================
+    // clearAllData
+    // ========================================================================
+
+    @Nested
+    @DisplayName("clearAllData - セッションデータクリア")
+    class ClearAllDataTest {
+
+        @Test
+        @DisplayName("FINISHED以外の状態でIllegalStateExceptionをスローする")
+        void nonFinishedState_throwsISE() {
+            // SETUP 状態で呼び出し
+            assertThrows(IllegalStateException.class,
+                    () -> session.clearAllData());
+        }
+
+        @Test
+        @DisplayName("FINISHED状態で正常にクリアできる")
+        void finishedState_clearsSuccessfully() {
+            UUID player = UUID.randomUUID();
+            session.addTeamMember(TEAM_RED, player);
+            session.addOrUpdateBet(UUID.randomUUID(), TEAM_RED, 100L);
+            session.addScore(TEAM_RED, 5);
+            session.addEntryFee(500L);
+
+            session.setState(ArenaState.FINISHED);
+            assertDoesNotThrow(() -> session.clearAllData());
+
+            // クリア後の状態を確認
+            assertTrue(session.getBets().isEmpty());
+            assertTrue(session.getPlacedChips().isEmpty());
+            assertEquals(0, session.getTeamMembers(TEAM_RED).size());
         }
     }
 }

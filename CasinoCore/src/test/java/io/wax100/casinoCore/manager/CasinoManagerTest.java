@@ -79,6 +79,7 @@ class CasinoManagerTest {
         }
 
         private void setUpPlayerMock(Player p, String worldName) {
+            when(p.isOnline()).thenReturn(true);
             org.bukkit.World mockWorld = mock(org.bukkit.World.class);
             when(mockWorld.getName()).thenReturn(worldName);
             when(mockWorld.getGameRuleValue(org.bukkit.GameRule.KEEP_INVENTORY)).thenReturn(false);
@@ -89,30 +90,35 @@ class CasinoManagerTest {
         }
 
         @Test
-        void 初期状態はOFF() {
+        @DisplayName("初期状態はOFF")
+        void initialStateIsOff() {
             assertFalse(casinoManager.isCasinoActive());
         }
 
         @Test
-        void 初期状態でプレイヤーは非参加() {
+        @DisplayName("初期状態でプレイヤーは非参加")
+        void playerNotInCasinoInitially() {
             assertFalse(casinoManager.isPlayerInCasino(playerId));
         }
 
         @Test
-        void プレイヤー追加でONになる() {
+        @DisplayName("プレイヤー追加でONになる")
+        void addingPlayerActivatesCasino() {
             casinoManager.addPlayerToCasino(mockPlayer);
             assertTrue(casinoManager.isCasinoActive());
             assertTrue(casinoManager.isPlayerInCasino(playerId));
         }
 
         @Test
-        void 追加されていないプレイヤーは非参加() {
+        @DisplayName("追加されていないプレイヤーは非参加")
+        void nonAddedPlayerIsNotInCasino() {
             casinoManager.addPlayerToCasino(mockPlayer);
             assertFalse(casinoManager.isPlayerInCasino(playerId2));
         }
 
         @Test
-        void 全体終了でOFFに戻る() {
+        @DisplayName("全体終了でOFFに戻る")
+        void deactivatingCasinoTurnsOff() {
             casinoManager.addPlayerToCasino(mockPlayer);
             casinoManager.setCasinoActive(false);
             assertFalse(casinoManager.isCasinoActive());
@@ -120,14 +126,16 @@ class CasinoManagerTest {
         }
 
         @Test
-        void 連続で追加しても状態は変わらない() {
+        @DisplayName("連続で追加しても状態は変わらない")
+        void duplicateAddDoesNotChangeState() {
             casinoManager.addPlayerToCasino(mockPlayer);
             casinoManager.addPlayerToCasino(mockPlayer);
             assertTrue(casinoManager.isCasinoActive());
         }
 
         @Test
-        void 複数プレイヤーを追加できる() {
+        @DisplayName("複数プレイヤーを追加できる")
+        void canAddMultiplePlayers() {
             casinoManager.addPlayerToCasino(mockPlayer);
             casinoManager.addPlayerToCasino(mockPlayer2);
             assertTrue(casinoManager.isPlayerInCasino(playerId));
@@ -135,7 +143,8 @@ class CasinoManagerTest {
         }
 
         @Test
-        void 一人退出しても他のプレイヤーは残る() {
+        @DisplayName("一人退出しても他のプレイヤーは残る")
+        void otherPlayersRemainAfterOneLeaves() {
             casinoManager.addPlayerToCasino(mockPlayer);
             casinoManager.addPlayerToCasino(mockPlayer2);
             casinoManager.removePlayerFromCasino(mockPlayer);
@@ -145,7 +154,8 @@ class CasinoManagerTest {
         }
 
         @Test
-        void 一人退出後にsetCasinoActiveで全体終了できる() {
+        @DisplayName("一人退出後にsetCasinoActiveで全体終了できる")
+        void canDeactivateAfterOnePlayerLeaves() {
             casinoManager.addPlayerToCasino(mockPlayer);
             casinoManager.addPlayerToCasino(mockPlayer2);
             casinoManager.removePlayerFromCasino(mockPlayer);
@@ -157,7 +167,8 @@ class CasinoManagerTest {
         }
 
         @Test
-        void clearAllSessionDataでカジノプレイヤーもクリアされる() {
+        @DisplayName("clearAllSessionDataでカジノプレイヤーもクリアされる")
+        void clearAllSessionDataAlsoClearsCasinoPlayers() {
             casinoManager.addPlayerToCasino(mockPlayer);
             casinoManager.recordPurchase(playerId, 5000);
             casinoManager.clearAllSessionData();
@@ -191,6 +202,7 @@ class CasinoManagerTest {
         }
 
         private void setUpPlayerMock(Player p) {
+            when(p.isOnline()).thenReturn(true);
             org.bukkit.World mockWorld = mock(org.bukkit.World.class);
             when(mockWorld.getName()).thenReturn("world");
             when(mockWorld.getGameRuleValue(org.bukkit.GameRule.KEEP_INVENTORY)).thenReturn(false);
@@ -201,7 +213,8 @@ class CasinoManagerTest {
         }
 
         @Test
-        void 切断でカジノから除外される() {
+        @DisplayName("切断でカジノから除外される")
+        void disconnectRemovesPlayerFromCasino() {
             // 2人追加して1人切断 — Bukkit.getWorld 静的呼び出しを回避
             casinoManager.addPlayerToCasino(mockPlayer);
             casinoManager.addPlayerToCasino(mockPlayer2);
@@ -211,7 +224,8 @@ class CasinoManagerTest {
         }
 
         @Test
-        void 切断しても購入記録は残る() {
+        @DisplayName("切断しても購入記録は残る")
+        void purchaseRecordRemainsAfterDisconnect() {
             casinoManager.addPlayerToCasino(mockPlayer);
             casinoManager.addPlayerToCasino(mockPlayer2);
             casinoManager.recordPurchase(playerId, 5000);
@@ -220,7 +234,8 @@ class CasinoManagerTest {
         }
 
         @Test
-        void 他のプレイヤーが残っていればカジノONのまま() {
+        @DisplayName("他のプレイヤーが残っていればカジノONのまま")
+        void casinoRemainsActiveIfOtherPlayersExist() {
             casinoManager.addPlayerToCasino(mockPlayer);
             casinoManager.addPlayerToCasino(mockPlayer2);
             casinoManager.handlePlayerDisconnect(mockPlayer);
@@ -229,7 +244,8 @@ class CasinoManagerTest {
         }
 
         @Test
-        void 非参加プレイヤーの切断は何も起きない() {
+        @DisplayName("非参加プレイヤーの切断は何も起きない")
+        void disconnectOfNonParticipantDoesNothing() {
             casinoManager.handlePlayerDisconnect(mockPlayer);
             assertFalse(casinoManager.isCasinoActive());
         }
@@ -241,26 +257,30 @@ class CasinoManagerTest {
     @DisplayName("購入記録")
     class SessionPurchaseTest {
         @Test
-        void 購入記録が蓄積される() {
+        @DisplayName("購入記録が蓄積される")
+        void purchaseRecordsAccumulate() {
             casinoManager.recordPurchase(playerId, 5000);
             casinoManager.recordPurchase(playerId, 3000);
             assertEquals(8000, casinoManager.getSessionPurchases(playerId));
         }
 
         @Test
-        void 未購入プレイヤーは0() {
+        @DisplayName("未購入プレイヤーは0")
+        void noPurchasePlayerReturnsZero() {
             assertEquals(0, casinoManager.getSessionPurchases(UUID.randomUUID()));
         }
 
         @Test
-        void クリアで全記録消去() {
+        @DisplayName("クリアで全記録消去")
+        void clearRemovesAllRecords() {
             casinoManager.recordPurchase(playerId, 5000);
             casinoManager.clearAllSessionData();
             assertEquals(0, casinoManager.getSessionPurchases(playerId));
         }
 
         @Test
-        void 複数プレイヤーの記録は独立している() {
+        @DisplayName("複数プレイヤーの記録は独立している")
+        void multiplePlayerRecordsAreIndependent() {
             UUID player2 = UUID.randomUUID();
             casinoManager.recordPurchase(playerId, 10000);
             casinoManager.recordPurchase(player2, 20000);
@@ -270,7 +290,8 @@ class CasinoManagerTest {
         }
 
         @Test
-        void クリア後も再記録できる() {
+        @DisplayName("クリア後も再記録できる")
+        void canRecordAgainAfterClear() {
             casinoManager.recordPurchase(playerId, 5000);
             casinoManager.clearAllSessionData();
             casinoManager.recordPurchase(playerId, 3000);
@@ -278,7 +299,8 @@ class CasinoManagerTest {
         }
 
         @Test
-        void 大量の購入記録が正しく累計される() {
+        @DisplayName("大量の購入記録が正しく累計される")
+        void largeBulkPurchasesAccumulateCorrectly() {
             for (int i = 0; i < 100; i++) {
                 casinoManager.recordPurchase(playerId, 100);
             }
@@ -292,7 +314,8 @@ class CasinoManagerTest {
     @DisplayName("ランキング")
     class RankingTest {
         @Test
-        void 損益が累計される() {
+        @DisplayName("損益が累計される")
+        void profitAndLossAccumulate() {
             UUID p1 = UUID.randomUUID();
             UUID p2 = UUID.randomUUID();
             casinoManager.updateRanking(p1, 5000);
@@ -308,7 +331,8 @@ class CasinoManagerTest {
         }
 
         @Test
-        void ランキングはlimit件まで() {
+        @DisplayName("ランキングはlimit件まで")
+        void rankingIsLimitedByLimit() {
             for (int i = 0; i < 20; i++) {
                 casinoManager.updateRanking(UUID.randomUUID(), i * 100);
             }
@@ -316,7 +340,8 @@ class CasinoManagerTest {
         }
 
         @Test
-        void ランキングは降順() {
+        @DisplayName("ランキングは降順")
+        void rankingIsInDescendingOrder() {
             UUID p1 = UUID.randomUUID();
             UUID p2 = UUID.randomUUID();
             UUID p3 = UUID.randomUUID();
@@ -331,7 +356,8 @@ class CasinoManagerTest {
         }
 
         @Test
-        void 負の損益もランキングに含まれる() {
+        @DisplayName("負の損益もランキングに含まれる")
+        void negativeProfitIsIncludedInRanking() {
             UUID p1 = UUID.randomUUID();
             casinoManager.updateRanking(p1, -5000);
 
@@ -341,13 +367,15 @@ class CasinoManagerTest {
         }
 
         @Test
-        void limit_0は空リスト() {
+        @DisplayName("limit=0は空リスト")
+        void limitZeroReturnsEmptyList() {
             casinoManager.updateRanking(UUID.randomUUID(), 1000);
             assertEquals(0, casinoManager.getSortedRanking(0).size());
         }
 
         @Test
-        void ランキングが空の場合は空リスト() {
+        @DisplayName("ランキングが空の場合は空リスト")
+        void emptyRankingReturnsEmptyList() {
             assertEquals(0, casinoManager.getSortedRanking(10).size());
         }
     }
@@ -358,12 +386,14 @@ class CasinoManagerTest {
     @DisplayName("BindingCurseManager 統合")
     class BindingCurseIntegrationTest {
         @Test
-        void getBindingCurseManagerが正しいインスタンスを返す() {
+        @DisplayName("getBindingCurseManagerが正しいインスタンスを返す")
+        void getBindingCurseManagerReturnsCorrectInstance() {
             assertSame(bindingCurseManager, casinoManager.getBindingCurseManager());
         }
 
         @Test
-        void getBindingCurseManagerがnullでない() {
+        @DisplayName("getBindingCurseManagerがnullでない")
+        void getBindingCurseManagerIsNotNull() {
             assertNotNull(casinoManager.getBindingCurseManager());
         }
     }

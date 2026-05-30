@@ -112,6 +112,9 @@ public final class CommandHelper {
                     min.x(), min.y(), min.z(), max.x(), max.y(), max.z());
         } catch (com.sk89q.worldedit.IncompleteRegionException e) {
             return null;
+        } catch (NoClassDefFoundError | Exception e) {
+            // WorldEdit が未インストールまたは互換性のないバージョンの場合
+            return null;
         }
     }
 

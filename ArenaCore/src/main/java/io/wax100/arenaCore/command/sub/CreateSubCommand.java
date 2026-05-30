@@ -13,7 +13,9 @@ import org.bukkit.command.CommandSender;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * {@code /arena create <名前> <チーム1> <チーム2> [チーム3...]} を処理する。
@@ -39,6 +41,14 @@ public class CreateSubCommand implements SubCommand {
 
         String name = args[0];
         List<String> teamNames = new ArrayList<>(Arrays.asList(args).subList(1, args.length));
+
+        // 重複チーム名チェック
+        Set<String> uniqueTeams = new HashSet<>(teamNames);
+        if (uniqueTeams.size() != teamNames.size()) {
+            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                    + "チーム名が重複しています。異なるチーム名を指定してください。");
+            return;
+        }
 
         ArenaSession session = manager.createArena(name, teamNames);
         if (session == null) {

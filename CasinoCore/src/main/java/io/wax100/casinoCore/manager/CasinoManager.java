@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * カジノの状態管理・購入記録・換金処理・ランキングを管理するクラス。
@@ -66,8 +67,9 @@ public class CasinoManager {
 
     /**
      * セッション中の購入記録 (UUID -> 購入総額)
+     * <p>非同期保存時のイテレーション安全性のため {@link ConcurrentHashMap} を使用。
      */
-    private final Map<UUID, Long> sessionPurchases = new HashMap<>();
+    private final Map<UUID, Long> sessionPurchases = new ConcurrentHashMap<>();
     /**
      * 累計損益ランキング (UUID -> 累計損益)
      */
@@ -83,8 +85,9 @@ public class CasinoManager {
 
     /**
      * カジノモードに参加中のプレイヤー UUID セット
+     * <p>非同期保存時のイテレーション安全性のため {@link ConcurrentHashMap} ベースのセットを使用。
      */
-    private final Set<UUID> casinoPlayers = new HashSet<>();
+    private final Set<UUID> casinoPlayers = ConcurrentHashMap.newKeySet();
     /**
      * カジノ開始前の keepInventory ゲームルール値
      */
@@ -180,8 +183,12 @@ public class CasinoManager {
      * ゲームモードをアドベンチャーに変更し、カジノシザースを配布する。
      *
      * @param player 追加するプレイヤー
+     * @throws IllegalArgumentException プレイヤーがオフラインの場合
      */
     public void addPlayerToCasino(Player player) {
+        if (!player.isOnline()) {
+            throw new IllegalArgumentException("オフラインプレイヤーをカジノに追加することはできません: " + player.getName());
+        }
         saveKeepInventoryIfNeeded(player.getWorld());
         casinoPlayers.add(player.getUniqueId());
         getOrCreateStats(player.getUniqueId()).recordSessionJoin(player.getName());
@@ -200,7 +207,6 @@ public class CasinoManager {
      */
     public void removePlayerFromCasino(Player player) {
         cashoutPlayer(player, plugin.getChipManager(), plugin.getEconomy());
-        sessionPurchases.remove(player.getUniqueId());
         restorePlayerState(player);
         casinoPlayers.remove(player.getUniqueId());
         restoreKeepInventoryIfEmpty();
@@ -473,7 +479,6 @@ public class CasinoManager {
     public void cashoutSinglePlayer(Player player) {
         cashoutPlayer(player, plugin.getChipManager(), plugin.getEconomy());
         shearsHelper.removeCasinoShears(player);
-        sessionPurchases.remove(player.getUniqueId());
         saveData();
     }
 
@@ -484,13 +489,18 @@ public class CasinoManager {
      * チップの合計額を Vault 経済に預入し、損益結果をランキングに記録する。
      * 購入額・換金額がともに 0 の場合は何もしない。
      *
+     * <p>二重換金防止のため、購入額の取得は {@code sessionPurchases} からの
+     * アトミックな {@code remove} で行い、一度換金したセッションデータは即座に削除される。
+     *
      * @param player      対象プレイヤー
      * @param chipManager チップ管理マネージャ
      * @param economy     Vault 経済インスタンス
      */
     private void cashoutPlayer(Player player, ChipManager chipManager, Economy economy) {
         long totalValue = chipManager.calculateTotalValue(player);
-        long purchased = getSessionPurchases(player.getUniqueId());
+        // アトミックに購入額を取得 & 削除 — 二重換金を防止
+        Long purchasedObj = sessionPurchases.remove(player.getUniqueId());
+        long purchased = purchasedObj != null ? purchasedObj : 0L;
 
         if (totalValue == 0 && purchased == 0)
             return;

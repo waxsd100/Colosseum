@@ -42,6 +42,7 @@ public class ArenaFightListener implements Listener {
 
         Player player = event.getEntity();
         if (!session.isFighter(player.getUniqueId())) return;
+        if (manager.getEliminatedPlayers().contains(player.getUniqueId())) return;
 
         String team = session.getPlayerTeam(player.getUniqueId());
         if (team == null) return;

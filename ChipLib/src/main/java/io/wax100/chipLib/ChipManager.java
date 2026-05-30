@@ -22,6 +22,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * チップの生成・変換・インベントリ操作を管理するクラス。
@@ -59,12 +61,13 @@ public class ChipManager {
     /**
      * 金額フォーマット用の日本ロケール数値フォーマッタ。
      *
-     * <p>改善: NumberFormat はスレッドセーフではないため、
-     * マルチスレッド環境（Bukkit 非同期タスクなど）での競合を防止するために
-     * ThreadLocal で保持する。</p>
+     * <p>改善: ThreadLocal はスレッドプール（Bukkit 非同期タスクスケジューラ等）で
+     * 再利用されるスレッドに値が残り続けるためメモリリークの原因になりうる。
+     * NumberFormat を synchronized ブロックで排他制御することで安全性を確保し、
+     * ThreadLocal リークのリスクを排除する。</p>
      */
-    private static final ThreadLocal<NumberFormat> NUMBER_FORMAT =
-            ThreadLocal.withInitial(() -> NumberFormat.getNumberInstance(Locale.JAPAN));
+    private static final NumberFormat NUMBER_FORMAT =
+            NumberFormat.getNumberInstance(Locale.JAPAN);
 
     /**
      * チップ（カーペット）の CanPlaceOn に設定するブロック一覧。
@@ -124,6 +127,9 @@ public class ChipManager {
      */
     private final NamespacedKey chipKey;
 
+    /** ロガー（インベントリ溢れ等の警告出力用） */
+    private final Logger logger;
+
     /**
      * コンストラクタ。
      *
@@ -134,6 +140,7 @@ public class ChipManager {
         // 改善: null チェックを追加し、早期に問題を検出
         Objects.requireNonNull(plugin, "plugin must not be null");
         this.chipKey = new NamespacedKey(plugin, "casino_chip");
+        this.logger = plugin.getLogger();
     }
 
     /**
@@ -156,8 +163,10 @@ public class ChipManager {
      * @return カンマ区切り文字列（例: {@code "1,000,000"}）
      */
     public static String formatAmount(long amount) {
-        // 改善: ThreadLocal を使用してスレッドセーフに
-        return NUMBER_FORMAT.get().format(amount);
+        // 改善: synchronized で排他制御しスレッドセーフに（ThreadLocal リーク回避）
+        synchronized (NUMBER_FORMAT) {
+            return NUMBER_FORMAT.format(amount);
+        }
     }
 
     /**
@@ -205,10 +214,8 @@ public class ChipManager {
         }
         NBT.modify(item, nbt -> {
             ReadWriteNBTList<String> canPlaceOn = nbt.getStringList("CanPlaceOn");
-            // 改善: List に変更したので拡張 for で安全にイテレーション
-            for (String block : CAN_PLACE_ON_BLOCKS) {
-                canPlaceOn.add(block);
-            }
+            // 改善: 個別の add() ループを addAll() に置き換え
+            canPlaceOn.addAll(CAN_PLACE_ON_BLOCKS);
         });
         return item;
     }
@@ -222,9 +229,12 @@ public class ChipManager {
      * @return カジノチップの場合 {@code true}
      */
     public boolean isChip(ItemStack item) {
-        if (item == null || !item.hasItemMeta()) return false;
-        // 改善: ItemMeta は null でないことが hasItemMeta() で保証済み
-        return item.getItemMeta().getPersistentDataContainer().has(chipKey, PersistentDataType.LONG);
+        if (item == null) return false;
+        // 改善: hasItemMeta() + getItemMeta() の二重呼び出しを排除
+        // getItemMeta() は null を返しうるので直接 null チェック
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return false;
+        return meta.getPersistentDataContainer().has(chipKey, PersistentDataType.LONG);
     }
 
     /**
@@ -236,13 +246,12 @@ public class ChipManager {
      * @return 額面。チップでない場合は {@code 0}
      */
     public long getChipValue(ItemStack item) {
-        if (item == null || !item.hasItemMeta()) return 0;
+        if (item == null) return 0;
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return 0;
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        if (!pdc.has(chipKey, PersistentDataType.LONG)) return 0;
-        Long value = pdc.get(chipKey, PersistentDataType.LONG);
-        return value != null ? value : 0;
+        // 改善: has() → get() の二重アクセスを getOrDefault パターンに一本化
+        return pdc.getOrDefault(chipKey, PersistentDataType.LONG, 0L);
     }
 
     /**
@@ -288,7 +297,8 @@ public class ChipManager {
                 remaining -= (long) count * chip.getValue();
             }
         }
-        return result;
+        // 改善: 戻り値を不変マップにし、呼び出し元からの変更を防止
+        return Collections.unmodifiableMap(result);
     }
 
     /**
@@ -346,9 +356,13 @@ public class ChipManager {
             while (remaining > 0) {
                 int stackSize = Math.min(remaining, MAX_STACK_SIZE);
                 ItemStack item = createChipItem(entry.getKey(), stackSize);
-                Map<Integer, ItemStack> remainingItems = player.getInventory().addItem(item);
-                if (!remainingItems.isEmpty()) {
-                    for (ItemStack leftover : remainingItems.values()) {
+                Map<Integer, ItemStack> overflow = player.getInventory().addItem(item);
+                if (!overflow.isEmpty()) {
+                    // 改善: インベントリ溢れ時のログ出力を追加
+                    for (ItemStack leftover : overflow.values()) {
+                        logger.log(Level.WARNING,
+                                "Player {0} のインベントリが満杯のため、チップ {1} x{2} をドロップしました",
+                                new Object[]{player.getName(), entry.getKey().name(), leftover.getAmount()});
                         player.getWorld().dropItemNaturally(player.getLocation(), leftover);
                     }
                 }

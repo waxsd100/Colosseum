@@ -29,12 +29,6 @@ public final class ArenaMessages {
     /** WorldEdit 範囲選択が必要 */
     public static final String MSG_WE_SELECT_FIRST = "WorldEdit で範囲を選択してからコマンドを実行してください。";
 
-    /** すでにセッションが存在する */
-    public static final String MSG_SESSION_EXISTS = "すでにセッションが存在します。";
-
-    /** 現在の状態では操作不可 */
-    public static final String MSG_INVALID_STATE = "現在の状態ではこの操作はできません。";
-
     /** セッション稼働中 */
     public static final String MSG_SESSION_ALREADY_ACTIVE = "既にセッションが稼働中です。先に /arena cancel で中止してください。";
 

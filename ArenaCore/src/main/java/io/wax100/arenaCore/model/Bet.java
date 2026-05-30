@@ -45,7 +45,7 @@ public class Bet {
      * @throws IllegalArgumentException 結果の金額が負になる場合
      */
     public void addAmount(long additional) {
-        long newAmount = this.amount + additional;
+        long newAmount = Math.addExact(this.amount, additional);
         if (newAmount < 0) {
             throw new IllegalArgumentException(
                     "Resulting amount must not be negative: " + this.amount + " + " + additional);

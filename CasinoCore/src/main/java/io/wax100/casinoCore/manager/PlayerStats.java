@@ -115,10 +115,16 @@ public class PlayerStats {
     /**
      * セッション購入額を加算する。
      *
+     * <p>オーバーフロー時は {@link Long#MAX_VALUE} にクランプされる。
+     *
      * @param amount 購入額
      */
     public void addPurchase(long amount) {
-        this.totalPurchases += amount;
+        try {
+            this.totalPurchases = Math.addExact(this.totalPurchases, amount);
+        } catch (ArithmeticException e) {
+            this.totalPurchases = Long.MAX_VALUE;
+        }
     }
 
     /**
@@ -131,9 +137,22 @@ public class PlayerStats {
      * @param purchased     セッション中の購入額
      */
     public void recordCashout(long cashoutAmount, long purchased) {
-        this.totalCashouts += cashoutAmount;
-        long sessionNet = cashoutAmount - purchased;
-        this.netProfit += sessionNet;
+        try {
+            this.totalCashouts = Math.addExact(this.totalCashouts, cashoutAmount);
+        } catch (ArithmeticException e) {
+            this.totalCashouts = Long.MAX_VALUE;
+        }
+        long sessionNet;
+        try {
+            sessionNet = Math.subtractExact(cashoutAmount, purchased);
+        } catch (ArithmeticException e) {
+            sessionNet = cashoutAmount > purchased ? Long.MAX_VALUE : Long.MIN_VALUE;
+        }
+        try {
+            this.netProfit = Math.addExact(this.netProfit, sessionNet);
+        } catch (ArithmeticException e) {
+            this.netProfit = sessionNet > 0 ? Long.MAX_VALUE : Long.MIN_VALUE;
+        }
 
         if (purchased > 0) {
             if (sessionNet > 0) {

@@ -75,12 +75,12 @@ public class CasinoListener implements Listener {
      */
     @EventHandler
     public void onBlockBreak(BlockBreakEvent event) {
-        if (!plugin.getCasinoManager().isPlayerInCasino(event.getPlayer().getUniqueId())) return;
-
         Block block = event.getBlock();
         Material material = block.getType();
 
+        // 軽量なマテリアルチェックを先に行い、大多数のイベントを早期リターンする
         if (!ChipManager.isChipMaterial(material)) return;
+        if (!plugin.getCasinoManager().isPlayerInCasino(event.getPlayer().getUniqueId())) return;
 
         // 改善: O(n) ループの findChipByMaterial を Chip.fromMaterial() (O(1)) に置き換え
         Chip chip = Chip.fromMaterial(material).orElse(null);

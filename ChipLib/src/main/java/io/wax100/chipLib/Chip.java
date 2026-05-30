@@ -125,6 +125,7 @@ public enum Chip {
      * @return 対応する Chip を含む Optional。見つからない場合は空
      */
     public static Optional<Chip> fromMaterial(Material material) {
+        if (material == null) return Optional.empty();
         return Optional.ofNullable(MATERIAL_MAP.get(material));
     }
 
@@ -144,15 +145,13 @@ public enum Chip {
     /**
      * 額面の大きい順に並んだ配列を取得する（貪欲法用）。
      *
-     * <p>改善: 防御的コピーではなく内部配列を直接返す。
-     * ライブラリ内部でのみ使われることを想定した package-private でも良いが、
-     * API としての利便性を考慮し public とする。
+     * <p>防御的コピーを返すため、呼び出し元が配列を変更しても
+     * 内部状態には影響しない。
      *
-     * @return 額面降順の Chip 配列（呼び出し元は変更しないこと）
+     * @return 額面降順の Chip 配列（防御的コピー）
      */
     public static Chip[] denominationsDescending() {
-        // 改善: 毎回コピーを生成しない。enum 定数は不変なので安全。
-        return DENOMINATIONS_DESC;
+        return DENOMINATIONS_DESC.clone();
     }
 
     // ── インスタンスメソッド ──

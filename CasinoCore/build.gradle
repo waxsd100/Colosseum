@@ -14,9 +14,8 @@ repositories {
 dependencies {
     compileOnly("org.spigotmc:spigot-api:${spigotApiVersion}")
     compileOnly("com.github.MilkBowl:VaultAPI:${vaultApiVersion}")
-    implementation(project(':ChipLib'))
+    implementation(project(':ChipLib'))  // NBT-API は ChipLib の api 依存で推移的に含まれる
     implementation("com.github.waxsd100:BindingCurseLib:${bindingCurseLibVersion}")
-    implementation("de.tr7zw:item-nbt-api:${nbtApiVersion}")
 
     testImplementation("org.spigotmc:spigot-api:${spigotApiVersion}")
     testImplementation("org.junit.jupiter:junit-jupiter:${junitVersion}")

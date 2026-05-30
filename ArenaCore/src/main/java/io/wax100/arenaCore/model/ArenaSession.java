@@ -182,7 +182,7 @@ public class ArenaSession {
         if (fee < 0) {
             throw new IllegalArgumentException("fee must not be negative: " + fee);
         }
-        this.entryFeePool += fee;
+        this.entryFeePool = Math.addExact(this.entryFeePool, fee);
     }
 
     // ── 賭け管理 ──
@@ -205,6 +205,11 @@ public class ArenaSession {
         Bet existing = bets.get(playerId);
         if (existing != null && existing.getTeamName().equals(teamName)) {
             existing.addAmount(amount);
+        } else if (existing != null) {
+            // 別チームへの賭け変更は許可しない（チップ追跡整合性のため）
+            throw new IllegalStateException(
+                    "既に「" + existing.getTeamName() + "」に賭けています。"
+                    + "別チームに賭ける場合は、先に既存の賭けを取り消してください。");
         } else {
             bets.put(playerId, new Bet(playerId, teamName, amount));
         }
@@ -215,7 +220,7 @@ public class ArenaSession {
         long total = 0;
         for (Bet bet : bets.values()) {
             if (bet.getTeamName().equals(teamName)) {
-                total += bet.getAmount();
+                total = Math.addExact(total, bet.getAmount());
             }
         }
         return total;
@@ -225,7 +230,7 @@ public class ArenaSession {
     public long getTotalPool() {
         long total = 0;
         for (Bet bet : bets.values()) {
-            total += bet.getAmount();
+            total = Math.addExact(total, bet.getAmount());
         }
         return total;
     }
@@ -292,8 +297,14 @@ public class ArenaSession {
      * セッション終了時に全データをクリアする。
      *
      * <p>メモリリーク防止のため、セッション参照を破棄する前に呼び出すこと。
+     *
+     * @throws IllegalStateException セッションが FINISHED 状態でない場合
      */
     public void clearAllData() {
+        if (this.state != ArenaState.FINISHED) {
+            throw new IllegalStateException(
+                    "clearAllData() は FINISHED 状態でのみ呼び出せます (現在: " + this.state + ")");
+        }
         bets.clear();
         placedChips.clear();
         trackedMobs.clear();

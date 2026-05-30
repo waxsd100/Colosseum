@@ -55,7 +55,12 @@ public class BettingManager {
     public boolean placeBet(ArenaSession session, Player player, String teamName,
                             long chipValue, Location location, Material originalBlock) {
         // 賭け記録
-        session.addOrUpdateBet(player.getUniqueId(), teamName, chipValue);
+        try {
+            session.addOrUpdateBet(player.getUniqueId(), teamName, chipValue);
+        } catch (IllegalStateException e) {
+            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + e.getMessage());
+            return false;
+        }
         session.addPlacedChip(location, player.getUniqueId(), teamName, chipValue, originalBlock);
 
         // 固定オッズ方式の場合、オッズをロック
@@ -170,16 +175,28 @@ public class BettingManager {
 
             Player player = Bukkit.getPlayer(playerId);
             if (player != null && player.isOnline()) {
-                // チップとして配布
-                Map<Chip, Integer> chips = chipManager.breakdownAmount(payout);
-                int slotsNeeded = chipManager.calculateSlotsNeeded(chips);
-                int emptySlots = chipManager.countEmptySlots(player);
+                try {
+                    // チップとして配布
+                    Map<Chip, Integer> chips = chipManager.breakdownAmount(payout);
+                    int slotsNeeded = chipManager.calculateSlotsNeeded(chips);
+                    int emptySlots = chipManager.countEmptySlots(player);
 
-                chipManager.giveChips(player, chips);
+                    chipManager.giveChips(player, chips);
 
-                if (emptySlots < slotsNeeded) {
-                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
-                            + "⚠️ インベントリがいっぱいため、一部のチップが足元にドロップしました。");
+                    if (emptySlots < slotsNeeded) {
+                        player.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                                + "⚠️ インベントリがいっぱいため、一部のチップが足元にドロップしました。");
+                    }
+                } catch (Exception e) {
+                    // チップ配布失敗時はVault経由でフォールバック
+                    plugin.getLogger().severe("チップ配布に失敗。Vault経由で入金: " + playerId + " / " + payout + " E");
+                    plugin.getLogger().severe("原因: " + e.getMessage());
+                    org.bukkit.OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerId);
+                    if (plugin.getEconomy() != null) {
+                        plugin.getEconomy().depositPlayer(offlinePlayer, payout);
+                    }
+                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                            + "チップ配布にエラーが発生しましたが、Vault経由で入金しました。");
                 }
 
                 long originalBet = session.getBet(playerId).getAmount();
@@ -196,6 +213,15 @@ public class BettingManager {
                         : ChatColor.RED.toString())
                         + ChipManager.formatAmount(profit) + " E");
                 player.sendMessage("");
+            } else {
+                // オフラインプレイヤーへの配当: Vault経由で入金
+                plugin.getLogger().warning("オフラインプレイヤーへの配当をVault経由で入金: " + playerId + " / " + payout + " E");
+                org.bukkit.OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerId);
+                if (plugin.getEconomy() != null) {
+                    plugin.getEconomy().depositPlayer(offlinePlayer, payout);
+                } else {
+                    plugin.getLogger().severe("Vault経済APIが利用不可: オフラインプレイヤー " + playerId + " への配当 " + payout + " E が喪失しました");
+                }
             }
         }
 
@@ -233,8 +259,10 @@ public class BettingManager {
 
         // 賭け者に返金（チップとして）
         for (Bet bet : session.getBets().values()) {
+            if (bet.getAmount() <= 0) continue;
+
             Player player = Bukkit.getPlayer(bet.getPlayerId());
-            if (player != null && player.isOnline() && bet.getAmount() > 0) {
+            if (player != null && player.isOnline()) {
                 Map<Chip, Integer> chips = chipManager.breakdownAmount(bet.getAmount());
                 int slotsNeeded = chipManager.calculateSlotsNeeded(chips);
                 int emptySlots = chipManager.countEmptySlots(player);
@@ -249,6 +277,17 @@ public class BettingManager {
                 if (emptySlots < slotsNeeded) {
                     player.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
                             + "⚠️ インベントリがいっぱいため、一部の返金チップが足元にドロップしました。");
+                }
+            } else {
+                // オフラインプレイヤーへの返金: Vault経由
+                plugin.getLogger().warning("オフラインプレイヤーへの返金をVault経由で実行: "
+                        + bet.getPlayerId() + " / " + bet.getAmount() + " E");
+                org.bukkit.OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(bet.getPlayerId());
+                if (plugin.getEconomy() != null) {
+                    plugin.getEconomy().depositPlayer(offlinePlayer, bet.getAmount());
+                } else {
+                    plugin.getLogger().severe("Vault経済APIが利用不可: オフラインプレイヤー "
+                            + bet.getPlayerId() + " への返金 " + bet.getAmount() + " E が喪失しました");
                 }
             }
         }

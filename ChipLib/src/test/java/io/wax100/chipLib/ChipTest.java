@@ -78,9 +78,10 @@ class ChipTest {
         @Test
         @DisplayName("nullで空Optionalを返す（NPEしない）")
         void nullMaterial_returnsEmpty() {
-            // EnumMap.get(null) は NPE を投げるが、fromMaterial がそれを処理するか確認
-            // 注: EnumMap は null キーで NPE を投げるため、この動作はドキュメントに依存
-            // 必要に応じて fromMaterial に null ガードを追加すべき
+            // EnumMap.get(null) は NPE を投げるため、fromMaterial 側で null ガードが必要
+            Optional<Chip> result = assertDoesNotThrow(() -> Chip.fromMaterial(null),
+                    "fromMaterial(null) が NPE を投げてはならない");
+            assertTrue(result.isEmpty(), "null マテリアルに対しては空 Optional を返すべき");
         }
 
         @Test
