@@ -1,0 +1,19 @@
+# ArenaCore 設定ファイル
+
+# 配当方式: pari-mutuel / fixed-odds / simple
+payout-method: pari-mutuel
+
+# 勝利条件: last-team-standing / manual / score
+win-condition: last-team-standing
+
+# 運営手数料率 (0.0 〜 1.0)
+house-edge: 0.1
+
+# 戦闘員の参加費（0なら無料、Vault経済から徴収）
+entry-fee: 0
+
+# スコア制の場合の勝利キル数（0 = /arena end で手動集計）
+score-target: 0
+
+# 賭け受付中にオッズを定期表示する間隔（秒, 0で無効）
+odds-broadcast-interval: 30

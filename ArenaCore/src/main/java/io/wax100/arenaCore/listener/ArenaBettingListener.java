@@ -1,0 +1,133 @@
+package io.wax100.arenaCore.listener;
+
+import io.wax100.arenaCore.ArenaCore;
+import io.wax100.arenaCore.manager.ArenaManager;
+import io.wax100.arenaCore.manager.BettingManager;
+import io.wax100.arenaCore.manager.RegionManager;
+import io.wax100.arenaCore.model.ArenaSession;
+import io.wax100.arenaCore.model.ArenaState;
+import io.wax100.arenaCore.util.ArenaMessages;
+import io.wax100.chipLib.ChipManager;
+import org.bukkit.ChatColor;
+import org.bukkit.block.Block;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.inventory.ItemStack;
+
+/**
+ * カーペット設置・破壊による賭けイベントリスナー。
+ *
+ * <p>賭け受付中に、チームの賭けエリア内にカーペット（チップ）を設置すると
+ * 自動的に賭けとして記録される。回収すると賭け取消。
+ */
+public class ArenaBettingListener implements Listener {
+
+    private final ArenaCore plugin;
+
+    public ArenaBettingListener(ArenaCore plugin) {
+        this.plugin = plugin;
+    }
+
+    /**
+     * カーペット設置時の処理。
+     *
+     * <p>条件:
+     * <ol>
+     *   <li>闘技場セッションが BETTING 状態</li>
+     *   <li>設置アイテムがカジノチップ</li>
+     *   <li>設置座標がチームの賭けエリア内</li>
+     *   <li>プレイヤーが戦闘員でない</li>
+     * </ol>
+     */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onBlockPlace(BlockPlaceEvent event) {
+        ArenaManager arenaManager = plugin.getArenaManager();
+        if (!arenaManager.hasActiveSession()) return;
+
+        ArenaSession session = arenaManager.getActiveSession();
+        if (session.getState() != ArenaState.BETTING) return;
+
+        Player player = event.getPlayer();
+        ItemStack item = event.getItemInHand();
+
+        // チップかどうか判定
+        ChipManager chipManager = plugin.getChipManager();
+        if (!chipManager.isChip(item)) return;
+
+        // 戦闘員チェック
+        if (session.isFighter(player.getUniqueId())) {
+            event.setCancelled(true);
+            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "戦闘員は賭けに参加できません。");
+            return;
+        }
+
+        // 賭けエリアの判定
+        RegionManager regionManager = plugin.getRegionManager();
+        String teamName = regionManager.getTeamForLocation(event.getBlock().getLocation());
+
+        if (teamName == null) {
+            // 賭けエリア外 → 通常のカーペット設置として扱う
+            return;
+        }
+
+        // 既に別のチームに賭けている場合
+        io.wax100.arenaCore.model.Bet existingBet = session.getBet(player.getUniqueId());
+        if (existingBet != null && !existingBet.getTeamName().equals(teamName)) {
+            event.setCancelled(true);
+            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                    + "既に " + existingBet.getTeamName() + " に賭けています。"
+                    + " 別のチームには賭けられません。");
+            return;
+        }
+
+        long chipValue = chipManager.getChipValue(item);
+
+        // 賭け処理
+        BettingManager bettingManager = plugin.getBettingManager();
+        bettingManager.placeBet(session, player, teamName, chipValue, event.getBlock().getLocation());
+    }
+
+    /**
+     * カーペット破壊時の処理（賭け取消）。
+     *
+     * <p>賭け受付中のみ、自分が置いたカーペットを回収可能。
+     * 試合開始後は回収不可。
+     */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onBlockBreak(BlockBreakEvent event) {
+        ArenaManager arenaManager = plugin.getArenaManager();
+        if (!arenaManager.hasActiveSession()) return;
+
+        ArenaSession session = arenaManager.getActiveSession();
+        Block block = event.getBlock();
+
+        // この座標に賭けチップがあるか
+        ArenaSession.PlacedChipInfo chipInfo = session.getPlacedChip(block.getLocation());
+        if (chipInfo == null) return;
+
+        Player player = event.getPlayer();
+
+        // 試合中は回収不可
+        if (session.getState() == ArenaState.ACTIVE) {
+            event.setCancelled(true);
+            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "試合中は賭けカーペットを回収できません。");
+            return;
+        }
+
+        // 賭け受付中: 自分のチップのみ回収可能
+        if (session.getState() == ArenaState.BETTING) {
+            if (!chipInfo.getPlayerId().equals(player.getUniqueId())) {
+                event.setCancelled(true);
+                player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "他人の賭けカーペットは回収できません。");
+                return;
+            }
+
+            BettingManager bettingManager = plugin.getBettingManager();
+            bettingManager.cancelBet(session, player, block.getLocation());
+        }
+    }
+}

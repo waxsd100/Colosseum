@@ -1,0 +1,22 @@
+name: ArenaCore
+version: '${version}'
+main: io.wax100.arenaCore.ArenaCore
+api-version: '1.20'
+description: 闘技場プラグイン — グループ対戦 & 観客ベッティング
+authors: [wax100]
+depend: [CasinoCore, Vault]
+softdepend: [WorldEdit]
+
+commands:
+  arena:
+    description: 闘技場管理コマンド
+    usage: /arena <create|team|region|open|start|win|cancel|status>
+    permission: arena.admin
+  bet:
+    description: 賭け情報コマンド
+    usage: /bet <odds|info>
+
+permissions:
+  arena.admin:
+    description: 闘技場の管理権限
+    default: op
