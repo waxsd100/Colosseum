@@ -1,46 +1,32 @@
 plugins {
     id 'java'
-    id 'eclipse'
-    id("xyz.jpenilla.run-paper") version "2.3.1"
-    id("com.gradleup.shadow") version "9.0.0-beta12"
+    id('xyz.jpenilla.run-paper')
+    id('com.gradleup.shadow')
 }
 
-group = 'com.github.waxsd100'
-version = findProperty('version') ?: '1.0-SNAPSHOT'
-
 repositories {
-    mavenLocal()
-    mavenCentral()
     maven {
-        name = "spigotmc-repo"
-        url = "https://hub.spigotmc.org/nexus/content/repositories/snapshots/"
+        name = 'jitpack'
+        url = 'https://jitpack.io'
     }
     maven {
-        name = "jitpack"
-        url = "https://jitpack.io"
-    }
-    maven {
-        name = "codemc"
-        url = "https://repo.codemc.io/repository/maven-public/"
-    }
-    maven {
-        name = "enginehub"
-        url = "https://maven.enginehub.org/repo/"
+        name = 'enginehub'
+        url = 'https://maven.enginehub.org/repo/'
     }
 }
 
 dependencies {
-    compileOnly("org.spigotmc:spigot-api:1.20.1-R0.1-SNAPSHOT")
-    compileOnly("com.github.MilkBowl:VaultAPI:1.7.1")
-    compileOnly("com.sk89q.worldedit:worldedit-bukkit:7.3.0")
-    compileOnly(project(":ChipLib"))
-    compileOnly(project(":CasinoCore"))
+    compileOnly("org.spigotmc:spigot-api:${spigotApiVersion}")
+    compileOnly("com.github.MilkBowl:VaultAPI:${vaultApiVersion}")
+    compileOnly("com.sk89q.worldedit:worldedit-bukkit:${worldEditVersion}")
+    compileOnly(project(':ChipLib'))
+    compileOnly(project(':CasinoCore'))
 
-    testImplementation("org.spigotmc:spigot-api:1.20.1-R0.1-SNAPSHOT")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
-    testImplementation("org.mockito:mockito-core:5.11.0")
-    testImplementation("org.mockito:mockito-junit-jupiter:5.11.0")
-    testImplementation("com.github.MilkBowl:VaultAPI:1.7.1")
+    testImplementation("org.spigotmc:spigot-api:${spigotApiVersion}")
+    testImplementation("org.junit.jupiter:junit-jupiter:${junitVersion}")
+    testImplementation("org.mockito:mockito-core:${mockitoVersion}")
+    testImplementation("org.mockito:mockito-junit-jupiter:${mockitoVersion}")
+    testImplementation("com.github.MilkBowl:VaultAPI:${vaultApiVersion}")
 }
 
 test {
@@ -55,25 +41,7 @@ build.dependsOn shadowJar
 
 tasks {
     runServer {
-        minecraftVersion("1.20")
-    }
-}
-
-def targetJavaVersion = 17
-java {
-    def javaVersion = JavaVersion.toVersion(targetJavaVersion)
-    sourceCompatibility = javaVersion
-    targetCompatibility = javaVersion
-    if (JavaVersion.current() < javaVersion) {
-        toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
-    }
-}
-
-tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8'
-
-    if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
-        options.release.set(targetJavaVersion)
+        minecraftVersion('1.20')
     }
 }
 

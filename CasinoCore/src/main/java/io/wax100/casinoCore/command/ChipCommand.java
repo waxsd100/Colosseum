@@ -35,7 +35,6 @@ import java.util.Map;
  * {@code info} / {@code balance} / {@code cashout} はカジノモードに関係なく使用可能。
  *
  * @see ChipManager
- * @see CasinoManager
  */
 public class ChipCommand implements CommandExecutor, TabCompleter {
 
@@ -63,7 +62,7 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(Messages.PREFIX + ChatColor.RED + "このコマンドはプレイヤーのみ使用できます。");
+            sender.sendMessage(Messages.PLAYER_ONLY);
             return true;
         }
         if (args.length == 0) {
@@ -86,14 +85,21 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
         }
 
         if (!plugin.getCasinoManager().isPlayerInCasino(player.getUniqueId())) {
-            player.sendMessage(Messages.PREFIX + ChatColor.RED + "カジノモードに参加していないため、チップを購入できません。");
+            player.sendMessage(Messages.NOT_IN_CASINO_BUY);
             return true;
         }
 
         try {
             long firstArg = Long.parseLong(args[0]);
             if (args.length >= 2) {
-                handleBuyDenomination(player, firstArg, Integer.parseInt(args[1]));
+                int count;
+                try {
+                    count = Integer.parseInt(args[1]);
+                } catch (NumberFormatException e) {
+                    player.sendMessage(Messages.INVALID_COUNT);
+                    return true;
+                }
+                handleBuyDenomination(player, firstArg, count);
             } else {
                 handleBuyAutoSplit(player, firstArg);
             }
@@ -116,18 +122,22 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
     private void handleBuyDenomination(Player player, long denomination, int count) {
         Chip chip = plugin.getChipManager().getChipByValue(denomination);
         if (chip == null) {
-            player.sendMessage(Messages.PREFIX + ChatColor.RED
-                    + "無効な額面です。/chip info で有効な額面を確認してください。");
+            player.sendMessage(Messages.INVALID_DENOMINATION);
             return;
         }
         if (count <= 0) {
-            player.sendMessage(Messages.PREFIX + ChatColor.RED + "枚数は1以上を指定してください。");
+            player.sendMessage(Messages.INVALID_COUNT);
             return;
         }
 
+        long totalCost = denomination * count;
+        if (totalCost < 0) {
+            // long オーバーフロー検出
+            player.sendMessage(Messages.AMOUNT_OVERFLOW);
+            return;
+        }
         Map<Chip, Integer> chips = new LinkedHashMap<>();
         chips.put(chip, count);
-        long totalCost = denomination * count;
         if (executePurchase(player, chips, totalCost)) {
             return;
         }
@@ -152,21 +162,19 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
      */
     private void handleBuyAutoSplit(Player player, long amount) {
         if (amount <= 0) {
-            player.sendMessage(Messages.PREFIX + ChatColor.RED + "金額は1以上を指定してください。");
+            player.sendMessage(Messages.INVALID_AMOUNT);
             return;
         }
         long maxBuy = plugin.getConfig().getLong("max-buy", 1000000);
         if (amount > maxBuy) {
-            player.sendMessage(Messages.PREFIX + ChatColor.RED + "最大購入額は "
-                    + ChatColor.YELLOW + ChipManager.formatAmount(maxBuy) + " E "
-                    + ChatColor.RED + "です。");
+            player.sendMessage(Messages.MAX_BUY_EXCEEDED);
             return;
         }
 
         Map<Chip, Integer> breakdown = plugin.getChipManager().breakdownAmount(amount);
         long actualTotal = calcTotal(breakdown);
         if (actualTotal == 0) {
-            player.sendMessage(Messages.PREFIX + ChatColor.RED + "指定した金額ではチップに変換できません。");
+            player.sendMessage(Messages.CANNOT_CONVERT);
             return;
         }
         if (executePurchase(player, breakdown, actualTotal)) {
@@ -201,18 +209,13 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
         Economy economy = plugin.getEconomy();
 
         if (!economy.has(player, totalCost)) {
-            player.sendMessage(Messages.PREFIX + ChatColor.RED + "所持金が足りません。（必要: "
-                    + ChatColor.YELLOW + ChipManager.formatAmount(totalCost) + " E"
-                    + ChatColor.RED + ", 所持: "
-                    + ChatColor.YELLOW + ChipManager.formatAmount((long) economy.getBalance(player)) + " E"
-                    + ChatColor.RED + "）");
+            player.sendMessage(Messages.INSUFFICIENT_FUNDS);
             return true;
         }
 
         int slotsNeeded = cm.calculateSlotsNeeded(chips);
         if (cm.countEmptySlots(player) < slotsNeeded) {
-            player.sendMessage(Messages.PREFIX + ChatColor.RED
-                    + "インベントリに空きがありません。（必要スロット: " + slotsNeeded + "）");
+            player.sendMessage(Messages.INVENTORY_FULL);
             return true;
         }
 
@@ -277,7 +280,7 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
         player.sendMessage("");
         player.sendMessage(ChatColor.GOLD.toString() + ChatColor.BOLD + "═══ 手持ちチップ ═══");
         if (!hasChips) {
-            player.sendMessage(ChatColor.GRAY + "  チップを持っていません。");
+            player.sendMessage(Messages.NO_CHIPS);
         } else {
             for (Map.Entry<Chip, Integer> entry : counts.entrySet()) {
                 if (entry.getValue() > 0) {
@@ -307,16 +310,15 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
      * エラーメッセージを送信する。
      *
      * @param player 対象プレイヤー
-     * @see CasinoManager#cashoutSinglePlayer(Player)
      */
     private void handleCashout(Player player) {
         if (!plugin.getCasinoManager().isPlayerInCasino(player.getUniqueId())) {
-            player.sendMessage(Messages.PREFIX + ChatColor.RED + "カジノモードに参加していないため、換金できません。");
+            player.sendMessage(Messages.NOT_IN_CASINO_CASHOUT);
             return;
         }
         long totalValue = plugin.getChipManager().calculateTotalValue(player);
         if (totalValue == 0) {
-            player.sendMessage(Messages.PREFIX + ChatColor.YELLOW + "換金できるチップがありません。");
+            player.sendMessage(Messages.NO_CHIPS_TO_CASHOUT);
             return;
         }
         plugin.getCasinoManager().cashoutSinglePlayer(player);
@@ -341,17 +343,26 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
      * {@inheritDoc}
      *
      * <p>第1引数に対してサブコマンド（{@code info}, {@code balance}, {@code cashout}）の
-     * 前方一致補完を提供する。第2引数には枚数候補を提示する。
+     * 前方一致補完を提供する。カジノモード参加中ならチップ額面も候補に追加する。
+     * 第2引数には枚数候補を提示する。
      */
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> result = new ArrayList<>();
         if (args.length == 1) {
-            List<String> opts = new ArrayList<>(Arrays.asList("info", "balance", "cashout"));
             String input = args[0].toLowerCase();
-            for (String s : opts) {
+            for (String s : Arrays.asList("info", "balance", "cashout")) {
                 if (s.startsWith(input)) {
                     result.add(s);
+                }
+            }
+            // カジノモード参加中ならチップ額面を候補に追加
+            if (sender instanceof Player player && plugin.getCasinoManager().isPlayerInCasino(player.getUniqueId())) {
+                for (Chip chip : Chip.values()) {
+                    String val = String.valueOf(chip.getValue());
+                    if (val.startsWith(input)) {
+                        result.add(val);
+                    }
                 }
             }
         } else if (args.length == 2) {

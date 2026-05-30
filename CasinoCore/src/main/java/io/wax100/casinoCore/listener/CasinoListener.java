@@ -58,8 +58,7 @@ public class CasinoListener implements Listener {
 
         Player player = event.getPlayer();
         player.sendMessage("");
-        player.sendMessage(Messages.PREFIX + ChatColor.GREEN + "現在カジノモードが "
-                + ChatColor.YELLOW + ChatColor.BOLD + "ON " + ChatColor.RESET + ChatColor.GREEN + "です！");
+        player.sendMessage(Messages.JOIN_CASINO_ON);
         player.sendMessage(Messages.PREFIX + ChatColor.GRAY + "/chip <額面> <枚数> でチップを購入できます。");
         player.sendMessage(Messages.PREFIX + ChatColor.GRAY + "/chip info でチップ一覧を確認できます。");
         player.sendMessage("");
@@ -83,7 +82,8 @@ public class CasinoListener implements Listener {
 
         if (!ChipManager.isChipMaterial(material)) return;
 
-        Chip chip = findChipByMaterial(material);
+        // 改善: O(n) ループの findChipByMaterial を Chip.fromMaterial() (O(1)) に置き換え
+        Chip chip = Chip.fromMaterial(material).orElse(null);
         if (chip == null) return;
 
         event.setDropItems(false);
@@ -105,20 +105,5 @@ public class CasinoListener implements Listener {
         if (!plugin.getCasinoManager().isPlayerInCasino(player.getUniqueId())) return;
 
         plugin.getCasinoManager().handlePlayerDisconnect(player);
-    }
-
-    /**
-     * マテリアルから対応する {@link Chip} を検索する。
-     *
-     * @param material 検索対象のマテリアル
-     * @return 対応する Chip。見つからない場合は {@code null}
-     */
-    private Chip findChipByMaterial(Material material) {
-        for (Chip chip : Chip.values()) {
-            if (chip.getMaterial() == material) {
-                return chip;
-            }
-        }
-        return null;
     }
 }

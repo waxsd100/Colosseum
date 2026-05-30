@@ -2,39 +2,18 @@ plugins {
     id 'java-library'
 }
 
-group = 'com.github.waxsd100'
-version = findProperty('version') ?: '1.0-SNAPSHOT'
-
-repositories {
-    mavenCentral()
-    maven {
-        name = "spigotmc-repo"
-        url = "https://hub.spigotmc.org/nexus/content/repositories/snapshots/"
-    }
-    maven {
-        name = "codemc"
-        url = "https://repo.codemc.io/repository/maven-public/"
-    }
-}
-
 dependencies {
-    compileOnly("org.spigotmc:spigot-api:1.20.1-R0.1-SNAPSHOT")
-    api("de.tr7zw:item-nbt-api:2.14.1")
+    compileOnly("org.spigotmc:spigot-api:${spigotApiVersion}")
+    api("de.tr7zw:item-nbt-api:${nbtApiVersion}")
+
+    // Nullable/NonNull アノテーション用。IDE の静的解析を強化する。
+    compileOnly("org.jetbrains:annotations:${jetbrainsAnnotationsVersion}")
+
+    // テスト依存関係
+    testImplementation("org.junit.jupiter:junit-jupiter:${junitVersion}")
+    testImplementation("org.spigotmc:spigot-api:${spigotApiVersion}")
 }
 
-def targetJavaVersion = 17
-java {
-    def javaVersion = JavaVersion.toVersion(targetJavaVersion)
-    sourceCompatibility = javaVersion
-    targetCompatibility = javaVersion
-    if (JavaVersion.current() < javaVersion) {
-        toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
-    }
-}
-
-tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8'
-    if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
-        options.release.set(targetJavaVersion)
-    }
+test {
+    useJUnitPlatform()
 }

@@ -11,11 +11,15 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -35,7 +39,7 @@ public class BettingManager {
     private final ArenaCore plugin;
 
     public BettingManager(ArenaCore plugin) {
-        this.plugin = plugin;
+        this.plugin = Objects.requireNonNull(plugin, "plugin must not be null");
     }
 
     /**
@@ -49,10 +53,10 @@ public class BettingManager {
      * @return 賭けとして記録された場合 {@code true}
      */
     public boolean placeBet(ArenaSession session, Player player, String teamName,
-                            long chipValue, Location location) {
+                            long chipValue, Location location, Material originalBlock) {
         // 賭け記録
         session.addOrUpdateBet(player.getUniqueId(), teamName, chipValue);
-        session.addPlacedChip(location, player.getUniqueId(), teamName, chipValue);
+        session.addPlacedChip(location, player.getUniqueId(), teamName, chipValue, originalBlock);
 
         // 固定オッズ方式の場合、オッズをロック
         String payoutMethod = plugin.getConfig().getString("payout-method", "pari-mutuel");
@@ -99,11 +103,11 @@ public class BettingManager {
         // 賭け金額の更新（減算）
         Bet bet = session.getBet(player.getUniqueId());
         if (bet != null) {
-            // Note: Bet の amount から引く（マイナスにはならない）
-            // 全額取消の場合は Bet 自体を削除すべきだが、
-            // 簡略化のため addAmount(-chipValue) で対応
             bet.addAmount(-chipInfo.getChipValue());
         }
+
+        // 視覚エフェクト: 回収演出
+        playChipBreakEffect(location);
 
         player.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
                 + "賭けを " + ChipManager.formatAmount(chipInfo.getChipValue())
@@ -256,11 +260,29 @@ public class BettingManager {
      * @param session セッション
      */
     private void clearPlacedChips(ArenaSession session) {
-        for (Location loc : session.getPlacedChips().keySet()) {
+        for (Map.Entry<Location, ArenaSession.PlacedChipInfo> entry : session.getPlacedChips().entrySet()) {
+            Location loc = entry.getKey();
+            ArenaSession.PlacedChipInfo info = entry.getValue();
             Block block = loc.getBlock();
             if (block.getType().name().contains("CARPET")) {
-                block.setType(Material.AIR);
+                block.setType(info.getOriginalBlockOrAir());
+                playChipBreakEffect(loc);
             }
         }
+    }
+
+    /**
+     * チップ消滅時の視覚・音響エフェクトを再生する。
+     *
+     * @param location エフェクトの再生座標
+     */
+    private void playChipBreakEffect(Location location) {
+        World world = location.getWorld();
+        if (world == null) return;
+
+        Location center = location.clone().add(0.5, 0.1, 0.5);
+        world.spawnParticle(Particle.CLOUD, center, 8, 0.3, 0.1, 0.3, 0.02);
+        world.spawnParticle(Particle.CRIT, center, 5, 0.2, 0.1, 0.2, 0.05);
+        world.playSound(center, Sound.ENTITY_ITEM_PICKUP, 0.7f, 1.4f);
     }
 }

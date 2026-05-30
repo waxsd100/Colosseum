@@ -14,7 +14,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -25,6 +24,8 @@ import java.util.List;
  */
 public class BetCommand implements CommandExecutor, TabCompleter {
 
+    private static final List<String> SUB_COMMANDS = Arrays.asList("odds", "info");
+
     private final ArenaCore plugin;
 
     public BetCommand(ArenaCore plugin) {
@@ -33,30 +34,29 @@ public class BetCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "プレイヤーのみ使用できます。");
+        Player player = CommandHelper.requirePlayer(sender);
+        if (player == null) return true;
+
+        if (args.length == 0) {
+            sendUsage(player);
             return true;
         }
 
-        if (args.length == 0) { sendUsage(player); return true; }
-
         switch (args[0].toLowerCase()) {
-            case "odds": handleOdds(player); break;
-            case "info": handleInfo(player); break;
-            default:     sendUsage(player); break;
+            case "odds" -> handleOdds(player);
+            case "info" -> handleInfo(player);
+            default -> sendUsage(player);
         }
         return true;
     }
 
     private void handleOdds(Player player) {
         ArenaManager manager = plugin.getArenaManager();
-        if (!manager.hasActiveSession()) {
-            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "闘技場セッションがありません。");
-            return;
-        }
-        ArenaSession session = manager.getActiveSession();
+        ArenaSession session = CommandHelper.requireActiveSession(player, manager);
+        if (session == null) return;
+
         if (session.getState() != ArenaState.BETTING && session.getState() != ArenaState.ACTIVE) {
-            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "賭けが開始されていません。");
+            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + ArenaMessages.MSG_BETTING_NOT_STARTED);
             return;
         }
         plugin.getBettingManager().broadcastOdds(session);
@@ -64,16 +64,13 @@ public class BetCommand implements CommandExecutor, TabCompleter {
 
     private void handleInfo(Player player) {
         ArenaManager manager = plugin.getArenaManager();
-        if (!manager.hasActiveSession()) {
-            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "闘技場セッションがありません。");
-            return;
-        }
+        ArenaSession session = CommandHelper.requireActiveSession(player, manager);
+        if (session == null) return;
 
-        ArenaSession session = manager.getActiveSession();
         Bet bet = session.getBet(player.getUniqueId());
 
         if (bet == null) {
-            player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "まだ賭けていません。");
+            player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + ArenaMessages.MSG_NO_BET);
             return;
         }
 
@@ -111,13 +108,9 @@ public class BetCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        List<String> result = new ArrayList<>();
         if (args.length == 1) {
-            String input = args[0].toLowerCase();
-            for (String sub : Arrays.asList("odds", "info")) {
-                if (sub.startsWith(input)) result.add(sub);
-            }
+            return CommandHelper.filterStartsWith(SUB_COMMANDS, args[0]);
         }
-        return result;
+        return List.of();
     }
 }

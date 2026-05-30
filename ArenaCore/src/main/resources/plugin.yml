@@ -15,8 +15,12 @@ commands:
   bet:
     description: 賭け情報コマンド
     usage: /bet <odds|info>
+    permission: arena.bet
 
 permissions:
   arena.admin:
     description: 闘技場の管理権限
     default: op
+  arena.bet:
+    description: 賭け情報の閲覧権限
+    default: true

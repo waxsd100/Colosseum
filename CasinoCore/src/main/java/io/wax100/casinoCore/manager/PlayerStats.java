@@ -207,11 +207,19 @@ public class PlayerStats {
             ps.biggestLoss = stats.getLong("max-loss", 0);
             String fp = stats.getString("first-play", null);
             if (fp != null) {
-                ps.firstPlayed = LocalDateTime.parse(fp, FORMATTER);
+                try {
+                    ps.firstPlayed = LocalDateTime.parse(fp, FORMATTER);
+                } catch (java.time.format.DateTimeParseException e) {
+                    // データ破損時はnullのまま
+                }
             }
             String lp = stats.getString("last-play", null);
             if (lp != null) {
-                ps.lastPlayed = LocalDateTime.parse(lp, FORMATTER);
+                try {
+                    ps.lastPlayed = LocalDateTime.parse(lp, FORMATTER);
+                } catch (java.time.format.DateTimeParseException e) {
+                    // データ破損時はnullのまま
+                }
             }
         }
         return ps;

@@ -1,13 +1,23 @@
 package io.wax100.arenaCore.model;
 
+import io.wax100.arenaCore.util.ArenaMessages;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
+import org.bukkit.Material;
 
 import java.util.*;
+import java.util.Objects;
 
 /**
  * 闘技場セッションのデータモデル。
  *
  * <p>チーム構成、賭け情報、設置カーペット座標、スコアなどを保持する。
+ *
+ * <h3>状態遷移</h3>
+ * <pre>
+ * SETUP → BETTING → ACTIVE → FINISHED
+ *   any state → FINISHED  (cancel)
+ * </pre>
  */
 public class ArenaSession {
 
@@ -24,12 +34,27 @@ public class ArenaSession {
     private String winningTeam;
     private long entryFeePool;
 
+    /** モンスターチームのセット */
+    private final Set<String> mobTeams = new HashSet<>();
+    /** チーム別の待機場設定（プレイヤー・モンスター共通） */
+    private final Map<String, TeamAreaConfig> teamAreaConfigs = new HashMap<>();
+    /** スポーン済みモンスターのUUID → チーム名 */
+    private final Map<UUID, String> trackedMobs = new HashMap<>();
+    /** 全滅済みチーム（Mobチーム等、プレイヤーメンバーがいないチーム用） */
+    private final Set<String> eliminatedTeams = new HashSet<>();
+
     /**
-     * @param name      セッション名
-     * @param teamNames チーム名リスト
+     * @param name      セッション名（null不可）
+     * @param teamNames チーム名リスト（null不可・空不可）
+     * @throws NullPointerException     name または teamNames が null の場合
+     * @throws IllegalArgumentException teamNames が空の場合
      */
     public ArenaSession(String name, List<String> teamNames) {
-        this.name = name;
+        this.name = Objects.requireNonNull(name, "name must not be null");
+        Objects.requireNonNull(teamNames, "teamNames must not be null");
+        if (teamNames.isEmpty()) {
+            throw new IllegalArgumentException("teamNames must not be empty");
+        }
         this.teamNames = new ArrayList<>(teamNames);
         this.teams = new LinkedHashMap<>();
         this.bets = new HashMap<>();
@@ -48,10 +73,64 @@ public class ArenaSession {
 
     public String getName() { return name; }
     public ArenaState getState() { return state; }
-    public void setState(ArenaState state) { this.state = state; }
+
+    /**
+     * セッション状態を遷移させる。
+     *
+     * <p>許可される遷移:
+     * <ul>
+     *   <li>SETUP → BETTING</li>
+     *   <li>BETTING → ACTIVE</li>
+     *   <li>ACTIVE → FINISHED</li>
+     *   <li>任意 → FINISHED（キャンセル）</li>
+     * </ul>
+     *
+     * @param newState 新しい状態
+     * @throws NullPointerException  newState が null の場合
+     * @throws IllegalStateException 許可されていない遷移の場合
+     */
+    public void setState(ArenaState newState) {
+        Objects.requireNonNull(newState, "newState must not be null");
+        if (!isValidTransition(this.state, newState)) {
+            throw new IllegalStateException(
+                    "Invalid state transition: " + this.state + " → " + newState);
+        }
+        this.state = newState;
+    }
+
+    /**
+     * 状態遷移が有効かどうかを判定する。
+     */
+    private static final Map<ArenaState, EnumSet<ArenaState>> VALID_TRANSITIONS;
+    static {
+        Map<ArenaState, EnumSet<ArenaState>> m = new EnumMap<>(ArenaState.class);
+        m.put(ArenaState.SETUP,    EnumSet.of(ArenaState.BETTING, ArenaState.FINISHED));
+        m.put(ArenaState.BETTING,  EnumSet.of(ArenaState.ACTIVE, ArenaState.FINISHED));
+        m.put(ArenaState.ACTIVE,   EnumSet.of(ArenaState.FINISHED));
+        m.put(ArenaState.FINISHED, EnumSet.noneOf(ArenaState.class));
+        VALID_TRANSITIONS = Collections.unmodifiableMap(m);
+    }
+
+    private static boolean isValidTransition(ArenaState from, ArenaState to) {
+        EnumSet<ArenaState> allowed = VALID_TRANSITIONS.get(from);
+        return allowed != null && allowed.contains(to);
+    }
     public List<String> getTeamNames() { return Collections.unmodifiableList(teamNames); }
     public String getWinningTeam() { return winningTeam; }
     public void setWinningTeam(String team) { this.winningTeam = team; }
+
+    /**
+     * チーム名に対応するチーム色を返す。
+     *
+     * <p>チーム名が見つからない場合は {@link ChatColor#WHITE} を返す。
+     *
+     * @param teamName チーム名
+     * @return チーム色
+     */
+    public ChatColor getTeamColor(String teamName) {
+        int index = teamNames.indexOf(teamName);
+        return index >= 0 ? ArenaMessages.getTeamColor(index) : ChatColor.WHITE;
+    }
 
     // ── チーム管理 ──
 
@@ -92,7 +171,19 @@ public class ArenaSession {
     // ── 参加費 ──
 
     public long getEntryFeePool() { return entryFeePool; }
-    public void addEntryFee(long fee) { this.entryFeePool += fee; }
+
+    /**
+     * 参加費をプールに加算する。
+     *
+     * @param fee 加算額（0以上）
+     * @throws IllegalArgumentException fee が負の場合
+     */
+    public void addEntryFee(long fee) {
+        if (fee < 0) {
+            throw new IllegalArgumentException("fee must not be negative: " + fee);
+        }
+        this.entryFeePool += fee;
+    }
 
     // ── 賭け管理 ──
 
@@ -100,7 +191,17 @@ public class ArenaSession {
 
     public Bet getBet(UUID playerId) { return bets.get(playerId); }
 
+    /**
+     * 賭けを追加または更新する。
+     *
+     * @param playerId 賭けたプレイヤーの UUID（null不可）
+     * @param teamName 賭け先チーム名（null不可）
+     * @param amount   賭け金額
+     * @throws NullPointerException playerId または teamName が null の場合
+     */
     public void addOrUpdateBet(UUID playerId, String teamName, long amount) {
+        Objects.requireNonNull(playerId, "playerId must not be null");
+        Objects.requireNonNull(teamName, "teamName must not be null");
         Bet existing = bets.get(playerId);
         if (existing != null && existing.getTeamName().equals(teamName)) {
             existing.addAmount(amount);
@@ -139,8 +240,9 @@ public class ArenaSession {
      * @param teamName  賭け先チーム
      * @param chipValue チップ額面
      */
-    public void addPlacedChip(Location location, UUID playerId, String teamName, long chipValue) {
-        placedChips.put(location, new PlacedChipInfo(playerId, teamName, chipValue));
+    public void addPlacedChip(Location location, UUID playerId, String teamName,
+                              long chipValue, Material originalBlock) {
+        placedChips.put(location, new PlacedChipInfo(playerId, teamName, chipValue, originalBlock));
     }
 
     /**
@@ -186,24 +288,224 @@ public class ArenaSession {
         return Collections.unmodifiableMap(scores);
     }
 
+    /**
+     * セッション終了時に全データをクリアする。
+     *
+     * <p>メモリリーク防止のため、セッション参照を破棄する前に呼び出すこと。
+     */
+    public void clearAllData() {
+        bets.clear();
+        placedChips.clear();
+        trackedMobs.clear();
+        eliminatedTeams.clear();
+        for (List<UUID> members : teams.values()) {
+            members.clear();
+        }
+        scores.clear();
+        teamAreaConfigs.clear();
+        mobTeams.clear();
+    }
+
+    // ── チーム待機場管理 ──
+
+    /**
+     * チームの待機場設定を登録する（プレイヤー・モンスター共通）。
+     */
+    public void setTeamAreaConfig(String teamName, TeamAreaConfig config) {
+        teamAreaConfigs.put(teamName, config);
+    }
+
+    /**
+     * チームの待機場設定を取得する。
+     */
+    public TeamAreaConfig getTeamAreaConfig(String teamName) {
+        return teamAreaConfigs.get(teamName);
+    }
+
+    // ── モンスターチーム管理 ──
+
+    /**
+     * チームをモンスターチームとしてマークする。
+     */
+    public void markAsMobTeam(String teamName) {
+        if (hasTeam(teamName)) mobTeams.add(teamName);
+    }
+
+    /**
+     * チームがモンスターチームかどうかを返す。
+     */
+    public boolean isMobTeam(String teamName) {
+        return mobTeams.contains(teamName);
+    }
+
+    /**
+     * スポーン済みモンスターを追跡登録する。
+     */
+    public void trackMob(UUID entityId, String teamName) {
+        trackedMobs.put(entityId, teamName);
+    }
+
+    /**
+     * モンスターのチーム名を取得する。
+     */
+    public String getMobTeam(UUID entityId) {
+        return trackedMobs.get(entityId);
+    }
+
+    /**
+     * スポーン済みモンスターを除去する（死亡時）。
+     */
+    public void removeMob(UUID entityId) {
+        trackedMobs.remove(entityId);
+    }
+
+    /**
+     * 指定チームに生存中のモンスターがいるかを返す。
+     */
+    public boolean hasAliveMobs(String teamName) {
+        return trackedMobs.containsValue(teamName);
+    }
+
+    /**
+     * チームを全滅済みとしてマークする（Mobチーム等で使用）。
+     */
+    public void markTeamEliminated(String teamName) {
+        eliminatedTeams.add(teamName);
+    }
+
+    /**
+     * チームが全滅済みかどうかを返す。
+     */
+    public boolean isTeamEliminated(String teamName) {
+        return eliminatedTeams.contains(teamName);
+    }
+
+    /**
+     * 指定チームの生存モンスター数を返す。
+     */
+    public int getAliveMobCount(String teamName) {
+        int count = 0;
+        for (String team : trackedMobs.values()) {
+            if (team.equals(teamName)) count++;
+        }
+        return count;
+    }
+
+    /**
+     * チームの実効メンバー数を返す（プレイヤー + 待機場内Mob数）。
+     */
+    public int getEffectiveTeamSize(String teamName) {
+        int playerSize = getTeamSize(teamName);
+        if (isMobTeam(teamName)) {
+            TeamAreaConfig config = getTeamAreaConfig(teamName);
+            if (config != null) {
+                return playerSize + config.scanEntities().size();
+            }
+        }
+        return playerSize;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof ArenaSession)) return false;
+        ArenaSession that = (ArenaSession) o;
+        return name.equals(that.name);
+    }
+
+    @Override
+    public int hashCode() {
+        return name.hashCode();
+    }
+
+    @Override
+    public String toString() {
+        return "ArenaSession{" +
+                "name='" + name + '\'' +
+                ", state=" + state +
+                ", teams=" + teamNames.size() +
+                ", bets=" + bets.size() +
+                ", winningTeam='" + winningTeam + '\'' +
+                '}';
+    }
+
     // ── 設置チップ情報 ──
 
     /**
-     * 設置されたカーペットチップの情報。
+     * 設置されたカーペットチップの情報（不変オブジェクト）。
+     *
+     * <p>{@code originalBlock} はカーペット設置前の元ブロックの素材を保持する。
+     * 元ブロックが存在しない場合（空気ブロック等）は {@code null} が許容される。
+     * 呼び出し側は {@link #getOriginalBlock()} の戻り値が {@code null} の場合に
+     * {@link Material#AIR} へフォールバックすること。
      */
     public static class PlacedChipInfo {
         private final UUID playerId;
         private final String teamName;
         private final long chipValue;
+        /** カーペット設置前の元ブロック素材。{@code null} の場合は AIR として扱う。 */
+        private final Material originalBlock;
 
-        public PlacedChipInfo(UUID playerId, String teamName, long chipValue) {
-            this.playerId = playerId;
-            this.teamName = teamName;
+        /**
+         * @param playerId      設置者（null不可）
+         * @param teamName      賭け先チーム（null不可）
+         * @param chipValue     チップ額面
+         * @param originalBlock 元ブロック素材（null許容: AIR として扱われる）
+         * @throws NullPointerException playerId または teamName が null の場合
+         */
+        public PlacedChipInfo(UUID playerId, String teamName, long chipValue, Material originalBlock) {
+            this.playerId = Objects.requireNonNull(playerId, "playerId must not be null");
+            this.teamName = Objects.requireNonNull(teamName, "teamName must not be null");
             this.chipValue = chipValue;
+            this.originalBlock = originalBlock;
         }
 
         public UUID getPlayerId() { return playerId; }
         public String getTeamName() { return teamName; }
         public long getChipValue() { return chipValue; }
+
+        /**
+         * カーペット設置前の元ブロック素材を返す。
+         *
+         * @return 元ブロック素材。{@code null} の場合は {@link Material#AIR} として扱うこと。
+         */
+        public Material getOriginalBlock() { return originalBlock; }
+
+        /**
+         * 元ブロック素材を返す（null安全版）。
+         *
+         * <p>{@code originalBlock} が {@code null} の場合、{@link Material#AIR} を返す。
+         *
+         * @return 元ブロック素材（非null保証）
+         */
+        public Material getOriginalBlockOrAir() {
+            return originalBlock != null ? originalBlock : Material.AIR;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof PlacedChipInfo)) return false;
+            PlacedChipInfo that = (PlacedChipInfo) o;
+            return chipValue == that.chipValue
+                    && playerId.equals(that.playerId)
+                    && teamName.equals(that.teamName)
+                    && originalBlock == that.originalBlock;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(playerId, teamName, chipValue, originalBlock);
+        }
+
+        @Override
+        public String toString() {
+            return "PlacedChipInfo{" +
+                    "playerId=" + playerId +
+                    ", teamName='" + teamName + '\'' +
+                    ", chipValue=" + chipValue +
+                    ", originalBlock=" + originalBlock +
+                    '}';
+        }
     }
 }

@@ -29,6 +29,7 @@ import java.util.UUID;
  *   <li>{@code /casino off} — カジノモードを終了し、全プレイヤーのチップを換金</li>
  *   <li>{@code /casino status} — 現在のカジノモードの ON/OFF 状態を表示</li>
  *   <li>{@code /casino ranking} — 累計損益ランキングを表示</li>
+ *   <li>{@code /casino stats} — プレイヤー統計を表示</li>
  * </ul>
  *
  * @see CasinoManager
@@ -39,6 +40,10 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
      * サブコマンド一覧（タブ補完用）
      */
     private static final List<String> SUB_COMMANDS = Arrays.asList("on", "off", "status", "ranking", "stats");
+    /**
+     * 管理者権限が必要なサブコマンド
+     */
+    private static final List<String> ADMIN_SUB_COMMANDS = Arrays.asList("on", "off");
     /**
      * プラグインインスタンス
      */
@@ -100,30 +105,35 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
      * @param args   コマンド引数（{@code args[0]}="on", {@code args[1]}=プレイヤー名（任意））
      */
     private void handleOn(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("casino.admin")) {
+            sender.sendMessage(Messages.NO_PERMISSION);
+            return;
+        }
+
         CasinoManager manager = plugin.getCasinoManager();
 
         if (args.length >= 2) {
             // 個別プレイヤー追加モード
             Player target = Bukkit.getPlayer(args[1]);
             if (target == null) {
-                sender.sendMessage(Messages.PREFIX + ChatColor.RED + "プレイヤー '" + args[1] + "' が見つかりません。");
+                sender.sendMessage(String.format(Messages.PLAYER_NOT_FOUND, args[1]));
                 return;
             }
             if (manager.isPlayerInCasino(target.getUniqueId())) {
-                sender.sendMessage(Messages.PREFIX + ChatColor.YELLOW + target.getName() + " は既にカジノモードに参加しています。");
+                sender.sendMessage(String.format(Messages.PLAYER_ALREADY_IN_CASINO, target.getName()));
                 return;
             }
             manager.addPlayerToCasino(target);
-            sender.sendMessage(Messages.PREFIX + ChatColor.GREEN + target.getName() + " をカジノモードに追加しました。");
+            sender.sendMessage(String.format(Messages.PLAYER_ADDED, target.getName()));
             if (!target.equals(sender)) {
-                target.sendMessage(Messages.PREFIX + ChatColor.GREEN + "あなたはカジノモードに追加されました。");
+                target.sendMessage(Messages.YOU_ADDED);
             }
             return;
         }
 
         // 全体カジノモード開始
         if (manager.isCasinoActive()) {
-            sender.sendMessage(Messages.PREFIX + ChatColor.YELLOW + "カジノモードは既にONです。");
+            sender.sendMessage(Messages.CASINO_ALREADY_ON);
             return;
         }
         manager.setCasinoActive(true);
@@ -155,30 +165,35 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
      * @param args   コマンド引数（{@code args[0]}="off", {@code args[1]}=プレイヤー名（任意））
      */
     private void handleOff(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("casino.admin")) {
+            sender.sendMessage(Messages.NO_PERMISSION);
+            return;
+        }
+
         CasinoManager manager = plugin.getCasinoManager();
 
         if (args.length >= 2) {
             // 個別プレイヤー退出モード
             Player target = Bukkit.getPlayer(args[1]);
             if (target == null) {
-                sender.sendMessage(Messages.PREFIX + ChatColor.RED + "プレイヤー '" + args[1] + "' が見つかりません。");
+                sender.sendMessage(String.format(Messages.PLAYER_NOT_FOUND, args[1]));
                 return;
             }
             if (!manager.isPlayerInCasino(target.getUniqueId())) {
-                sender.sendMessage(Messages.PREFIX + ChatColor.YELLOW + target.getName() + " はカジノモードに参加していません。");
+                sender.sendMessage(String.format(Messages.PLAYER_NOT_IN_CASINO, target.getName()));
                 return;
             }
             manager.removePlayerFromCasino(target);
-            sender.sendMessage(Messages.PREFIX + ChatColor.GREEN + target.getName() + " をカジノモードから退出させました。");
+            sender.sendMessage(String.format(Messages.PLAYER_REMOVED, target.getName()));
             if (!target.equals(sender)) {
-                target.sendMessage(Messages.PREFIX + ChatColor.GREEN + "あなたはカジノモードから退出しました。");
+                target.sendMessage(Messages.YOU_REMOVED);
             }
             return;
         }
 
         // 全体カジノモード終了
         if (!manager.isCasinoActive()) {
-            sender.sendMessage(Messages.PREFIX + ChatColor.YELLOW + "カジノモードは既にOFFです。");
+            sender.sendMessage(Messages.CASINO_ALREADY_OFF);
             return;
         }
 
@@ -221,8 +236,12 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
      */
     private void handleRanking(CommandSender sender, String[] args) {
         if (args.length >= 2 && args[1].equalsIgnoreCase("reset")) {
+            if (!sender.hasPermission("casino.admin")) {
+                sender.sendMessage(Messages.NO_PERMISSION);
+                return;
+            }
             plugin.getCasinoManager().resetRanking();
-            sender.sendMessage(Messages.PREFIX + ChatColor.GREEN + "ランキングと全プレイヤー統計をリセットしました。");
+            sender.sendMessage(Messages.RANKING_RESET);
             return;
         }
 
@@ -233,7 +252,7 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.GOLD.toString() + ChatColor.BOLD + "═══ カジノランキング（累計損益）═══");
 
         if (sorted.isEmpty()) {
-            sender.sendMessage(ChatColor.GRAY + "ランキングデータがありません。");
+            sender.sendMessage(Messages.NO_RANKING_DATA);
         } else {
             int rank = 1;
             for (Map.Entry<UUID, Long> entry : sorted) {
@@ -271,19 +290,19 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
         if (args.length >= 2) {
             target = Bukkit.getPlayer(args[1]);
             if (target == null) {
-                sender.sendMessage(Messages.PREFIX + ChatColor.RED + "プレイヤー '" + args[1] + "' が見つかりません。");
+                sender.sendMessage(String.format(Messages.PLAYER_NOT_FOUND, args[1]));
                 return;
             }
         } else if (sender instanceof Player) {
             target = (Player) sender;
         } else {
-            sender.sendMessage(Messages.PREFIX + ChatColor.RED + "プレイヤー名を指定してください。");
+            sender.sendMessage(Messages.SPECIFY_PLAYER);
             return;
         }
 
         PlayerStats stats = plugin.getCasinoManager().getStatsForPlayer(target.getUniqueId());
         if (stats == null) {
-            sender.sendMessage(Messages.PREFIX + ChatColor.YELLOW + target.getName() + " の統計データがありません。");
+            sender.sendMessage(String.format(Messages.NO_STATS, target.getName()));
             return;
         }
 
@@ -348,6 +367,7 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
      * {@inheritDoc}
      *
      * <p>第1引数に対してサブコマンドの前方一致補完を提供する。
+     * 管理者権限のないプレイヤーには管理系サブコマンドを表示しない。
      */
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
@@ -366,6 +386,7 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
                 return result;
             }
             if (sub.equals("ranking")) {
+                if (!sender.hasPermission("casino.admin")) return Collections.emptyList();
                 String input = args[1].toLowerCase();
                 if ("reset".startsWith(input)) {
                     return Collections.singletonList("reset");
@@ -378,7 +399,13 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
         List<String> result = new ArrayList<>();
         String input = args[0].toLowerCase();
         for (String sub : SUB_COMMANDS) {
-            if (sub.startsWith(input)) result.add(sub);
+            if (sub.startsWith(input)) {
+                // 管理者権限が必要なサブコマンドは権限チェック
+                if (ADMIN_SUB_COMMANDS.contains(sub) && !sender.hasPermission("casino.admin")) {
+                    continue;
+                }
+                result.add(sub);
+            }
         }
         return result;
     }

@@ -1,7 +1,6 @@
 package io.wax100.arenaCore.model;
 
-import org.bukkit.Location;
-
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -19,13 +18,17 @@ public class Bet {
     private double lockedOdds;
 
     /**
-     * @param playerId 賭けたプレイヤーの UUID
-     * @param teamName 賭け先チーム名
+     * @param playerId 賭けたプレイヤーの UUID（null不可）
+     * @param teamName 賭け先チーム名（null不可）
      * @param amount   賭け金額
+     * @throws NullPointerException playerId または teamName が null の場合
      */
     public Bet(UUID playerId, String teamName, long amount) {
-        this.playerId = playerId;
-        this.teamName = teamName;
+        this.playerId = Objects.requireNonNull(playerId, "playerId must not be null");
+        this.teamName = Objects.requireNonNull(teamName, "teamName must not be null");
+        if (amount < 0) {
+            throw new IllegalArgumentException("amount must not be negative: " + amount);
+        }
         this.amount = amount;
         this.lockedOdds = 0.0;
     }
@@ -38,10 +41,16 @@ public class Bet {
     /**
      * 賭け金額を加算する。
      *
-     * @param additional 追加金額
+     * @param additional 追加金額（減算の場合は負数）
+     * @throws IllegalArgumentException 結果の金額が負になる場合
      */
     public void addAmount(long additional) {
-        this.amount += additional;
+        long newAmount = this.amount + additional;
+        if (newAmount < 0) {
+            throw new IllegalArgumentException(
+                    "Resulting amount must not be negative: " + this.amount + " + " + additional);
+        }
+        this.amount = newAmount;
     }
 
     /**
@@ -51,5 +60,31 @@ public class Bet {
      */
     public void setLockedOdds(double odds) {
         this.lockedOdds = odds;
+    }
+
+    /**
+     * playerId と teamName に基づく等価性判定。
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Bet)) return false;
+        Bet bet = (Bet) o;
+        return playerId.equals(bet.playerId) && teamName.equals(bet.teamName);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(playerId, teamName);
+    }
+
+    @Override
+    public String toString() {
+        return "Bet{" +
+                "playerId=" + playerId +
+                ", teamName='" + teamName + '\'' +
+                ", amount=" + amount +
+                ", lockedOdds=" + lockedOdds +
+                '}';
     }
 }

@@ -88,7 +88,8 @@ public class ArenaBettingListener implements Listener {
 
         // 賭け処理
         BettingManager bettingManager = plugin.getBettingManager();
-        bettingManager.placeBet(session, player, teamName, chipValue, event.getBlock().getLocation());
+        bettingManager.placeBet(session, player, teamName, chipValue,
+                event.getBlock().getLocation(), event.getBlockReplacedState().getType());
     }
 
     /**
@@ -111,13 +112,6 @@ public class ArenaBettingListener implements Listener {
 
         Player player = event.getPlayer();
 
-        // 試合中は回収不可
-        if (session.getState() == ArenaState.ACTIVE) {
-            event.setCancelled(true);
-            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "試合中は賭けカーペットを回収できません。");
-            return;
-        }
-
         // 賭け受付中: 自分のチップのみ回収可能
         if (session.getState() == ArenaState.BETTING) {
             if (!chipInfo.getPlayerId().equals(player.getUniqueId())) {
@@ -128,6 +122,15 @@ public class ArenaBettingListener implements Listener {
 
             BettingManager bettingManager = plugin.getBettingManager();
             bettingManager.cancelBet(session, player, block.getLocation());
+            return;
+        }
+
+        // BETTING 以外の状態（ACTIVE, SETUP, FINISHED）では回収不可
+        event.setCancelled(true);
+        if (session.getState() == ArenaState.ACTIVE) {
+            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "試合中は賭けカーペットを回収できません。");
+        } else {
+            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "現在、賭けカーペットの操作はできません。");
         }
     }
 }

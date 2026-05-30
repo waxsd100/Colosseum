@@ -8,6 +8,8 @@ package io.wax100.arenaCore.model;
  *           ↑                    ↓
  *           └── (cancel: any → FINISHED)
  * </pre>
+ *
+ * <p>状態遷移の検証は {@link ArenaSession} の {@code setState()} メソッドで行われる。
  */
 public enum ArenaState {
     /** セットアップ中: チーム編成・エリア設定 */

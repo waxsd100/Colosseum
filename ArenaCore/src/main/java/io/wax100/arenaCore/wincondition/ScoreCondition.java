@@ -30,17 +30,27 @@ public class ScoreCondition implements WinCondition {
         String deadTeam = session.getPlayerTeam(deadPlayerId);
         if (deadTeam == null) return null;
 
-        // 他のチームにスコアを加算
+        // 他のチームにスコアを加算（先に全チーム加算してから判定）
         for (String team : session.getTeamNames()) {
             if (!team.equals(deadTeam)) {
                 session.addScore(team, 1);
-
-                if (targetScore > 0 && session.getScore(team) >= targetScore) {
-                    return team;
-                }
             }
         }
 
-        return null;
+        // targetScore が 0 の場合は手動集計モード
+        if (targetScore <= 0) return null;
+
+        // 勝利判定: 複数チームが同時に到達した場合はスコアが最も高いチームを選出
+        String winner = null;
+        int highestScore = 0;
+        for (String team : session.getTeamNames()) {
+            int score = session.getScore(team);
+            if (score >= targetScore && score > highestScore) {
+                highestScore = score;
+                winner = team;
+            }
+        }
+
+        return winner;
     }
 }

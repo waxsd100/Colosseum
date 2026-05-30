@@ -29,12 +29,15 @@ public class PariMutuelPayout implements PayoutStrategy {
 
         if (totalPool <= 0 || winningPool <= 0) return payouts;
 
-        double payoutPool = totalPool * (1.0 - houseEdge);
+        // houseEdge を [0.0, 1.0) にクランプして負の配当プールを防止
+        double clampedEdge = Math.max(0.0, Math.min(houseEdge, 1.0));
+        double payoutPool = totalPool * (1.0 - clampedEdge);
         double odds = payoutPool / winningPool;
 
         for (Bet bet : session.getBets().values()) {
             if (bet.getTeamName().equals(winningTeam)) {
-                long payout = (long) (bet.getAmount() * odds);
+                // Math.floor で切り捨て: プールを超過しない保証
+                long payout = Math.max(0L, (long) Math.floor(bet.getAmount() * odds));
                 payouts.put(bet.getPlayerId(), payout);
             }
         }
@@ -49,7 +52,8 @@ public class PariMutuelPayout implements PayoutStrategy {
 
         if (totalPool <= 0 || teamPool <= 0) return 0.0;
 
-        double payoutPool = totalPool * (1.0 - houseEdge);
+        double clampedEdge = Math.max(0.0, Math.min(houseEdge, 1.0));
+        double payoutPool = totalPool * (1.0 - clampedEdge);
         return payoutPool / teamPool;
     }
 }

@@ -4,6 +4,7 @@ import io.wax100.arenaCore.command.ArenaCommand;
 import io.wax100.arenaCore.command.BetCommand;
 import io.wax100.arenaCore.listener.ArenaBettingListener;
 import io.wax100.arenaCore.listener.ArenaFightListener;
+import io.wax100.arenaCore.listener.MobAreaProtectionListener;
 import io.wax100.arenaCore.manager.ArenaManager;
 import io.wax100.arenaCore.manager.BettingManager;
 import io.wax100.arenaCore.manager.RegionManager;
@@ -85,6 +86,7 @@ public final class ArenaCore extends JavaPlugin {
         // リスナー登録
         getServer().getPluginManager().registerEvents(new ArenaBettingListener(this), this);
         getServer().getPluginManager().registerEvents(new ArenaFightListener(this), this);
+        getServer().getPluginManager().registerEvents(new MobAreaProtectionListener(this), this);
 
         getLogger().info("ArenaCore が有効化されました！");
     }
