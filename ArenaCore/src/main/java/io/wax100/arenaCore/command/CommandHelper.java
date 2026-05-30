@@ -118,6 +118,30 @@ public final class CommandHelper {
         }
     }
 
+    /**
+     * WorldEdit の選択範囲から ArenaFieldConfig を生成する。
+     *
+     * @return 生成した ArenaFieldConfig。選択範囲がない場合 null
+     */
+    public static io.wax100.arenaCore.model.ArenaFieldConfig createFieldConfigFromSelection(Player player) {
+        try {
+            com.sk89q.worldedit.entity.Player wePlayer =
+                    com.sk89q.worldedit.bukkit.BukkitAdapter.adapt(player);
+            com.sk89q.worldedit.regions.Region region =
+                    com.sk89q.worldedit.WorldEdit.getInstance().getSessionManager()
+                            .get(wePlayer).getSelection(wePlayer.getWorld());
+            com.sk89q.worldedit.math.BlockVector3 min = region.getMinimumPoint();
+            com.sk89q.worldedit.math.BlockVector3 max = region.getMaximumPoint();
+            String worldName = player.getWorld().getName();
+            return new io.wax100.arenaCore.model.ArenaFieldConfig(worldName,
+                    min.x(), min.y(), min.z(), max.x(), max.y(), max.z());
+        } catch (com.sk89q.worldedit.IncompleteRegionException e) {
+            return null;
+        } catch (NoClassDefFoundError | Exception e) {
+            return null;
+        }
+    }
+
     // ── タブ補完ユーティリティ ──
 
     /**

@@ -10,7 +10,7 @@ softdepend: [WorldEdit]
 commands:
   arena:
     description: 闘技場管理コマンド
-    usage: /arena <create|team|region|open|start|win|cancel|status>
+    usage: /arena <create|team|region|field|preset|open|start|win|cancel|status>
     permission: arena.admin
   bet:
     description: 賭け情報コマンド

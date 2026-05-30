@@ -26,6 +26,8 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
         subCommands.put("team", new TeamSubCommand(plugin));
         subCommands.put("mob", new MobSubCommand(plugin));
         subCommands.put("region", new RegionSubCommand(plugin));
+        subCommands.put("field", new FieldSubCommand(plugin));
+        subCommands.put("preset", new PresetSubCommand(plugin));
         subCommands.put("open", new OpenSubCommand(plugin));
         subCommands.put("start", new StartSubCommand(plugin));
         subCommands.put("win", new WinSubCommand(plugin));
@@ -79,6 +81,9 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "  /arena mob <チーム名> list" + ChatColor.GRAY + " <- 待機場Mob一覧");
         sender.sendMessage(ChatColor.YELLOW + "  /arena region bet <チーム名>" + ChatColor.GRAY + " <- WE選択範囲を賭けエリアに");
         sender.sendMessage(ChatColor.YELLOW + "  /arena region team <チーム名>" + ChatColor.GRAY + " <- WE選択範囲内のプレイヤーをチームに");
+        sender.sendMessage(ChatColor.YELLOW + "  /arena field set" + ChatColor.GRAY + " <- WE選択範囲を戦闘エリアに");
+        sender.sendMessage(ChatColor.YELLOW + "  /arena field info" + ChatColor.GRAY + " <- 戦闘エリア情報");
+        sender.sendMessage(ChatColor.YELLOW + "  /arena preset save/load/list/delete" + ChatColor.GRAY + " <- プリセット管理");
         sender.sendMessage(ChatColor.YELLOW + "  /arena open" + ChatColor.GRAY + " <- 賭け受付開始");
         sender.sendMessage(ChatColor.YELLOW + "  /arena start" + ChatColor.GRAY + " <- 試合開始");
         sender.sendMessage(ChatColor.YELLOW + "  /arena win <チーム名>");

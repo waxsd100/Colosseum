@@ -133,8 +133,7 @@ public class TeamAreaConfig {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof TeamAreaConfig)) return false;
-        TeamAreaConfig that = (TeamAreaConfig) o;
+        if (!(o instanceof TeamAreaConfig that)) return false;
         return minX == that.minX && minY == that.minY && minZ == that.minZ
                 && maxX == that.maxX && maxY == that.maxY && maxZ == that.maxZ
                 && worldName.equals(that.worldName);

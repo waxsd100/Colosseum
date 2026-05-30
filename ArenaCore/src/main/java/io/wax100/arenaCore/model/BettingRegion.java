@@ -74,8 +74,7 @@ public class BettingRegion {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof BettingRegion)) return false;
-        BettingRegion that = (BettingRegion) o;
+        if (!(o instanceof BettingRegion that)) return false;
         return teamName.equals(that.teamName);
     }
 

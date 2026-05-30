@@ -25,3 +25,16 @@ min-bet: 1
 
 # 最大賭け額（チップ枚数, 0 = 無制限）
 max-bet: 0
+
+# ── 地形復元 ──
+terrain-restore:
+  # 地形復元を有効にするか (WorldEdit 必須)
+  enabled: true
+  # 試合中: ブロック破壊からN tick後に自動復元 (20tick=1秒)
+  during-match-delay: 300
+  # 試合後: 高速復元開始までの遅延 (tick)
+  post-match-delay: 60
+  # 試合後: 1tickあたりの復元ブロック数
+  post-match-blocks-per-tick: 10
+  # 復元エフェクト (パーティクル + 効果音, 試合中のみ)
+  effects: true

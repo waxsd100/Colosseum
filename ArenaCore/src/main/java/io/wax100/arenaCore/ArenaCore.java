@@ -4,10 +4,13 @@ import io.wax100.arenaCore.command.ArenaCommand;
 import io.wax100.arenaCore.command.BetCommand;
 import io.wax100.arenaCore.listener.ArenaBettingListener;
 import io.wax100.arenaCore.listener.ArenaFightListener;
+import io.wax100.arenaCore.listener.ArenaTerrainListener;
 import io.wax100.arenaCore.listener.MobAreaProtectionListener;
 import io.wax100.arenaCore.manager.ArenaManager;
+import io.wax100.arenaCore.manager.ArenaPresetStore;
 import io.wax100.arenaCore.manager.BettingManager;
 import io.wax100.arenaCore.manager.RegionManager;
+import io.wax100.arenaCore.manager.TerrainManager;
 import io.wax100.arenaCore.payout.FixedOddsPayout;
 import io.wax100.arenaCore.payout.PariMutuelPayout;
 import io.wax100.arenaCore.payout.PayoutStrategy;
@@ -39,6 +42,8 @@ public final class ArenaCore extends JavaPlugin {
     private ArenaManager arenaManager;
     private BettingManager bettingManager;
     private RegionManager regionManager;
+    private TerrainManager terrainManager;
+    private ArenaPresetStore presetStore;
     private PayoutStrategy payoutStrategy;
     private WinCondition winCondition;
 
@@ -77,7 +82,9 @@ public final class ArenaCore extends JavaPlugin {
         // マネージャ初期化
         regionManager = new RegionManager(worldEditAvailable);
         bettingManager = new BettingManager(this);
-        arenaManager = new ArenaManager(this, bettingManager, regionManager);
+        terrainManager = new TerrainManager(this);
+        presetStore = new ArenaPresetStore(getDataFolder(), getLogger());
+        arenaManager = new ArenaManager(this, bettingManager, regionManager, terrainManager);
 
         // コマンド登録
         registerCommand("arena", new ArenaCommand(this));
@@ -87,6 +94,12 @@ public final class ArenaCore extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new ArenaBettingListener(this), this);
         getServer().getPluginManager().registerEvents(new ArenaFightListener(this), this);
         getServer().getPluginManager().registerEvents(new MobAreaProtectionListener(this), this);
+        getServer().getPluginManager().registerEvents(new ArenaTerrainListener(terrainManager), this);
+
+        // クラッシュ復旧チェック（全ワールドロード完了後に実行）
+        getServer().getScheduler().runTaskLater(this, () -> {
+            terrainManager.checkCrashRecovery();
+        }, 1L);
 
         getLogger().info("ArenaCore が有効化されました！");
     }
@@ -169,4 +182,6 @@ public final class ArenaCore extends JavaPlugin {
     public RegionManager getRegionManager() { return regionManager; }
     public PayoutStrategy getPayoutStrategy() { return payoutStrategy; }
     public WinCondition getWinCondition() { return winCondition; }
+    public TerrainManager getTerrainManager() { return terrainManager; }
+    public ArenaPresetStore getPresetStore() { return presetStore; }
 }

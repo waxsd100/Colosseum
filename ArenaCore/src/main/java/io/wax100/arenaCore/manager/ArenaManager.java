@@ -7,6 +7,8 @@ import io.wax100.arenaCore.event.ArenaWinnerDeclaredEvent;
 import io.wax100.arenaCore.model.ArenaSession;
 import io.wax100.arenaCore.model.ArenaState;
 import io.wax100.arenaCore.model.TeamAreaConfig;
+import io.wax100.arenaCore.model.ArenaFieldConfig;
+import io.wax100.arenaCore.model.BettingRegion;
 import io.wax100.arenaCore.util.ArenaMessages;
 import io.wax100.arenaCore.wincondition.WinCondition;
 import io.wax100.chipLib.ChipManager;
@@ -34,15 +36,18 @@ public class ArenaManager {
     private final ArenaCore plugin;
     private final BettingManager bettingManager;
     private final RegionManager regionManager;
+    private final TerrainManager terrainManager;
 
     private ArenaSession activeSession;
     private BukkitTask oddsBroadcastTask;
     private final Set<UUID> eliminatedPlayers = new HashSet<>();
 
-    public ArenaManager(ArenaCore plugin, BettingManager bettingManager, RegionManager regionManager) {
+    public ArenaManager(ArenaCore plugin, BettingManager bettingManager,
+                        RegionManager regionManager, TerrainManager terrainManager) {
         this.plugin = Objects.requireNonNull(plugin, "plugin must not be null");
         this.bettingManager = Objects.requireNonNull(bettingManager, "bettingManager must not be null");
         this.regionManager = Objects.requireNonNull(regionManager, "regionManager must not be null");
+        this.terrainManager = Objects.requireNonNull(terrainManager, "terrainManager must not be null");
     }
 
     public boolean hasActiveSession() { return activeSession != null; }
@@ -56,11 +61,38 @@ public class ArenaManager {
             plugin.getLogger().warning("セッション作成失敗: 既にアクティブなセッションが存在します (" + activeSession.getName() + ")");
             return null;
         }
+        if (terrainManager.isBlocking()) {
+            plugin.getLogger().warning("セッション作成失敗: 地形復元中です");
+            return null;
+        }
         activeSession = new ArenaSession(name, teamNames);
         eliminatedPlayers.clear();
         regionManager.clearRegions();
         plugin.getLogger().info("闘技場セッション作成: " + name + " (チーム数: " + teamNames.size() + ")");
         return activeSession;
+    }
+
+    /**
+     * プリセットデータからセッションを作成する。
+     *
+     * @param data プリセットデータ
+     * @return 作成されたセッション。失敗時 {@code null}
+     */
+    public ArenaSession createFromPreset(ArenaPresetStore.PresetData data) {
+        ArenaSession session = createArena(data.name(), data.teamNames());
+        if (session == null) return null;
+
+        session.setFieldConfig(data.fieldConfig());
+        for (var entry : data.teamAreaConfigs().entrySet()) {
+            session.setTeamAreaConfig(entry.getKey(), entry.getValue());
+        }
+        for (String mob : data.mobTeams()) {
+            session.markAsMobTeam(mob);
+        }
+        for (var entry : data.bettingRegions().entrySet()) {
+            regionManager.registerBettingRegion(entry.getKey(), entry.getValue());
+        }
+        return session;
     }
 
     /**
@@ -142,6 +174,9 @@ public class ArenaManager {
         activeSession.setState(ArenaState.ACTIVE);
         stopOddsBroadcast();
         eliminatedPlayers.clear();
+
+        // 地形追跡開始
+        terrainManager.startTracking(activeSession);
 
         // カスタムイベント発火（情報通知・キャンセル不可）
         Bukkit.getPluginManager().callEvent(new ArenaBettingCloseEvent(activeSession));
@@ -272,6 +307,10 @@ public class ArenaManager {
 
         bettingManager.calculateAndDistributePayout(activeSession, winningTeam);
 
+        // 地形復元開始（非同期。TerrainManager が sessionName/fieldConfig を独自保持するため、
+        // この後の activeSession=null でも問題ない）
+        terrainManager.finishAndFlush();
+
         // カスタムイベント発火（情報通知）
         Bukkit.getPluginManager().callEvent(new ArenaWinnerDeclaredEvent(activeSession, winningTeam));
 
@@ -295,6 +334,9 @@ public class ArenaManager {
         stopOddsBroadcast();
 
         bettingManager.refundAll(activeSession);
+
+        // 地形復元開始
+        terrainManager.finishAndFlush();
 
         long entryFee = plugin.getConfig().getLong("entry-fee", 0);
         if (entryFee > 0) {
@@ -447,6 +489,7 @@ public class ArenaManager {
 
     public void shutdown() {
         stopOddsBroadcast();
+        terrainManager.cancelAndClear();
         if (activeSession != null) cancelArena();
     }
 }

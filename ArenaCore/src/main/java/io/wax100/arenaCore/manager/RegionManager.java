@@ -103,6 +103,16 @@ public class RegionManager {
     }
 
     /**
+     * チームの賭けエリアを取得する。
+     *
+     * @param teamName チーム名
+     * @return 賭けエリア。未設定の場合 {@code null}
+     */
+    public BettingRegion getBettingRegion(String teamName) {
+        return bettingRegions.get(teamName);
+    }
+
+    /**
      * プレイヤーの WorldEdit 選択範囲内にいるプレイヤーの UUID リストを返す。
      *
      * @param selector  選択範囲を持つプレイヤー（管理者）
@@ -139,6 +149,16 @@ public class RegionManager {
         }
 
         return players;
+    }
+
+    /**
+     * プリセットロード時にBettingRegionを直接登録する。
+     *
+     * @param teamName チーム名
+     * @param region   賭けエリア
+     */
+    public void registerBettingRegion(String teamName, BettingRegion region) {
+        bettingRegions.put(teamName, region);
     }
 
     /**

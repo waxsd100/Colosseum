@@ -315,7 +315,26 @@ public class ArenaSession {
         scores.clear();
         teamAreaConfigs.clear();
         mobTeams.clear();
+        fieldConfig = null;
     }
+
+    // ── 戦闘エリア管理 ──
+
+    private ArenaFieldConfig fieldConfig;
+
+    /**
+     * 戦闘エリア設定を取得する。
+     *
+     * @return 戦闘エリア設定。未設定の場合は {@code null}
+     */
+    public ArenaFieldConfig getFieldConfig() { return fieldConfig; }
+
+    /**
+     * 戦闘エリアを設定する。
+     *
+     * @param config 戦闘エリア設定（null許容）
+     */
+    public void setFieldConfig(ArenaFieldConfig config) { this.fieldConfig = config; }
 
     // ── チーム待機場管理 ──
 
@@ -419,8 +438,7 @@ public class ArenaSession {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof ArenaSession)) return false;
-        ArenaSession that = (ArenaSession) o;
+        if (!(o instanceof ArenaSession that)) return false;
         return name.equals(that.name);
     }
 
@@ -496,8 +514,7 @@ public class ArenaSession {
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
-            if (!(o instanceof PlacedChipInfo)) return false;
-            PlacedChipInfo that = (PlacedChipInfo) o;
+            if (!(o instanceof PlacedChipInfo that)) return false;
             return chipValue == that.chipValue
                     && playerId.equals(that.playerId)
                     && teamName.equals(that.teamName)

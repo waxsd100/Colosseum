@@ -77,6 +77,57 @@ public final class ArenaMessages {
     /** セットアップ中 or 賭け受付中のみ設定可能 */
     public static final String MSG_SETUP_OR_BETTING_ONLY = "セットアップ中 or 賭け受付中のみ設定できます。";
 
+    // ── 地形復元 ──
+
+    /** 地形追跡開始 */
+    public static final String MSG_TERRAIN_TRACKING = PREFIX + ChatColor.GRAY + "地形の追跡を開始しました。";
+
+    /** 地形復元中 */
+    public static final String MSG_TERRAIN_FLUSHING = PREFIX + ChatColor.GRAY + "地形を復元中です...";
+
+    /** 地形復元完了 */
+    public static final String MSG_TERRAIN_COMPLETE = PREFIX + ChatColor.GREEN + "地形の復元が完了しました。";
+
+    /** 地形復元中でセッション作成不可 */
+    public static final String MSG_TERRAIN_BLOCKING = PREFIX + ChatColor.RED + "地形復元中のため、セッションを作成できません。";
+
+    /** 戦闘エリア未設定で地形追跡スキップ */
+    public static final String MSG_TERRAIN_NO_FIELD = PREFIX + ChatColor.RED + "戦闘エリアが未設定のため、地形追跡をスキップします。";
+
+    // ── 戦闘エリア ──
+
+    /** 戦闘エリア設定完了 */
+    public static final String MSG_FIELD_SET = PREFIX + ChatColor.GREEN + "戦闘エリアを設定し、地形を保存しました。";
+
+    /** 戦闘エリア未設定 */
+    public static final String MSG_FIELD_NOT_SET = PREFIX + ChatColor.RED + "戦闘エリアが未設定です。/arena field set で設定してください。";
+
+    /** 戦闘エリアサイズ警告（フォーマット用、%d = ブロック数） */
+    public static final String MSG_FIELD_TOO_LARGE_FMT = PREFIX + ChatColor.YELLOW + "警告: フィールドが非常に大きいです (%d ブロック)。パフォーマンスに影響する可能性があります。";
+
+    /** 戦闘エリア情報（フォーマット用） */
+    public static final String MSG_FIELD_INFO_FMT = PREFIX + ChatColor.GRAY + "戦闘エリア: " + ChatColor.WHITE + "%s " + ChatColor.GRAY + "(%d, %d, %d) → (%d, %d, %d) " + ChatColor.GRAY + "[%d ブロック]";
+
+    // ── プリセット ──
+
+    /** プリセット保存完了 */
+    public static final String MSG_PRESET_SAVED = PREFIX + ChatColor.GREEN + "アリーナ設定を保存しました: ";
+
+    /** プリセットロード完了 */
+    public static final String MSG_PRESET_LOADED = PREFIX + ChatColor.GREEN + "保存済み設定をロードしました: ";
+
+    /** プリセット削除完了 */
+    public static final String MSG_PRESET_DELETED = PREFIX + ChatColor.GREEN + "削除しました: ";
+
+    /** プリセット未発見 */
+    public static final String MSG_PRESET_NOT_FOUND = PREFIX + ChatColor.RED + "保存済み設定が見つかりません: ";
+
+    /** プリセット一覧ヘッダー */
+    public static final String MSG_PRESET_LIST_HEADER = PREFIX + ChatColor.GRAY + "保存済みアリーナ一覧:";
+
+    /** プリセット一覧空 */
+    public static final String MSG_PRESET_LIST_EMPTY = PREFIX + ChatColor.GRAY + "保存済みアリーナはありません。";
+
     /** チームカラーパレット */
     private static final ChatColor[] TEAM_COLORS = {
             ChatColor.RED, ChatColor.BLUE, ChatColor.GREEN, ChatColor.YELLOW,

@@ -68,8 +68,7 @@ public class Bet {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof Bet)) return false;
-        Bet bet = (Bet) o;
+        if (!(o instanceof Bet bet)) return false;
         return playerId.equals(bet.playerId) && teamName.equals(bet.teamName);
     }
 
