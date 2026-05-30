@@ -76,7 +76,9 @@ class CasinoFlowIT {
             return mockItem;
         }).when(chipManager).createChipItem(any(Chip.class), anyInt());
 
-        casinoManager = new CasinoManager(plugin, bindingCurseManager);
+        casinoManager = spy(new CasinoManager(plugin, bindingCurseManager));
+        // サーバー不在時 ItemStack/NBT操作が動作しないためシザース配布をスキップ
+        doNothing().when(casinoManager).applyAdventureModeToPlayer(any());
         when(plugin.getChipManager()).thenReturn(chipManager);
         when(plugin.getCasinoManager()).thenReturn(casinoManager);
 
@@ -86,6 +88,10 @@ class CasinoFlowIT {
         when(player.getUniqueId()).thenReturn(playerId);
         when(player.getInventory()).thenReturn(inventory);
         when(player.getName()).thenReturn("TestPlayer");
+        org.bukkit.World mockWorld = mock(org.bukkit.World.class);
+        when(mockWorld.getName()).thenReturn("world");
+        when(mockWorld.getGameRuleValue(org.bukkit.GameRule.KEEP_INVENTORY)).thenReturn(false);
+        when(player.getWorld()).thenReturn(mockWorld);
         when(inventory.getStorageContents()).thenReturn(new ItemStack[36]);
         when(inventory.getContents()).thenReturn(new ItemStack[41]);
         when(inventory.addItem(any())).thenReturn(new HashMap<>());
@@ -96,7 +102,8 @@ class CasinoFlowIT {
                 .thenReturn(new EconomyResponse(0, 0, EconomyResponse.ResponseType.SUCCESS, null));
         when(economy.getBalance(any(org.bukkit.OfflinePlayer.class))).thenReturn(1000000.0);
 
-        casinoManager.setCasinoActive(true);
+        // プレイヤーをカジノモードに登録
+        casinoManager.addPlayerToCasino(player);
     }
 
     // ── チップ購入（額面指定） ──
@@ -191,7 +198,7 @@ class CasinoFlowIT {
         @Test
         @DisplayName("カジノOFF時にチップ購入不可")
         void カジノOFF時に購入できない() {
-            casinoManager.setCasinoActive(false);
+            casinoManager.removePlayerFromCasino(player);
 
             chipCommand.onCommand(player, command, "chip", new String[]{"100", "1"});
 
@@ -322,7 +329,7 @@ class CasinoFlowIT {
         @Test
         @DisplayName("/chip cashout → カジノOFF時はエラー")
         void cashoutはカジノOFF時エラー() {
-            casinoManager.setCasinoActive(false);
+            casinoManager.removePlayerFromCasino(player);
 
             chipCommand.onCommand(player, command, "chip", new String[]{"cashout"});
 

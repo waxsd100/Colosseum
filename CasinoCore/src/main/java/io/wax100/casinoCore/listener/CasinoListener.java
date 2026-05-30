@@ -12,6 +12,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 
 /**
@@ -19,7 +20,7 @@ import org.bukkit.inventory.ItemStack;
  *
  * <p>カジノモード中の処理:
  * <ul>
- *   <li>ログイン通知 + アドベンチャーモード適用</li>
+ *   <li>ログイン通知（カジノモード稼働中であることを案内）</li>
  *   <li>カーペット破壊時にメタデータ付きチップをドロップ</li>
  * </ul>
  *
@@ -44,9 +45,10 @@ public class CasinoListener implements Listener {
     /**
      * プレイヤーログイン時にカジノモードの状態を通知する。
      *
-     * <p>カジノモードが ON の場合、案内メッセージを送信し、
-     * アドベンチャーモードを適用する。
+     * <p>カジノモードが ON の場合、案内メッセージを送信する。
      * カジノモードが OFF の場合は何もしない。
+     * ログイン時にカジノモードへの自動参加は行わない。
+     * 管理者が {@code /casino on <player>} で明示的に追加する必要がある。
      *
      * @param event プレイヤー参加イベント
      */
@@ -61,8 +63,6 @@ public class CasinoListener implements Listener {
         player.sendMessage(Messages.PREFIX + ChatColor.GRAY + "/chip <額面> <枚数> でチップを購入できます。");
         player.sendMessage(Messages.PREFIX + ChatColor.GRAY + "/chip info でチップ一覧を確認できます。");
         player.sendMessage("");
-
-        plugin.getCasinoManager().applyAdventureModeToPlayer(player);
     }
 
     /**
@@ -76,7 +76,7 @@ public class CasinoListener implements Listener {
      */
     @EventHandler
     public void onBlockBreak(BlockBreakEvent event) {
-        if (!plugin.getCasinoManager().isCasinoActive()) return;
+        if (!plugin.getCasinoManager().isPlayerInCasino(event.getPlayer().getUniqueId())) return;
 
         Block block = event.getBlock();
         Material material = block.getType();
@@ -89,6 +89,22 @@ public class CasinoListener implements Listener {
         event.setDropItems(false);
         ItemStack chipItem = plugin.getChipManager().createChipItem(chip, 1);
         block.getWorld().dropItemNaturally(block.getLocation(), chipItem);
+    }
+
+    /**
+     * カジノ参加中のプレイヤーがログアウトした際の後処理を行う。
+     *
+     * <p>ゲームモードの復元、カジノシザースの回収、{@code casinoPlayers} からの除外を行う。
+     * チップは換金せず保持する（再ログイン後に管理者が手動で対応可能）。
+     *
+     * @param event プレイヤー退出イベント
+     */
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        Player player = event.getPlayer();
+        if (!plugin.getCasinoManager().isPlayerInCasino(player.getUniqueId())) return;
+
+        plugin.getCasinoManager().handlePlayerDisconnect(player);
     }
 
     /**

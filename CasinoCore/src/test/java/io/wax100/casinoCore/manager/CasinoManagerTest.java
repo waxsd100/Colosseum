@@ -3,6 +3,7 @@ package io.wax100.casinoCore.manager;
 import io.wax100.bindingCurseLib.BindingCurseManager;
 import io.wax100.casinoCore.CasinoCore;
 import net.milkbowl.vault.economy.Economy;
+import org.bukkit.entity.Player;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -47,6 +48,7 @@ class CasinoManagerTest {
                 new File(System.getProperty("java.io.tmpdir"), "CasinoCore_test_" + UUID.randomUUID()));
         when(plugin.getLogger()).thenReturn(Logger.getLogger("CasinoCore"));
         when(plugin.getEconomy()).thenReturn(economy);
+        when(plugin.getChipManager()).thenReturn(mock(io.wax100.chipLib.ChipManager.class));
 
         casinoManager = spy(new CasinoManager(plugin, bindingCurseManager));
         // サーバー不在時 ItemStack/NBT操作が動作しないためシザース配布をスキップ
@@ -58,29 +60,178 @@ class CasinoManagerTest {
     @Nested
     @DisplayName("カジノ状態管理")
     class CasinoStateTest {
+
+        @Mock
+        private Player mockPlayer;
+
+        @Mock
+        private Player mockPlayer2;
+
+        private final UUID playerId2 = UUID.randomUUID();
+
+        @BeforeEach
+        void setUpPlayer() {
+            when(mockPlayer.getUniqueId()).thenReturn(playerId);
+            setUpPlayerMock(mockPlayer, "world");
+
+            when(mockPlayer2.getUniqueId()).thenReturn(playerId2);
+            setUpPlayerMock(mockPlayer2, "world");
+        }
+
+        private void setUpPlayerMock(Player p, String worldName) {
+            org.bukkit.World mockWorld = mock(org.bukkit.World.class);
+            when(mockWorld.getName()).thenReturn(worldName);
+            when(mockWorld.getGameRuleValue(org.bukkit.GameRule.KEEP_INVENTORY)).thenReturn(false);
+            when(p.getWorld()).thenReturn(mockWorld);
+            org.bukkit.inventory.PlayerInventory mockInventory = mock(org.bukkit.inventory.PlayerInventory.class);
+            when(mockInventory.getContents()).thenReturn(new org.bukkit.inventory.ItemStack[41]);
+            when(p.getInventory()).thenReturn(mockInventory);
+        }
+
         @Test
         void 初期状態はOFF() {
             assertFalse(casinoManager.isCasinoActive());
         }
 
         @Test
-        void ONにできる() {
-            casinoManager.setCasinoActive(true);
-            assertTrue(casinoManager.isCasinoActive());
+        void 初期状態でプレイヤーは非参加() {
+            assertFalse(casinoManager.isPlayerInCasino(playerId));
         }
 
         @Test
-        void OFFに戻せる() {
-            casinoManager.setCasinoActive(true);
+        void プレイヤー追加でONになる() {
+            casinoManager.addPlayerToCasino(mockPlayer);
+            assertTrue(casinoManager.isCasinoActive());
+            assertTrue(casinoManager.isPlayerInCasino(playerId));
+        }
+
+        @Test
+        void 追加されていないプレイヤーは非参加() {
+            casinoManager.addPlayerToCasino(mockPlayer);
+            assertFalse(casinoManager.isPlayerInCasino(playerId2));
+        }
+
+        @Test
+        void 全体終了でOFFに戻る() {
+            casinoManager.addPlayerToCasino(mockPlayer);
             casinoManager.setCasinoActive(false);
             assertFalse(casinoManager.isCasinoActive());
+            assertFalse(casinoManager.isPlayerInCasino(playerId));
         }
 
         @Test
-        void 連続でONにしても状態は変わらない() {
-            casinoManager.setCasinoActive(true);
-            casinoManager.setCasinoActive(true);
+        void 連続で追加しても状態は変わらない() {
+            casinoManager.addPlayerToCasino(mockPlayer);
+            casinoManager.addPlayerToCasino(mockPlayer);
             assertTrue(casinoManager.isCasinoActive());
+        }
+
+        @Test
+        void 複数プレイヤーを追加できる() {
+            casinoManager.addPlayerToCasino(mockPlayer);
+            casinoManager.addPlayerToCasino(mockPlayer2);
+            assertTrue(casinoManager.isPlayerInCasino(playerId));
+            assertTrue(casinoManager.isPlayerInCasino(playerId2));
+        }
+
+        @Test
+        void 一人退出しても他のプレイヤーは残る() {
+            casinoManager.addPlayerToCasino(mockPlayer);
+            casinoManager.addPlayerToCasino(mockPlayer2);
+            casinoManager.removePlayerFromCasino(mockPlayer);
+            assertFalse(casinoManager.isPlayerInCasino(playerId));
+            assertTrue(casinoManager.isPlayerInCasino(playerId2));
+            assertTrue(casinoManager.isCasinoActive());
+        }
+
+        @Test
+        void 一人退出後にsetCasinoActiveで全体終了できる() {
+            casinoManager.addPlayerToCasino(mockPlayer);
+            casinoManager.addPlayerToCasino(mockPlayer2);
+            casinoManager.removePlayerFromCasino(mockPlayer);
+            // 残り1人の状態で全体シャットダウン
+            casinoManager.setCasinoActive(false);
+            assertFalse(casinoManager.isCasinoActive());
+            assertFalse(casinoManager.isPlayerInCasino(playerId));
+            assertFalse(casinoManager.isPlayerInCasino(playerId2));
+        }
+
+        @Test
+        void clearAllSessionDataでカジノプレイヤーもクリアされる() {
+            casinoManager.addPlayerToCasino(mockPlayer);
+            casinoManager.recordPurchase(playerId, 5000);
+            casinoManager.clearAllSessionData();
+            assertFalse(casinoManager.isPlayerInCasino(playerId));
+            assertFalse(casinoManager.isCasinoActive());
+            assertEquals(0, casinoManager.getSessionPurchases(playerId));
+        }
+    }
+
+    // ── プレイヤー切断処理 ──
+
+    @Nested
+    @DisplayName("プレイヤー切断処理")
+    class PlayerDisconnectTest {
+
+        @Mock
+        private Player mockPlayer;
+
+        @Mock
+        private Player mockPlayer2;
+
+        private final UUID playerId2 = UUID.randomUUID();
+
+        @BeforeEach
+        void setUpPlayer() {
+            when(mockPlayer.getUniqueId()).thenReturn(playerId);
+            setUpPlayerMock(mockPlayer);
+
+            when(mockPlayer2.getUniqueId()).thenReturn(playerId2);
+            setUpPlayerMock(mockPlayer2);
+        }
+
+        private void setUpPlayerMock(Player p) {
+            org.bukkit.World mockWorld = mock(org.bukkit.World.class);
+            when(mockWorld.getName()).thenReturn("world");
+            when(mockWorld.getGameRuleValue(org.bukkit.GameRule.KEEP_INVENTORY)).thenReturn(false);
+            when(p.getWorld()).thenReturn(mockWorld);
+            org.bukkit.inventory.PlayerInventory mockInventory = mock(org.bukkit.inventory.PlayerInventory.class);
+            when(mockInventory.getContents()).thenReturn(new org.bukkit.inventory.ItemStack[41]);
+            when(p.getInventory()).thenReturn(mockInventory);
+        }
+
+        @Test
+        void 切断でカジノから除外される() {
+            // 2人追加して1人切断 — Bukkit.getWorld 静的呼び出しを回避
+            casinoManager.addPlayerToCasino(mockPlayer);
+            casinoManager.addPlayerToCasino(mockPlayer2);
+            casinoManager.handlePlayerDisconnect(mockPlayer);
+            assertFalse(casinoManager.isPlayerInCasino(playerId));
+            assertTrue(casinoManager.isPlayerInCasino(playerId2));
+        }
+
+        @Test
+        void 切断しても購入記録は残る() {
+            casinoManager.addPlayerToCasino(mockPlayer);
+            casinoManager.addPlayerToCasino(mockPlayer2);
+            casinoManager.recordPurchase(playerId, 5000);
+            casinoManager.handlePlayerDisconnect(mockPlayer);
+            assertEquals(5000, casinoManager.getSessionPurchases(playerId));
+        }
+
+        @Test
+        void 他のプレイヤーが残っていればカジノONのまま() {
+            casinoManager.addPlayerToCasino(mockPlayer);
+            casinoManager.addPlayerToCasino(mockPlayer2);
+            casinoManager.handlePlayerDisconnect(mockPlayer);
+            assertTrue(casinoManager.isCasinoActive());
+            assertTrue(casinoManager.isPlayerInCasino(playerId2));
+        }
+
+        @Test
+        void 非参加プレイヤーの切断は何も起きない() {
+            casinoManager.handlePlayerDisconnect(mockPlayer);
+            assertFalse(casinoManager.isCasinoActive());
         }
     }
 

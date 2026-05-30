@@ -30,12 +30,15 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 /**
  * カジノの状態管理・購入記録・換金処理・ランキングを管理するクラス。
@@ -79,14 +82,18 @@ public class CasinoManager {
      */
     private final Map<UUID, Long> ranking = new LinkedHashMap<>();
     /**
+     * プレイヤーごとの累計統計データ (UUID -> PlayerStats)
+     */
+    private final Map<UUID, PlayerStats> playerStats = new HashMap<>();
+    /**
      * カジノ開始前のゲームモード保存 (UUID -> GameMode)
      */
     private final Map<UUID, GameMode> savedGameModes = new HashMap<>();
 
     /**
-     * カジノモードの稼働状態
+     * カジノモードに参加中のプレイヤー UUID セット
      */
-    private boolean casinoActive;
+    private final Set<UUID> casinoPlayers = new HashSet<>();
     /**
      * カジノ開始前の keepInventory ゲームルール値
      */
@@ -135,16 +142,114 @@ public class CasinoManager {
      * @return 稼働中の場合 {@code true}
      */
     public boolean isCasinoActive() {
-        return casinoActive;
+        return !casinoPlayers.isEmpty();
     }
 
     /**
      * カジノの稼働状態を設定する。
      *
+     * <p>
+     * {@code active} が {@code false} の場合、全プレイヤーをカジノから退出させる（全体シャットダウン用）。
+     * {@code true} の場合はデータの保存のみ行う。
+     *
      * @param active true: 稼働中, false: 停止中
      */
     public void setCasinoActive(boolean active) {
-        this.casinoActive = active;
+        if (!active) {
+            casinoPlayers.clear();
+        }
+        saveData();
+    }
+
+    /**
+     * 指定プレイヤーがカジノモードに参加中かどうかを返す。
+     *
+     * @param playerId プレイヤーの UUID
+     * @return カジノモードに参加中の場合 {@code true}
+     */
+    public boolean isPlayerInCasino(UUID playerId) {
+        return casinoPlayers.contains(playerId);
+    }
+
+    /**
+     * プレイヤーをカジノモードに追加する。
+     *
+     * <p>
+     * 最初のプレイヤー追加時に {@code keepInventory} ゲームルールを保存・有効化する。
+     * ゲームモードをアドベンチャーに変更し、カジノシザースを配布する。
+     *
+     * @param player 追加するプレイヤー
+     */
+    public void addPlayerToCasino(Player player) {
+        if (casinoPlayers.isEmpty() && savedWorldName == null) {
+            World world = player.getWorld();
+            savedWorldName = world.getName();
+            Boolean current = world.getGameRuleValue(GameRule.KEEP_INVENTORY);
+            savedKeepInventory = current != null && current;
+            world.setGameRule(GameRule.KEEP_INVENTORY, true);
+        }
+        casinoPlayers.add(player.getUniqueId());
+        getOrCreateStats(player.getUniqueId()).recordSessionJoin(player.getName());
+        applyAdventureModeToPlayer(player);
+        saveData();
+    }
+
+    /**
+     * プレイヤーをカジノモードから退出させる。
+     *
+     * <p>
+     * チップの換金、セッション購入記録の削除、ゲームモード復元、カジノシザース回収を行う。
+     * 最後のプレイヤー退出時に {@code keepInventory} を元の値に復元する。
+     *
+     * @param player 退出するプレイヤー
+     */
+    public void removePlayerFromCasino(Player player) {
+        cashoutPlayer(player, plugin.getChipManager(), plugin.getEconomy());
+        sessionPurchases.remove(player.getUniqueId());
+
+        GameMode savedMode = savedGameModes.remove(player.getUniqueId());
+        if (savedMode != null) {
+            player.setGameMode(savedMode);
+        }
+        removeCasinoShears(player);
+
+        casinoPlayers.remove(player.getUniqueId());
+
+        if (casinoPlayers.isEmpty()) {
+            World world = savedWorldName != null ? Bukkit.getWorld(savedWorldName) : null;
+            if (world != null) {
+                world.setGameRule(GameRule.KEEP_INVENTORY, savedKeepInventory);
+            }
+            savedWorldName = null;
+        }
+        saveData();
+    }
+
+    /**
+     * カジノ参加中のプレイヤーが切断した際の後処理。
+     *
+     * <p>
+     * チップの換金は行わず、ゲームモード復元・シザース回収・カジノプレイヤーセットからの除外のみ行う。
+     * 最後のプレイヤーが切断した場合は {@code keepInventory} を復元する。
+     *
+     * @param player 切断したプレイヤー
+     */
+    public void handlePlayerDisconnect(Player player) {
+        GameMode savedMode = savedGameModes.remove(player.getUniqueId());
+        if (savedMode != null) {
+            player.setGameMode(savedMode);
+        }
+        removeCasinoShears(player);
+
+        casinoPlayers.remove(player.getUniqueId());
+
+        if (casinoPlayers.isEmpty()) {
+            World world = savedWorldName != null ? Bukkit.getWorld(savedWorldName) : null;
+            if (world != null) {
+                world.setGameRule(GameRule.KEEP_INVENTORY, savedKeepInventory);
+            }
+            savedWorldName = null;
+        }
         saveData();
     }
 
@@ -161,6 +266,7 @@ public class CasinoManager {
         Long current = sessionPurchases.get(playerId);
         long currentVal = current != null ? current : 0L;
         sessionPurchases.put(playerId, currentVal + amount);
+        getOrCreateStats(playerId).addPurchase(amount);
         saveData();
     }
 
@@ -182,6 +288,7 @@ public class CasinoManager {
      */
     public void clearAllSessionData() {
         sessionPurchases.clear();
+        casinoPlayers.clear();
         saveData();
     }
 
@@ -209,8 +316,38 @@ public class CasinoManager {
      */
     public List<Map.Entry<UUID, Long>> getSortedRanking(int limit) {
         List<Map.Entry<UUID, Long>> sorted = new ArrayList<>(ranking.entrySet());
+
         sorted.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
         return sorted.subList(0, Math.min(sorted.size(), limit));
+    }
+
+    /**
+     * ランキングと全プレイヤー統計をリセットする。
+     */
+    public void resetRanking() {
+        ranking.clear();
+        playerStats.clear();
+        saveData();
+    }
+
+    /**
+     * 指定プレイヤーの統計データを取得する。
+     *
+     * @param playerId プレイヤーの UUID
+     * @return 統計データ。存在しない場合は {@code null}
+     */
+    public PlayerStats getStatsForPlayer(UUID playerId) {
+        return playerStats.get(playerId);
+    }
+
+    /**
+     * 指定 UUID の PlayerStats を取得する。存在しない場合は新規作成する。
+     *
+     * @param playerId プレイヤーの UUID
+     * @return PlayerStats インスタンス
+     */
+    private PlayerStats getOrCreateStats(UUID playerId) {
+        return playerStats.computeIfAbsent(playerId, k -> new PlayerStats());
     }
 
     /**
@@ -227,6 +364,7 @@ public class CasinoManager {
         world.setGameRule(GameRule.KEEP_INVENTORY, true);
 
         for (Player p : Bukkit.getOnlinePlayers()) {
+            casinoPlayers.add(p.getUniqueId());
             savedGameModes.put(p.getUniqueId(), p.getGameMode());
             p.setGameMode(GameMode.ADVENTURE);
             giveCasinoShears(p);
@@ -235,17 +373,19 @@ public class CasinoManager {
 
     /**
      * 全プレイヤーのゲームモードを元に戻し、keepInventory を復元する。
-     * カジノシザースを回収する。
+     *
+     * <p>カジノシザースの回収は {@link #cashoutAllPlayers()} で行われるため、
+     * このメソッドではゲームモードとゲームルールの復元のみ行う。
      */
     public void restoreGameModes() {
         for (Map.Entry<UUID, GameMode> entry : savedGameModes.entrySet()) {
             Player p = Bukkit.getPlayer(entry.getKey());
             if (p != null && p.isOnline()) {
                 p.setGameMode(entry.getValue());
-                removeCasinoShears(p);
             }
         }
         savedGameModes.clear();
+        casinoPlayers.clear();
 
         World world = savedWorldName != null ? Bukkit.getWorld(savedWorldName) : Bukkit.getWorlds().get(0);
         if (world != null) {
@@ -337,8 +477,12 @@ public class CasinoManager {
     public void cashoutAllPlayers() {
         ChipManager chipManager = plugin.getChipManager();
         Economy economy = plugin.getEconomy();
-        for (Player player : Bukkit.getOnlinePlayers()) {
-            cashoutPlayer(player, chipManager, economy);
+        for (UUID uuid : new HashSet<>(casinoPlayers)) {
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null && player.isOnline()) {
+                cashoutPlayer(player, chipManager, economy);
+                removeCasinoShears(player);
+            }
         }
     }
 
@@ -353,6 +497,7 @@ public class CasinoManager {
      */
     public void cashoutSinglePlayer(Player player) {
         cashoutPlayer(player, plugin.getChipManager(), plugin.getEconomy());
+        removeCasinoShears(player);
         sessionPurchases.remove(player.getUniqueId());
         saveData();
     }
@@ -384,6 +529,7 @@ public class CasinoManager {
         if (purchased > 0) {
             updateRanking(player.getUniqueId(), netResult);
         }
+        getOrCreateStats(player.getUniqueId()).recordCashout(totalValue, purchased);
 
         sendCashoutMessage(player, totalValue, purchased, netResult, breakdown);
     }
@@ -499,12 +645,56 @@ public class CasinoManager {
             }
         }
         dataConfig = YamlConfiguration.loadConfiguration(dataFile);
-        casinoActive = dataConfig.getBoolean("casino-active", false);
-        loadUuidMap("ranking", ranking);
-        loadUuidMap("session-purchases", sessionPurchases);
-        savedKeepInventory = dataConfig.getBoolean("saved-keep-inventory", false);
-        savedWorldName = dataConfig.getString("saved-world-name", null);
-        loadGameModes();
+
+        // ランタイム状態の読み込み（runtime セクション優先、後方互換でルートも確認）
+        ConfigurationSection runtime = dataConfig.getConfigurationSection("runtime");
+        if (runtime != null) {
+            List<String> playerUuids = runtime.getStringList("casino-players");
+            for (String uuidStr : playerUuids) {
+                try {
+                    casinoPlayers.add(UUID.fromString(uuidStr));
+                } catch (IllegalArgumentException e) {
+                    plugin.getLogger().warning("無効なUUID (casino-players): " + uuidStr);
+                }
+            }
+            loadUuidMap(runtime, "session-purchases", sessionPurchases);
+            savedKeepInventory = runtime.getBoolean("saved-keep-inventory", false);
+            savedWorldName = runtime.getString("saved-world-name", null);
+            loadGameModes(runtime);
+        } else {
+            // 旧フォーマットからの読み込み（後方互換）
+            List<String> playerUuids = dataConfig.getStringList("casino-players");
+            for (String uuidStr : playerUuids) {
+                try {
+                    casinoPlayers.add(UUID.fromString(uuidStr));
+                } catch (IllegalArgumentException e) {
+                    plugin.getLogger().warning("無効なUUID (casino-players): " + uuidStr);
+                }
+            }
+            loadUuidMap(dataConfig, "session-purchases", sessionPurchases);
+            savedKeepInventory = dataConfig.getBoolean("saved-keep-inventory", false);
+            savedWorldName = dataConfig.getString("saved-world-name", null);
+            loadGameModes(dataConfig);
+        }
+
+        // ランキングの読み込み
+        loadUuidMap(dataConfig, "ranking", ranking);
+
+        // プレイヤー統計の読み込み
+        ConfigurationSection playersSection = dataConfig.getConfigurationSection("players");
+        if (playersSection != null) {
+            for (String key : playersSection.getKeys(false)) {
+                try {
+                    UUID uuid = UUID.fromString(key);
+                    ConfigurationSection playerSec = playersSection.getConfigurationSection(key);
+                    if (playerSec != null) {
+                        playerStats.put(uuid, PlayerStats.loadFrom(playerSec));
+                    }
+                } catch (IllegalArgumentException e) {
+                    plugin.getLogger().warning("無効なUUID (players): " + key);
+                }
+            }
+        }
     }
 
     /**
@@ -522,12 +712,25 @@ public class CasinoManager {
      */
     public synchronized void saveData(boolean async) {
         YamlConfiguration copy = new YamlConfiguration();
-        copy.set("casino-active", casinoActive);
+
+        // ランタイム状態
+        ConfigurationSection runtime = copy.createSection("runtime");
+        runtime.set("casino-players", casinoPlayers.stream()
+                .map(UUID::toString)
+                .collect(Collectors.toList()));
+        saveUuidMap(runtime, "session-purchases", sessionPurchases);
+        runtime.set("saved-keep-inventory", savedKeepInventory);
+        runtime.set("saved-world-name", savedWorldName);
+        saveGameModes(runtime);
+
+        // ランキング
         saveUuidMap(copy, "ranking", ranking);
-        saveUuidMap(copy, "session-purchases", sessionPurchases);
-        copy.set("saved-keep-inventory", savedKeepInventory);
-        copy.set("saved-world-name", savedWorldName);
-        saveGameModes(copy);
+
+        // プレイヤー統計
+        for (Map.Entry<UUID, PlayerStats> entry : playerStats.entrySet()) {
+            ConfigurationSection playerSec = copy.createSection("players." + entry.getKey().toString());
+            entry.getValue().saveTo(playerSec);
+        }
 
         if (async && Bukkit.getServer() != null && plugin.isEnabled()) {
             Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
@@ -559,8 +762,8 @@ public class CasinoManager {
      * @param section 設定ファイルのセクション名
      * @param target  読み込み先のマップ
      */
-    private void loadUuidMap(String section, Map<UUID, Long> target) {
-        ConfigurationSection sec = dataConfig.getConfigurationSection(section);
+    private void loadUuidMap(ConfigurationSection parent, String section, Map<UUID, Long> target) {
+        ConfigurationSection sec = parent.getConfigurationSection(section);
         if (sec == null)
             return;
         for (String key : sec.getKeys(false)) {
@@ -582,7 +785,7 @@ public class CasinoManager {
      * @param section 設定ファイルのセクション名
      * @param source  書き出すマップ
      */
-    private void saveUuidMap(FileConfiguration config, String section, Map<UUID, Long> source) {
+    private void saveUuidMap(ConfigurationSection config, String section, Map<UUID, Long> source) {
         config.set(section, null);
         for (Map.Entry<UUID, Long> entry : source.entrySet()) {
             config.set(section + "." + entry.getKey().toString(), entry.getValue());
@@ -595,8 +798,8 @@ public class CasinoManager {
      * <p>
      * 無効な UUID やゲームモード値は警告ログを出力してスキップする。
      */
-    private void loadGameModes() {
-        ConfigurationSection sec = dataConfig.getConfigurationSection("saved-game-modes");
+    private void loadGameModes(ConfigurationSection parent) {
+        ConfigurationSection sec = parent.getConfigurationSection("saved-game-modes");
         if (sec == null)
             return;
         for (String key : sec.getKeys(false)) {
@@ -615,7 +818,7 @@ public class CasinoManager {
      *
      * @param config 書き出し先の設定オブジェクト
      */
-    private void saveGameModes(FileConfiguration config) {
+    private void saveGameModes(ConfigurationSection config) {
         config.set("saved-game-modes", null);
         for (Map.Entry<UUID, GameMode> entry : savedGameModes.entrySet()) {
             config.set("saved-game-modes." + entry.getKey().toString(), entry.getValue().name());

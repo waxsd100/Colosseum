@@ -85,8 +85,8 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
                 break;
         }
 
-        if (!plugin.getCasinoManager().isCasinoActive()) {
-            player.sendMessage(Messages.PREFIX + ChatColor.RED + "カジノモードがOFFのため、チップを購入できません。");
+        if (!plugin.getCasinoManager().isPlayerInCasino(player.getUniqueId())) {
+            player.sendMessage(Messages.PREFIX + ChatColor.RED + "カジノモードに参加していないため、チップを購入できません。");
             return true;
         }
 
@@ -310,8 +310,8 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
      * @see CasinoManager#cashoutSinglePlayer(Player)
      */
     private void handleCashout(Player player) {
-        if (!plugin.getCasinoManager().isCasinoActive()) {
-            player.sendMessage(Messages.PREFIX + ChatColor.RED + "カジノモードがOFFのため、換金できません。");
+        if (!plugin.getCasinoManager().isPlayerInCasino(player.getUniqueId())) {
+            player.sendMessage(Messages.PREFIX + ChatColor.RED + "カジノモードに参加していないため、換金できません。");
             return;
         }
         long totalValue = plugin.getChipManager().calculateTotalValue(player);

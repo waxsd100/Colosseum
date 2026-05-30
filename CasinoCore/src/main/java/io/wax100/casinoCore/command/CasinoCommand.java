@@ -2,6 +2,7 @@ package io.wax100.casinoCore.command;
 
 import io.wax100.casinoCore.CasinoCore;
 import io.wax100.casinoCore.manager.CasinoManager;
+import io.wax100.casinoCore.manager.PlayerStats;
 import io.wax100.chipLib.ChipManager;
 import io.wax100.casinoCore.util.Messages;
 import org.bukkit.Bukkit;
@@ -37,7 +38,7 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
     /**
      * サブコマンド一覧（タブ補完用）
      */
-    private static final List<String> SUB_COMMANDS = Arrays.asList("on", "off", "status", "ranking");
+    private static final List<String> SUB_COMMANDS = Arrays.asList("on", "off", "status", "ranking", "stats");
     /**
      * プラグインインスタンス
      */
@@ -67,16 +68,19 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
 
         switch (args[0].toLowerCase()) {
             case "on":
-                handleOn(sender);
+                handleOn(sender, args);
                 break;
             case "off":
-                handleOff(sender);
+                handleOff(sender, args);
                 break;
             case "status":
                 handleStatus(sender);
                 break;
             case "ranking":
-                handleRanking(sender);
+                handleRanking(sender, args);
+                break;
+            case "stats":
+                handleStats(sender, args);
                 break;
             default:
                 sendUsage(sender);
@@ -88,13 +92,36 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
     /**
      * カジノモードを開始する。
      *
-     * <p>実行者がプレイヤーの場合、全プレイヤーをアドベンチャーモードに切り替え、
-     * keepInventory を有効化する。カジノモードが既に ON の場合は警告メッセージを送信する。
+     * <p>プレイヤー名が指定された場合（{@code args.length >= 2}）、対象プレイヤーを
+     * 個別にカジノモードへ追加する。指定がない場合は全体のカジノモードを開始し、
+     * 全プレイヤーをアドベンチャーモードに切り替える。
      *
      * @param sender コマンド実行者
+     * @param args   コマンド引数（{@code args[0]}="on", {@code args[1]}=プレイヤー名（任意））
      */
-    private void handleOn(CommandSender sender) {
+    private void handleOn(CommandSender sender, String[] args) {
         CasinoManager manager = plugin.getCasinoManager();
+
+        if (args.length >= 2) {
+            // 個別プレイヤー追加モード
+            Player target = Bukkit.getPlayer(args[1]);
+            if (target == null) {
+                sender.sendMessage(Messages.PREFIX + ChatColor.RED + "プレイヤー '" + args[1] + "' が見つかりません。");
+                return;
+            }
+            if (manager.isPlayerInCasino(target.getUniqueId())) {
+                sender.sendMessage(Messages.PREFIX + ChatColor.YELLOW + target.getName() + " は既にカジノモードに参加しています。");
+                return;
+            }
+            manager.addPlayerToCasino(target);
+            sender.sendMessage(Messages.PREFIX + ChatColor.GREEN + target.getName() + " をカジノモードに追加しました。");
+            if (!target.equals(sender)) {
+                target.sendMessage(Messages.PREFIX + ChatColor.GREEN + "あなたはカジノモードに追加されました。");
+            }
+            return;
+        }
+
+        // 全体カジノモード開始
         if (manager.isCasinoActive()) {
             sender.sendMessage(Messages.PREFIX + ChatColor.YELLOW + "カジノモードは既にONです。");
             return;
@@ -120,13 +147,36 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
     /**
      * カジノモードを終了する。
      *
-     * <p>全プレイヤーのチップを換金し、ゲームモードを復元し、
-     * セッションデータをクリアする。カジノモードが既に OFF の場合は警告メッセージを送信する。
+     * <p>プレイヤー名が指定された場合（{@code args.length >= 2}）、対象プレイヤーを
+     * 個別にカジノモードから退出させる（チップ換金＋ゲームモード復元）。
+     * 指定がない場合は全体のカジノモードを終了し、全プレイヤーのチップを換金する。
      *
      * @param sender コマンド実行者
+     * @param args   コマンド引数（{@code args[0]}="off", {@code args[1]}=プレイヤー名（任意））
      */
-    private void handleOff(CommandSender sender) {
+    private void handleOff(CommandSender sender, String[] args) {
         CasinoManager manager = plugin.getCasinoManager();
+
+        if (args.length >= 2) {
+            // 個別プレイヤー退出モード
+            Player target = Bukkit.getPlayer(args[1]);
+            if (target == null) {
+                sender.sendMessage(Messages.PREFIX + ChatColor.RED + "プレイヤー '" + args[1] + "' が見つかりません。");
+                return;
+            }
+            if (!manager.isPlayerInCasino(target.getUniqueId())) {
+                sender.sendMessage(Messages.PREFIX + ChatColor.YELLOW + target.getName() + " はカジノモードに参加していません。");
+                return;
+            }
+            manager.removePlayerFromCasino(target);
+            sender.sendMessage(Messages.PREFIX + ChatColor.GREEN + target.getName() + " をカジノモードから退出させました。");
+            if (!target.equals(sender)) {
+                target.sendMessage(Messages.PREFIX + ChatColor.GREEN + "あなたはカジノモードから退出しました。");
+            }
+            return;
+        }
+
+        // 全体カジノモード終了
         if (!manager.isCasinoActive()) {
             sender.sendMessage(Messages.PREFIX + ChatColor.YELLOW + "カジノモードは既にOFFです。");
             return;
@@ -164,10 +214,18 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
      * 累計損益ランキングを表示する。
      *
      * <p>設定ファイルの {@code ranking-size} で表示件数を制御できる（デフォルト: 10）。
+     * {@code /casino ranking reset} でランキングと全統計をリセットする。
      *
      * @param sender コマンド実行者
+     * @param args   コマンド引数
      */
-    private void handleRanking(CommandSender sender) {
+    private void handleRanking(CommandSender sender, String[] args) {
+        if (args.length >= 2 && args[1].equalsIgnoreCase("reset")) {
+            plugin.getCasinoManager().resetRanking();
+            sender.sendMessage(Messages.PREFIX + ChatColor.GREEN + "ランキングと全プレイヤー統計をリセットしました。");
+            return;
+        }
+
         int size = plugin.getConfig().getInt("ranking-size", 10);
         List<Map.Entry<UUID, Long>> sorted = plugin.getCasinoManager().getSortedRanking(size);
 
@@ -179,7 +237,10 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
         } else {
             int rank = 1;
             for (Map.Entry<UUID, Long> entry : sorted) {
-                String name = Bukkit.getOfflinePlayer(entry.getKey()).getName();
+                PlayerStats stats = plugin.getCasinoManager().getStatsForPlayer(entry.getKey());
+                String name = stats != null && stats.getName() != null
+                        ? stats.getName()
+                        : Bukkit.getOfflinePlayer(entry.getKey()).getName();
                 if (name == null) name = "???";
                 long value = entry.getValue();
                 String prefix = value >= 0
@@ -197,16 +258,90 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
     }
 
     /**
+     * プレイヤーの詳細統計を表示する。
+     *
+     * <p>{@code /casino stats [player]} で指定プレイヤーの統計を表示する。
+     * プレイヤー名省略時は実行者自身の統計を表示する。
+     *
+     * @param sender コマンド実行者
+     * @param args   コマンド引数
+     */
+    private void handleStats(CommandSender sender, String[] args) {
+        Player target;
+        if (args.length >= 2) {
+            target = Bukkit.getPlayer(args[1]);
+            if (target == null) {
+                sender.sendMessage(Messages.PREFIX + ChatColor.RED + "プレイヤー '" + args[1] + "' が見つかりません。");
+                return;
+            }
+        } else if (sender instanceof Player) {
+            target = (Player) sender;
+        } else {
+            sender.sendMessage(Messages.PREFIX + ChatColor.RED + "プレイヤー名を指定してください。");
+            return;
+        }
+
+        PlayerStats stats = plugin.getCasinoManager().getStatsForPlayer(target.getUniqueId());
+        if (stats == null) {
+            sender.sendMessage(Messages.PREFIX + ChatColor.YELLOW + target.getName() + " の統計データがありません。");
+            return;
+        }
+
+        sender.sendMessage("");
+        sender.sendMessage(ChatColor.GOLD.toString() + ChatColor.BOLD + "═══ " + target.getName() + " のカジノ統計 ═══");
+        sender.sendMessage(ChatColor.GRAY + "  参加セッション数: " + ChatColor.WHITE + stats.getTotalSessions());
+        sender.sendMessage(ChatColor.GRAY + "  累計購入額:     " + ChatColor.WHITE + ChipManager.formatAmount(stats.getTotalPurchases()) + " E");
+        sender.sendMessage(ChatColor.GRAY + "  累計換金額:     " + ChatColor.WHITE + ChipManager.formatAmount(stats.getTotalCashouts()) + " E");
+
+        long net = stats.getNetProfit();
+        ChatColor netColor = net > 0 ? ChatColor.GREEN : (net < 0 ? ChatColor.RED : ChatColor.YELLOW);
+        String netSign = net > 0 ? "+" : (net == 0 ? "±" : "");
+        sender.sendMessage(ChatColor.GRAY + "  累計損益:       " + netColor + netSign + ChipManager.formatAmount(net) + " E");
+
+        sender.sendMessage("");
+        int totalGames = stats.getWins() + stats.getLosses() + stats.getDraws();
+        sender.sendMessage(ChatColor.GRAY + "  勝敗: "
+                + ChatColor.GREEN + stats.getWins() + "勝 " + ChatColor.RED + stats.getLosses() + "敗 "
+                + ChatColor.YELLOW + stats.getDraws() + "分"
+                + ChatColor.GRAY + " (計 " + totalGames + "回)");
+        if (totalGames > 0) {
+            sender.sendMessage(ChatColor.GRAY + "  勝率: " + ChatColor.WHITE
+                    + String.format("%.1f%%", stats.getWinRate() * 100));
+        }
+
+        if (stats.getBiggestWin() > 0) {
+            sender.sendMessage(ChatColor.GRAY + "  最大勝ち額: " + ChatColor.GREEN + "+"
+                    + ChipManager.formatAmount(stats.getBiggestWin()) + " E");
+        }
+        if (stats.getBiggestLoss() < 0) {
+            sender.sendMessage(ChatColor.GRAY + "  最大負け額: " + ChatColor.RED
+                    + ChipManager.formatAmount(stats.getBiggestLoss()) + " E");
+        }
+
+        if (stats.getFirstPlayed() != null) {
+            java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm");
+            sender.sendMessage("");
+            sender.sendMessage(ChatColor.GRAY + "  初回参加: " + ChatColor.WHITE + stats.getFirstPlayed().format(fmt));
+            sender.sendMessage(ChatColor.GRAY + "  最終参加: " + ChatColor.WHITE + stats.getLastPlayed().format(fmt));
+        }
+
+        sender.sendMessage(ChatColor.GOLD.toString() + ChatColor.BOLD + "══════════════════════");
+        sender.sendMessage("");
+    }
+
+    /**
      * コマンドの使い方ヘルプを送信する。
      *
      * @param sender コマンド実行者
      */
     private void sendUsage(CommandSender sender) {
         sender.sendMessage(Messages.PREFIX + ChatColor.GRAY + "使い方:");
-        sender.sendMessage(ChatColor.YELLOW + "  /casino on " + ChatColor.GRAY + "- カジノモード開始");
-        sender.sendMessage(ChatColor.YELLOW + "  /casino off " + ChatColor.GRAY + "- カジノモード終了（換金）");
+        sender.sendMessage(ChatColor.YELLOW + "  /casino on [player] " + ChatColor.GRAY + "- カジノモード開始（プレイヤー指定で個別追加）");
+        sender.sendMessage(ChatColor.YELLOW + "  /casino off [player] " + ChatColor.GRAY + "- カジノモード終了（プレイヤー指定で個別退出）");
         sender.sendMessage(ChatColor.YELLOW + "  /casino status " + ChatColor.GRAY + "- 状態確認");
         sender.sendMessage(ChatColor.YELLOW + "  /casino ranking " + ChatColor.GRAY + "- ランキング表示");
+        sender.sendMessage(ChatColor.YELLOW + "  /casino ranking reset " + ChatColor.GRAY + "- ランキングリセット");
+        sender.sendMessage(ChatColor.YELLOW + "  /casino stats [player] " + ChatColor.GRAY + "- プレイヤー統計表示");
     }
 
     /**
@@ -216,7 +351,30 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
      */
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length != 1) return Collections.emptyList();
+        if (args.length > 2) return Collections.emptyList();
+
+        if (args.length == 2) {
+            String sub = args[0].toLowerCase();
+            if (sub.equals("on") || sub.equals("off") || sub.equals("stats")) {
+                List<String> result = new ArrayList<>();
+                String input = args[1].toLowerCase();
+                for (Player player : Bukkit.getOnlinePlayers()) {
+                    if (player.getName().toLowerCase().startsWith(input)) {
+                        result.add(player.getName());
+                    }
+                }
+                return result;
+            }
+            if (sub.equals("ranking")) {
+                String input = args[1].toLowerCase();
+                if ("reset".startsWith(input)) {
+                    return Collections.singletonList("reset");
+                }
+                return Collections.emptyList();
+            }
+            return Collections.emptyList();
+        }
+
         List<String> result = new ArrayList<>();
         String input = args[0].toLowerCase();
         for (String sub : SUB_COMMANDS) {
