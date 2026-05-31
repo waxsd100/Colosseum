@@ -176,6 +176,18 @@ public class ArenaSession {
         members.add(playerId);
     }
 
+    /**
+     * チームからメンバーを削除する。
+     *
+     * @param teamName チーム名
+     * @param playerId プレイヤーの UUID
+     */
+    public void removeTeamMember(String teamName, UUID playerId) {
+        List<UUID> members = teams.get(teamName);
+        if (members == null) return;
+        members.remove(playerId);
+    }
+
     public List<UUID> getTeamMembers(String teamName) {
         List<UUID> members = teams.get(teamName);
         return members != null ? Collections.unmodifiableList(members) : Collections.emptyList();
