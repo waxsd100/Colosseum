@@ -84,11 +84,6 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
                 break;
         }
 
-        if (!plugin.getCasinoManager().isPlayerInCasino(player.getUniqueId())) {
-            player.sendMessage(Messages.NOT_IN_CASINO_BUY);
-            return true;
-        }
-
         try {
             long firstArg = Long.parseLong(args[0]);
             if (args.length >= 2) {
@@ -312,10 +307,6 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
      * @param player 対象プレイヤー
      */
     private void handleCashout(Player player) {
-        if (!plugin.getCasinoManager().isPlayerInCasino(player.getUniqueId())) {
-            player.sendMessage(Messages.NOT_IN_CASINO_CASHOUT);
-            return;
-        }
         long totalValue = plugin.getChipManager().calculateTotalValue(player);
         if (totalValue == 0) {
             player.sendMessage(Messages.NO_CHIPS_TO_CASHOUT);

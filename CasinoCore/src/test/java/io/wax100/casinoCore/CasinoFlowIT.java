@@ -197,13 +197,13 @@ class CasinoFlowIT {
     @DisplayName("バリデーション")
     class ValidationTest {
         @Test
-        @DisplayName("カジノOFF時にチップ購入不可")
-        void cannotPurchaseWhenCasinoIsOff() {
+        @DisplayName("カジノOFF時でもチップ購入可能")
+        void canPurchaseEvenWhenCasinoIsOff() {
             casinoManager.removePlayerFromCasino(player);
 
             chipCommand.onCommand(player, command, "chip", new String[]{"100", "1"});
 
-            verify(economy, never()).withdrawPlayer(any(org.bukkit.OfflinePlayer.class), anyDouble());
+            verify(economy).withdrawPlayer(any(org.bukkit.OfflinePlayer.class), eq(100.0));
         }
 
         @Test
