@@ -16,9 +16,11 @@ import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * {@code /chip} コマンドハンドラ。
@@ -42,6 +44,11 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
      * プラグインインスタンス
      */
     private final ChipPlugin plugin;
+
+    /**
+     * チップ購入前の元のゲームモードを保持するマップ
+     */
+    private final Map<UUID, GameMode> previousGameModes = new HashMap<>();
 
     /**
      * コンストラクタ。
@@ -223,8 +230,9 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
 
         cm.giveChips(player, chips);
 
-        // チップ購入成功後、アドベンチャーモードを強制
+        // チップ購入成功後、アドベンチャーモードを強制（元のモードを保存）
         if (player.getGameMode() != GameMode.ADVENTURE) {
+            previousGameModes.putIfAbsent(player.getUniqueId(), player.getGameMode());
             player.setGameMode(GameMode.ADVENTURE);
         }
 
@@ -323,6 +331,12 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
         cm.removeAllChips(player);
         Economy economy = plugin.getEconomy();
         economy.depositPlayer(player, totalValue);
+
+        // 元のゲームモードに復元
+        GameMode previous = previousGameModes.remove(player.getUniqueId());
+        if (previous != null && player.getGameMode() == GameMode.ADVENTURE) {
+            player.setGameMode(previous);
+        }
 
         player.sendMessage(ChipMessages.SEPARATOR);
         player.sendMessage(ChipMessages.PREFIX + ChatColor.GREEN
