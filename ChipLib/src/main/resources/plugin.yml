@@ -1,0 +1,18 @@
+name: ChipLib
+version: '${version}'
+main: io.wax100.chipLib.ChipPlugin
+api-version: '1.20'
+authors: [wax100]
+description: チップ管理ライブラリ - チップ売買・換金
+depend: [Vault]
+
+commands:
+  chip:
+    description: チップの購入・情報コマンド
+    usage: /chip <額面> <枚数> | /chip <金額> | /chip info | /chip balance | /chip cashout
+    permission: chip.use
+
+permissions:
+  chip.use:
+    description: チップコマンドの使用権限
+    default: true

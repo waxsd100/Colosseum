@@ -1,9 +1,11 @@
 plugins {
     id 'java-library'
+    id('com.gradleup.shadow')
 }
 
 dependencies {
     compileOnly("org.spigotmc:spigot-api:${spigotApiVersion}")
+    compileOnly("com.github.MilkBowl:VaultAPI:${vaultApiVersion}")
     api("de.tr7zw:item-nbt-api:${nbtApiVersion}")
 
     // Nullable/NonNull アノテーション用。IDE の静的解析を強化する。
@@ -16,6 +18,33 @@ dependencies {
     testImplementation("org.spigotmc:spigot-api:${spigotApiVersion}")
 }
 
+repositories {
+    maven {
+        name = 'jitpack'
+        url = 'https://jitpack.io'
+    }
+}
+
 test {
     useJUnitPlatform()
+}
+
+shadowJar {
+    archiveClassifier.set('')
+    relocate 'de.tr7zw.changeme.nbtapi', 'io.wax100.chipLib.nbtapi'
+}
+
+build.dependsOn shadowJar
+
+processResources {
+    def props = [version: version]
+    inputs.properties props
+    filteringCharset 'UTF-8'
+    filesMatching('plugin.yml') {
+        expand props
+    }
+}
+
+jar {
+    archiveClassifier.set('slim')
 }

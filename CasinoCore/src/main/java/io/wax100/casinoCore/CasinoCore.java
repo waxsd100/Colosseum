@@ -3,7 +3,6 @@ package io.wax100.casinoCore;
 import io.wax100.bindingCurseLib.BindingCurseListener;
 import io.wax100.bindingCurseLib.BindingCurseManager;
 import io.wax100.casinoCore.command.CasinoCommand;
-import io.wax100.casinoCore.command.ChipCommand;
 import io.wax100.casinoCore.listener.CasinoListener;
 import io.wax100.casinoCore.manager.CasinoManager;
 import io.wax100.chipLib.ChipManager;
@@ -76,7 +75,6 @@ public final class CasinoCore extends JavaPlugin {
         casinoManager = new CasinoManager(this, bindingCurseManager);
 
         registerCommand("casino", new CasinoCommand(this));
-        registerCommand("chip", new ChipCommand(this));
         getServer().getPluginManager().registerEvents(new CasinoListener(this), this);
         getServer().getPluginManager().registerEvents(new BindingCurseListener(this, bindingCurseManager), this);
 
