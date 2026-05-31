@@ -1,6 +1,5 @@
 package io.wax100.arenaCore.command;
 
-import io.wax100.arenaCore.ArenaCore;
 import io.wax100.arenaCore.manager.ArenaManager;
 import io.wax100.arenaCore.model.ArenaSession;
 import io.wax100.arenaCore.model.ArenaState;
@@ -74,10 +73,10 @@ public final class CommandHelper {
      * @return チームが存在すれば true、そうでなければ false（エラーメッセージ送信済み）
      */
     public static boolean requireTeamExists(CommandSender sender, ArenaSession session, String teamName) {
-        if (session.hasTeam(teamName)) return true;
+        if (session.hasTeam(teamName)) return false;
         sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
                 + "チーム「" + teamName + "」は存在しません。");
-        return false;
+        return true;
     }
 
     /**
@@ -108,8 +107,10 @@ public final class CommandHelper {
             com.sk89q.worldedit.math.BlockVector3 min = region.getMinimumPoint();
             com.sk89q.worldedit.math.BlockVector3 max = region.getMaximumPoint();
             String worldName = player.getWorld().getName();
-            return new TeamAreaConfig(worldName,
-                    min.x(), min.y(), min.z(), max.x(), max.y(), max.z());
+            @SuppressWarnings("deprecation")
+            TeamAreaConfig result = new TeamAreaConfig(worldName,
+                    min.getX(), min.getY(), min.getZ(), max.getX(), max.getY(), max.getZ());
+            return result;
         } catch (com.sk89q.worldedit.IncompleteRegionException e) {
             return null;
         } catch (NoClassDefFoundError | Exception e) {
@@ -133,8 +134,10 @@ public final class CommandHelper {
             com.sk89q.worldedit.math.BlockVector3 min = region.getMinimumPoint();
             com.sk89q.worldedit.math.BlockVector3 max = region.getMaximumPoint();
             String worldName = player.getWorld().getName();
-            return new io.wax100.arenaCore.model.ArenaFieldConfig(worldName,
-                    min.x(), min.y(), min.z(), max.x(), max.y(), max.z());
+            @SuppressWarnings("deprecation")
+            io.wax100.arenaCore.model.ArenaFieldConfig result = new io.wax100.arenaCore.model.ArenaFieldConfig(worldName,
+                    min.getX(), min.getY(), min.getZ(), max.getX(), max.getY(), max.getZ());
+            return result;
         } catch (NoClassDefFoundError | Exception e) {
             return null;
         }

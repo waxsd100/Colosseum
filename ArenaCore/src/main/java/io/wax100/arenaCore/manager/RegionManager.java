@@ -61,9 +61,10 @@ public class RegionManager {
             BlockVector3 max = region.getMaximumPoint();
             String worldName = player.getWorld().getName();
 
+            @SuppressWarnings("deprecation")
             BettingRegion bettingRegion = BettingRegion.of(teamName, worldName,
-                    min.x(), min.y(), min.z(),
-                    max.x(), max.y(), max.z());
+                    min.getX(), min.getY(), min.getZ(),
+                    max.getX(), max.getY(), max.getZ());
 
             bettingRegions.put(teamName, bettingRegion);
             return true;

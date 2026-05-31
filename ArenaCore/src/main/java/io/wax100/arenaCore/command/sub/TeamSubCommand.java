@@ -137,7 +137,7 @@ public class TeamSubCommand implements SubCommand {
         ArenaSession session = CommandHelper.requireSessionInState(
                 sender, manager, ArenaState.SETUP, ArenaMessages.MSG_SETUP_ONLY);
         if (session == null) return;
-        if (!CommandHelper.requireTeamExists(sender, session, teamName)) return;
+        if (CommandHelper.requireTeamExists(sender, session, teamName)) return;
 
         TeamAreaConfig newConfig;
 
@@ -197,7 +197,7 @@ public class TeamSubCommand implements SubCommand {
         ArenaSession session = CommandHelper.requireSessionInState(
                 sender, manager, ArenaState.SETUP, ArenaMessages.MSG_SETUP_ONLY);
         if (session == null) return;
-        if (!CommandHelper.requireTeamExists(sender, session, teamName)) return;
+        if (CommandHelper.requireTeamExists(sender, session, teamName)) return;
 
         TeamAreaConfig config = session.getTeamAreaConfig(teamName);
         if (config == null) {
@@ -225,7 +225,7 @@ public class TeamSubCommand implements SubCommand {
         if (session == null) return;
 
         String teamName = args[1];
-        if (!CommandHelper.requireTeamExists(sender, session, teamName)) return;
+        if (CommandHelper.requireTeamExists(sender, session, teamName)) return;
 
         String colorName = args[2].toUpperCase();
         ChatColor chatColor;

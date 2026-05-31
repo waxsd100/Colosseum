@@ -19,8 +19,6 @@ import java.util.List;
  */
 public class RegionSubCommand implements SubCommand {
 
-
-
     private final ArenaCore plugin;
 
     public RegionSubCommand(ArenaCore plugin) {
@@ -44,7 +42,7 @@ public class RegionSubCommand implements SubCommand {
         }
 
         String teamName = args[0];
-        if (!CommandHelper.requireTeamExists(sender, session, teamName)) return;
+        if (CommandHelper.requireTeamExists(sender, session, teamName)) return;
 
         ChatColor teamColor = session.getTeamColor(teamName);
 
