@@ -75,6 +75,7 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "  /arena team list");
         sender.sendMessage(ChatColor.YELLOW + "  /arena team area <チーム名>" + ChatColor.GRAY + " <- WE選択範囲を待機場に");
         sender.sendMessage(ChatColor.YELLOW + "  /arena team dest <チーム名>" + ChatColor.GRAY + " <- 現在地をTP先に");
+        sender.sendMessage(ChatColor.YELLOW + "  /arena team color <チーム名> <色>" + ChatColor.GRAY + " <- チームカラー設定");
         sender.sendMessage(ChatColor.YELLOW + "  /arena mob <チーム名> area" + ChatColor.GRAY + " <- WE選択範囲をMob待機場に");
         sender.sendMessage(ChatColor.YELLOW + "  /arena mob <チーム名> dest" + ChatColor.GRAY + " <- 現在地をMobのTP先に");
         sender.sendMessage(ChatColor.YELLOW + "  /arena mob <チーム名> list" + ChatColor.GRAY + " <- 待機場Mob一覧");

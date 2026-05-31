@@ -18,14 +18,14 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * {@code /arena team <list|area|dest>} を処理する。
+ * {@code /arena team <list|area|dest|color>} を処理する。
  *
- * <p>第2階層のサブコマンドとして list/area/dest を持つ。
+ * <p>第2階層のサブコマンドとして list/area/dest/color を持つ。
  * チームメンバーの登録は待機場による自動登録（{@code /arena start} 時）に一本化されている。
  */
 public class TeamSubCommand implements SubCommand {
 
-    private static final List<String> SUB_COMMANDS = Arrays.asList("list", "area", "dest");
+    private static final List<String> SUB_COMMANDS = Arrays.asList("list", "area", "dest", "color");
 
     private final ArenaCore plugin;
 
@@ -42,6 +42,7 @@ public class TeamSubCommand implements SubCommand {
             case "list" -> handleList(sender);
             case "area" -> handleArea(sender, args);
             case "dest" -> handleDest(sender, args);
+            case "color" -> handleColor(sender, args);
             default -> sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "使い方: " + getUsage());
         }
     }
@@ -60,7 +61,7 @@ public class TeamSubCommand implements SubCommand {
         List<String> teamNames = session.getTeamNames();
         for (int i = 0; i < teamNames.size(); i++) {
             String team = teamNames.get(i);
-            ChatColor color = ArenaMessages.getTeamColor(i);
+            ChatColor color = session.getTeamColor(team);
             List<UUID> members = session.getTeamMembers(team);
 
             String label = session.isMobTeam(team)
@@ -132,8 +133,7 @@ public class TeamSubCommand implements SubCommand {
         }
         session.setTeamAreaConfig(teamName, newConfig);
 
-        int teamIndex = session.getTeamNames().indexOf(teamName);
-        ChatColor teamColor = ArenaMessages.getTeamColor(teamIndex);
+        ChatColor teamColor = session.getTeamColor(teamName);
 
         int count = newConfig.scanPlayers().size();
         sender.sendMessage(ArenaMessages.PREFIX + teamColor + ChatColor.BOLD + teamName
@@ -167,10 +167,61 @@ public class TeamSubCommand implements SubCommand {
 
         config.setDestination(player.getLocation());
 
-        int teamIndex = session.getTeamNames().indexOf(teamName);
-        ChatColor teamColor = ArenaMessages.getTeamColor(teamIndex);
+        ChatColor teamColor = session.getTeamColor(teamName);
         sender.sendMessage(ArenaMessages.PREFIX + teamColor + ChatColor.BOLD + teamName
                 + ChatColor.RESET + ChatColor.GREEN + " のTP先を現在地に設定しました。");
+    }
+
+    // ── color (チームカラー設定) ──
+
+    private void handleColor(CommandSender sender, String[] args) {
+        if (!CommandHelper.requireArgs(sender, args, 3,
+                "/arena team color <チーム名> <色>")) return;
+
+        ArenaManager manager = plugin.getArenaManager();
+        ArenaSession session = CommandHelper.requireSessionInState(
+                sender, manager, ArenaState.SETUP, ArenaMessages.MSG_SETUP_ONLY);
+        if (session == null) return;
+
+        String teamName = args[1];
+        if (!CommandHelper.requireTeamExists(sender, session, teamName)) return;
+
+        String colorName = args[2].toUpperCase();
+        ChatColor chatColor;
+        try {
+            chatColor = ChatColor.valueOf(colorName);
+        } catch (IllegalArgumentException e) {
+            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                    + "無効な色です: " + args[2]);
+            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY
+                    + "使用可能: " + getAvailableColors());
+            return;
+        }
+
+        // 装飾コード（BOLD, ITALIC等）は弾く
+        if (!chatColor.isColor()) {
+            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                    + chatColor.name() + " は装飾コードです。色を指定してください。");
+            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY
+                    + "使用可能: " + getAvailableColors());
+            return;
+        }
+
+        session.setTeamColor(teamName, chatColor);
+        sender.sendMessage(ArenaMessages.PREFIX + chatColor + ChatColor.BOLD + teamName
+                + ChatColor.RESET + ChatColor.GREEN + " のチームカラーを "
+                + chatColor + chatColor.name() + ChatColor.GREEN + " に設定しました。");
+    }
+
+    private static String getAvailableColors() {
+        StringBuilder sb = new StringBuilder();
+        for (ChatColor c : ChatColor.values()) {
+            if (c.isColor()) {
+                if (sb.length() > 0) sb.append(ChatColor.GRAY + ", ");
+                sb.append(c).append(c.name());
+            }
+        }
+        return sb.toString();
     }
 
     // ── Tab 補完 ──
@@ -183,16 +234,25 @@ public class TeamSubCommand implements SubCommand {
         }
         if (args.length == 2) {
             String sub = args[0].toLowerCase();
-            if ("area".equals(sub) || "dest".equals(sub)) {
+            if ("area".equals(sub) || "dest".equals(sub) || "color".equals(sub)) {
                 return CommandHelper.getTeamNameCandidates(plugin.getArenaManager(), args[1]);
             }
+        }
+        if (args.length == 3 && "color".equalsIgnoreCase(args[0])) {
+            // 色名の補完
+            return CommandHelper.filterStartsWith(
+                    Arrays.stream(ChatColor.values())
+                            .filter(ChatColor::isColor)
+                            .map(c -> c.name().toLowerCase())
+                            .toList(),
+                    args[2]);
         }
         return List.of();
     }
 
     @Override
     public String getUsage() {
-        return "/arena team <list|area|dest>";
+        return "/arena team <list|area|dest|color>";
     }
 
 

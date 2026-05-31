@@ -61,7 +61,7 @@ public class CreateSubCommand implements SubCommand {
                 + "闘技場「" + name + "」が開設されました！");
         Bukkit.broadcastMessage("");
         for (int i = 0; i < teamNames.size(); i++) {
-            ChatColor color = ArenaMessages.getTeamColor(i);
+            ChatColor color = session.getTeamColor(teamNames.get(i));
             Bukkit.broadcastMessage(ArenaMessages.PREFIX + "  " + color + "■ " + teamNames.get(i));
         }
 

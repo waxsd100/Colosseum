@@ -74,8 +74,7 @@ public class BetCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        int teamIndex = session.getTeamNames().indexOf(bet.getTeamName());
-        ChatColor teamColor = ArenaMessages.getTeamColor(teamIndex);
+        ChatColor teamColor = session.getTeamColor(bet.getTeamName());
         double houseEdge = plugin.getConfig().getDouble("house-edge", 0.1);
         double odds = plugin.getPayoutStrategy().calculateOdds(session, bet.getTeamName(), houseEdge);
 

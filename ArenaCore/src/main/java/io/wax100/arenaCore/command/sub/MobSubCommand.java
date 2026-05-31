@@ -75,8 +75,7 @@ public class MobSubCommand implements SubCommand {
         session.setTeamAreaConfig(teamName, newConfig);
         session.markAsMobTeam(teamName);
 
-        int teamIndex = session.getTeamNames().indexOf(teamName);
-        ChatColor teamColor = ArenaMessages.getTeamColor(teamIndex);
+        ChatColor teamColor = session.getTeamColor(teamName);
 
         int count = newConfig.scanEntities().size();
         sender.sendMessage(ArenaMessages.PREFIX + teamColor + ChatColor.BOLD + teamName
@@ -106,8 +105,7 @@ public class MobSubCommand implements SubCommand {
 
         config.setDestination(player.getLocation());
 
-        int teamIndex = session.getTeamNames().indexOf(teamName);
-        ChatColor teamColor = ArenaMessages.getTeamColor(teamIndex);
+        ChatColor teamColor = session.getTeamColor(teamName);
         sender.sendMessage(ArenaMessages.PREFIX + teamColor + ChatColor.BOLD + teamName
                 + ChatColor.RESET + ChatColor.GREEN + " のTP先を現在地に設定しました。");
     }
@@ -120,8 +118,7 @@ public class MobSubCommand implements SubCommand {
         if (session == null) return;
         if (!CommandHelper.requireTeamExists(sender, session, teamName)) return;
 
-        int teamIndex = session.getTeamNames().indexOf(teamName);
-        ChatColor teamColor = ArenaMessages.getTeamColor(teamIndex);
+        ChatColor teamColor = session.getTeamColor(teamName);
 
         TeamAreaConfig config = session.getTeamAreaConfig(teamName);
         if (config == null) {

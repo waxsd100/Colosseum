@@ -47,8 +47,7 @@ public class ArenaFightListener implements Listener {
         String team = session.getPlayerTeam(player.getUniqueId());
         if (team == null) return;
 
-        int teamIndex = session.getTeamNames().indexOf(team);
-        ChatColor teamColor = ArenaMessages.getTeamColor(teamIndex);
+        ChatColor teamColor = session.getTeamColor(team);
 
         Bukkit.broadcastMessage(ArenaMessages.PREFIX + teamColor + player.getName()
                 + ChatColor.GRAY + " (" + teamColor + team + ChatColor.GRAY + ")"
@@ -75,8 +74,7 @@ public class ArenaFightListener implements Listener {
         String team = session.getPlayerTeam(player.getUniqueId());
         if (team == null) return;
 
-        int teamIndex = session.getTeamNames().indexOf(team);
-        ChatColor teamColor = ArenaMessages.getTeamColor(teamIndex);
+        ChatColor teamColor = session.getTeamColor(team);
 
         Bukkit.broadcastMessage(ArenaMessages.PREFIX + teamColor + player.getName()
                 + ChatColor.GRAY + " (" + teamColor + team + ChatColor.GRAY + ")"
@@ -106,8 +104,7 @@ public class ArenaFightListener implements Listener {
         if (team != null) {
             // onMobDeath の前にカウントを取得し、死亡した1体を引く
             int aliveAfterDeath = Math.max(0, session.getAliveMobCount(team) - 1);
-            int teamIndex = session.getTeamNames().indexOf(team);
-            ChatColor teamColor = ArenaMessages.getTeamColor(teamIndex);
+            ChatColor teamColor = session.getTeamColor(team);
             Bukkit.broadcastMessage(ArenaMessages.PREFIX + teamColor + team
                     + ChatColor.GRAY + " の " + ChatColor.WHITE + entity.getName()
                     + ChatColor.RED + " が倒されました！"

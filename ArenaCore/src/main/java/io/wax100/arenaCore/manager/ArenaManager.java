@@ -232,8 +232,7 @@ public class ArenaManager {
                     }
                 }
 
-                int teamIndex = activeSession.getTeamNames().indexOf(team);
-                ChatColor teamColor = ArenaMessages.getTeamColor(teamIndex);
+                ChatColor teamColor = activeSession.getTeamColor(team);
                 Bukkit.broadcastMessage(ArenaMessages.PREFIX + teamColor + team
                         + ChatColor.GRAY + " の " + ChatColor.WHITE + members.size() + "人"
                         + ChatColor.GRAY + " がアリーナに入場しました！");
@@ -278,8 +277,7 @@ public class ArenaManager {
                 count++;
             }
 
-            int teamIndex = activeSession.getTeamNames().indexOf(team);
-            ChatColor teamColor = ArenaMessages.getTeamColor(teamIndex);
+            ChatColor teamColor = activeSession.getTeamColor(team);
             Bukkit.broadcastMessage(ArenaMessages.PREFIX + teamColor + team
                     + ChatColor.GRAY + " のモンスター " + ChatColor.WHITE + count + "体"
                     + ChatColor.GRAY + " が出現しました！");
@@ -301,8 +299,7 @@ public class ArenaManager {
         activeSession.setState(ArenaState.FINISHED);
         plugin.getLogger().info("勝者宣言: " + winningTeam + " (セッション: " + activeSession.getName() + ")");
 
-        int winnerIndex = activeSession.getTeamNames().indexOf(winningTeam);
-        ChatColor winnerColor = ArenaMessages.getTeamColor(winnerIndex);
+        ChatColor winnerColor = activeSession.getTeamColor(winningTeam);
 
         Bukkit.broadcastMessage("");
         Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
@@ -413,8 +410,7 @@ public class ArenaManager {
             }
         }
         if (teamEliminated) {
-            int teamIndex = activeSession.getTeamNames().indexOf(team);
-            ChatColor teamColor = ArenaMessages.getTeamColor(teamIndex);
+            ChatColor teamColor = activeSession.getTeamColor(team);
             Bukkit.broadcastMessage(ArenaMessages.PREFIX + teamColor + ChatColor.BOLD
                     + team + ChatColor.RESET + ChatColor.RED + " が全滅しました！");
         }
@@ -445,8 +441,7 @@ public class ArenaManager {
             // チーム自体を全滅とマークする（sentinel UUID）
             activeSession.markTeamEliminated(team);
 
-            int teamIndex = activeSession.getTeamNames().indexOf(team);
-            ChatColor teamColor = ArenaMessages.getTeamColor(teamIndex);
+            ChatColor teamColor = activeSession.getTeamColor(team);
             Bukkit.broadcastMessage(ArenaMessages.PREFIX + teamColor + ChatColor.BOLD
                     + team + ChatColor.RESET + ChatColor.RED + " のモンスターが全滅しました！");
 
@@ -521,7 +516,7 @@ public class ArenaManager {
             }
 
             // チームカラーの設定
-            ChatColor arenaColor = ArenaMessages.getTeamColor(i);
+            ChatColor arenaColor = activeSession.getTeamColor(teamName);
             sbTeam.setColor(arenaColor);
             sbTeam.setPrefix(arenaColor.toString());
 

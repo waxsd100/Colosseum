@@ -67,7 +67,7 @@ public class OpenSubCommand implements SubCommand {
         List<String> teamNames = session.getTeamNames();
         for (int i = 0; i < teamNames.size(); i++) {
             String team = teamNames.get(i);
-            ChatColor color = ArenaMessages.getTeamColor(i);
+            ChatColor color = session.getTeamColor(team);
             boolean hasRegion = plugin.getRegionManager().hasBettingRegion(team);
 
             String label = session.isMobTeam(team)

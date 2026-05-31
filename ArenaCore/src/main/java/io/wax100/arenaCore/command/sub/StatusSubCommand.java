@@ -46,7 +46,7 @@ public class StatusSubCommand implements SubCommand {
         List<String> teamNames = session.getTeamNames();
         for (int i = 0; i < teamNames.size(); i++) {
             String team = teamNames.get(i);
-            ChatColor color = ArenaMessages.getTeamColor(i);
+            ChatColor color = session.getTeamColor(team);
 
             String label = session.isMobTeam(team)
                     ? "[MOB] " + session.getEffectiveTeamSize(team) + "体"

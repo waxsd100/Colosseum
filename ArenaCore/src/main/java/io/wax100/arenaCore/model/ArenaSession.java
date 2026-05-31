@@ -42,6 +42,8 @@ public class ArenaSession {
     private final Map<UUID, String> trackedMobs = new HashMap<>();
     /** 全滅済みチーム（Mobチーム等、プレイヤーメンバーがいないチーム用） */
     private final Set<String> eliminatedTeams = new HashSet<>();
+    /** チーム別カスタムカラー（未設定時はデフォルトパレットから自動割当） */
+    private final Map<String, ChatColor> teamColors = new HashMap<>();
 
     /**
      * @param name      セッション名（null不可）
@@ -122,14 +124,37 @@ public class ArenaSession {
     /**
      * チーム名に対応するチーム色を返す。
      *
-     * <p>チーム名が見つからない場合は {@link ChatColor#WHITE} を返す。
+     * <p>カスタムカラーが設定されている場合はそれを優先し、
+     * 未設定の場合はデフォルトパレットから自動割当する。
+     * チーム名が見つからない場合は {@link ChatColor#WHITE} を返す。
      *
      * @param teamName チーム名
      * @return チーム色
      */
     public ChatColor getTeamColor(String teamName) {
+        ChatColor custom = teamColors.get(teamName);
+        if (custom != null) return custom;
         int index = teamNames.indexOf(teamName);
         return index >= 0 ? ArenaMessages.getTeamColor(index) : ChatColor.WHITE;
+    }
+
+    /**
+     * チームのカスタムカラーを設定する。
+     *
+     * @param teamName チーム名
+     * @param color    設定する色
+     */
+    public void setTeamColor(String teamName, ChatColor color) {
+        teamColors.put(teamName, color);
+    }
+
+    /**
+     * 全チームのカスタムカラー設定を返す。
+     *
+     * @return チーム名→ChatColor の不変マップ
+     */
+    public Map<String, ChatColor> getTeamColors() {
+        return Collections.unmodifiableMap(teamColors);
     }
 
     // ── チーム管理 ──

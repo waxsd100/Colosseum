@@ -74,8 +74,7 @@ public class BettingManager {
             }
         }
 
-        int teamIndex = session.getTeamNames().indexOf(teamName);
-        ChatColor teamColor = ArenaMessages.getTeamColor(teamIndex);
+        ChatColor teamColor = session.getTeamColor(teamName);
 
         player.sendMessage(ArenaMessages.PREFIX + ChatColor.GREEN
                 + "✔ " + teamColor + ChatColor.BOLD + teamName
@@ -135,7 +134,7 @@ public class BettingManager {
         List<String> teamNames = session.getTeamNames();
         for (int i = 0; i < teamNames.size(); i++) {
             String team = teamNames.get(i);
-            ChatColor color = ArenaMessages.getTeamColor(i);
+            ChatColor color = session.getTeamColor(team);
             long teamPool = session.getTeamPool(team);
             double odds = strategy.calculateOdds(session, team, houseEdge);
 

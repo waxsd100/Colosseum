@@ -48,8 +48,7 @@ public class RegionSubCommand implements SubCommand {
         String teamName = args[1];
         if (!CommandHelper.requireTeamExists(sender, session, teamName)) return;
 
-        int teamIndex = session.getTeamNames().indexOf(teamName);
-        ChatColor teamColor = ArenaMessages.getTeamColor(teamIndex);
+        ChatColor teamColor = session.getTeamColor(teamName);
 
         handleBet(sender, player, session, regionManager, teamName, teamColor);
     }
