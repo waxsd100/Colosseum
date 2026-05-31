@@ -3,7 +3,9 @@ name: Build & Release
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*-casino'
+      - 'v*-arena'
+      - 'v*-chiplib'
 
 permissions:
   contents: write
@@ -25,23 +27,78 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build
+      - name: Parse tag
+        id: tag
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          # v3.0.0-casino → VERSION=3.0.0, MODULE=casino
+          VERSION="${TAG#v}"          # 3.0.0-casino
+          MODULE="${VERSION##*-}"     # casino
+          VERSION="${VERSION%-*}"     # 3.0.0
+
+          case "${MODULE}" in
+            casino)
+              PROJECT="CasinoCore"
+              GRADLE_MODULE=":CasinoCore"
+              ;;
+            arena)
+              PROJECT="ArenaCore"
+              GRADLE_MODULE=":ArenaCore"
+              ;;
+            chiplib)
+              PROJECT="ChipLib"
+              GRADLE_MODULE=":ChipLib"
+              ;;
+            *)
+              echo "::error::Unknown module: ${MODULE}"
+              exit 1
+              ;;
+          esac
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "module=${MODULE}" >> "$GITHUB_OUTPUT"
+          echo "project=${PROJECT}" >> "$GITHUB_OUTPUT"
+          echo "gradle_module=${GRADLE_MODULE}" >> "$GITHUB_OUTPUT"
+
+          echo "### Parsed Tag" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Key | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-----|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Tag | ${TAG} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Module | ${PROJECT} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Version | ${VERSION} |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build & Test
         run: |
           chmod +x gradlew
-          VERSION="${GITHUB_REF_NAME#v}"
-          ./gradlew build -Pversion=${VERSION}
+          ./gradlew ${{ steps.tag.outputs.gradle_module }}:build
 
-      - name: Prepare JAR
+      - name: Prepare release assets
+        id: assets
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          cp CasinoCore/build/libs/CasinoCore-${VERSION}.jar ./CasinoCore-${VERSION}.jar
-          cp ArenaCore/build/libs/ArenaCore-${VERSION}.jar ./ArenaCore-${VERSION}.jar
+          PROJECT="${{ steps.tag.outputs.project }}"
+          VERSION="${{ steps.tag.outputs.version }}"
 
-      - name: Create Release
+          mkdir -p release-assets
+
+          # shadow jar (fat jar) がある場合はそちらを優先
+          FAT_JAR="${PROJECT}/build/libs/${PROJECT}-${VERSION}.jar"
+          SLIM_JAR="${PROJECT}/build/libs/${PROJECT}-${VERSION}-slim.jar"
+
+          if [ -f "${FAT_JAR}" ]; then
+            cp "${FAT_JAR}" "release-assets/${PROJECT}-${VERSION}.jar"
+          fi
+
+          # slim jar も添付（存在する場合のみ）
+          if [ -f "${SLIM_JAR}" ]; then
+            cp "${SLIM_JAR}" "release-assets/${PROJECT}-${VERSION}-slim.jar"
+          fi
+
+          echo "### Release Assets" >> "$GITHUB_STEP_SUMMARY"
+          ls -lh release-assets/ >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: "Colosseum ${{ github.ref_name }}"
+          name: "${{ steps.tag.outputs.project }} ${{ steps.tag.outputs.version }}"
           generate_release_notes: true
-          files: |
-            CasinoCore-*.jar
-            ArenaCore-*.jar
+          files: release-assets/*
