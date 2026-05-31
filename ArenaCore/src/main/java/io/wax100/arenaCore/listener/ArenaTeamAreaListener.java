@@ -82,6 +82,7 @@ public class ArenaTeamAreaListener implements Listener {
         // エリアから退場
         if (currentTeam != null && !currentTeam.equals(toArea)) {
             session.removeTeamMember(currentTeam, playerId);
+            plugin.getArenaManager().removeFromScoreboardTeam(currentTeam, player);
             ChatColor color = session.getTeamColor(currentTeam);
             player.sendMessage(ArenaMessages.PREFIX + color + currentTeam
                     + ChatColor.GRAY + " から離脱しました。");
@@ -90,6 +91,7 @@ public class ArenaTeamAreaListener implements Listener {
         // エリアに入場
         if (toArea != null && !session.isFighter(playerId)) {
             session.addTeamMember(toArea, playerId);
+            plugin.getArenaManager().addToScoreboardTeam(toArea, player);
             ChatColor color = session.getTeamColor(toArea);
             player.sendMessage(ArenaMessages.PREFIX + color + toArea
                     + ChatColor.GRAY + " に参加しました！");

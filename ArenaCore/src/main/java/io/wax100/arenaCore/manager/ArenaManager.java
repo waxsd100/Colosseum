@@ -69,6 +69,12 @@ public class ArenaManager {
         activeSession = new ArenaSession(name, teamNames);
         eliminatedPlayers.clear();
         regionManager.clearRegions();
+
+        // バニラ Scoreboard Team を先に作成
+        for (String team : teamNames) {
+            ensureScoreboardTeam(team);
+        }
+
         plugin.getLogger().info("闘技場セッション作成: " + name + " (チーム数: " + teamNames.size() + ")");
         return activeSession;
     }
@@ -518,36 +524,89 @@ public class ArenaManager {
             plugin.getLogger().warning("ScoreboardManager が利用できません。チーム登録をスキップします。");
             return;
         }
-        Scoreboard sb = Bukkit.getScoreboardManager().getMainScoreboard();
 
         List<String> teamNames = activeSession.getTeamNames();
         for (String teamName : teamNames) {
             if (activeSession.isMobTeam(teamName)) continue;
-
-            // 既存チームがあれば取得、なければ新規作成
-            Team sbTeam = sb.getTeam(teamName);
-            if (sbTeam == null) {
-                sbTeam = sb.registerNewTeam(teamName);
-            }
-
-            // チームカラーの設定
-            ChatColor arenaColor = activeSession.getTeamColor(teamName);
-            sbTeam.setColor(arenaColor);
-            sbTeam.setPrefix(arenaColor.toString());
-
-            // Friendly Fire を無効化
-            sbTeam.setAllowFriendlyFire(false);
+            ensureScoreboardTeam(teamName);
 
             // メンバーを登録
             for (UUID memberId : activeSession.getTeamMembers(teamName)) {
                 Player player = Bukkit.getPlayer(memberId);
                 if (player != null && player.isOnline()) {
-                    sbTeam.addEntry(player.getName());
+                    addToScoreboardTeam(teamName, player);
                 }
             }
 
             plugin.getLogger().info("Scoreboard Team 登録: " + teamName
                     + " (" + activeSession.getTeamMembers(teamName).size() + "人)");
+        }
+    }
+
+    /**
+     * バニラ Scoreboard Team を作成（または取得）してカラー・FF設定を行う。
+     *
+     * @param teamName チーム名
+     */
+    public void ensureScoreboardTeam(String teamName) {
+        if (activeSession == null) return;
+        try {
+            if (Bukkit.getScoreboardManager() == null) return;
+            Scoreboard sb = Bukkit.getScoreboardManager().getMainScoreboard();
+
+            Team sbTeam = sb.getTeam(teamName);
+            if (sbTeam == null) {
+                sbTeam = sb.registerNewTeam(teamName);
+            }
+
+            ChatColor arenaColor = activeSession.getTeamColor(teamName);
+            sbTeam.setColor(arenaColor);
+            sbTeam.setPrefix(arenaColor.toString());
+            sbTeam.setAllowFriendlyFire(false);
+        } catch (Exception e) {
+            // テスト環境等でScoreboardManagerが利用不可の場合
+        }
+    }
+
+    /**
+     * バニラ Scoreboard Team にプレイヤーを追加する。
+     *
+     * @param teamName チーム名
+     * @param player   追加するプレイヤー
+     */
+    public void addToScoreboardTeam(String teamName, Player player) {
+        try {
+            if (Bukkit.getScoreboardManager() == null) return;
+            Scoreboard sb = Bukkit.getScoreboardManager().getMainScoreboard();
+            Team sbTeam = sb.getTeam(teamName);
+            if (sbTeam == null) {
+                ensureScoreboardTeam(teamName);
+                sbTeam = sb.getTeam(teamName);
+            }
+            if (sbTeam != null) {
+                sbTeam.addEntry(player.getName());
+            }
+        } catch (Exception e) {
+            // テスト環境等でScoreboardManagerが利用不可の場合
+        }
+    }
+
+    /**
+     * バニラ Scoreboard Team からプレイヤーを削除する。
+     *
+     * @param teamName チーム名
+     * @param player   削除するプレイヤー
+     */
+    public void removeFromScoreboardTeam(String teamName, Player player) {
+        try {
+            if (Bukkit.getScoreboardManager() == null) return;
+            Scoreboard sb = Bukkit.getScoreboardManager().getMainScoreboard();
+            Team sbTeam = sb.getTeam(teamName);
+            if (sbTeam != null) {
+                sbTeam.removeEntry(player.getName());
+            }
+        } catch (Exception e) {
+            // テスト環境等でScoreboardManagerが利用不可の場合
         }
     }
 
