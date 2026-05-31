@@ -204,7 +204,6 @@ class CasinoDataStoreTest {
                     false,
                     null,
                     Map.of(),
-                    Map.of(),
                     statsMap);
 
             // 新しい DataStore で再読み込み
@@ -237,7 +236,6 @@ class CasinoDataStoreTest {
             Set<UUID> casinoPlayers = Set.of(player1, player2);
             Map<UUID, Long> sessionPurchases = Map.of(player1, 5000L);
             Map<UUID, GameMode> gameModes = Map.of(player1, GameMode.SURVIVAL);
-            Map<UUID, Long> ranking = Map.of(player1, 10000L, player2, 5000L);
 
             dataStore.save(false,
                     casinoPlayers,
@@ -245,7 +243,6 @@ class CasinoDataStoreTest {
                     true,
                     "casino_world",
                     gameModes,
-                    ranking,
                     Map.of());
 
             // 新しい DataStore でファイルを再読み込み
@@ -256,19 +253,12 @@ class CasinoDataStoreTest {
             assertNotNull(runtime);
             assertTrue(runtime.getBoolean("saved-keep-inventory"));
             assertEquals("casino_world", runtime.getString("saved-world-name"));
-
-            // ランキング
-            Map<UUID, Long> loadedRanking = new LinkedHashMap<>();
-            newStore.loadUuidLongMap(newStore.getDataConfig(), "ranking", loadedRanking);
-            assertEquals(2, loadedRanking.size());
-            assertEquals(10000L, loadedRanking.get(player1));
-            assertEquals(5000L, loadedRanking.get(player2));
         }
 
         @Test
         @DisplayName("data.ymlファイルが実際に書き出される")
         void fileIsWritten() {
-            dataStore.save(false, Set.of(), Map.of(), false, null, Map.of(), Map.of(), Map.of());
+            dataStore.save(false, Set.of(), Map.of(), false, null, Map.of(), Map.of());
 
             File dataFile = new File(tempDir, "data.yml");
             assertTrue(dataFile.exists());

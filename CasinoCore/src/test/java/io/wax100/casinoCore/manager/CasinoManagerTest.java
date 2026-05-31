@@ -308,75 +308,27 @@ class CasinoManagerTest {
         }
     }
 
-    // ── ランキング ──
+    // ── ランキング（RankingManager 委譲） ──
 
     @Nested
-    @DisplayName("ランキング")
+    @DisplayName("ランキング（RankingManager 委譲）")
     class RankingTest {
         @Test
-        @DisplayName("損益が累計される")
-        void profitAndLossAccumulate() {
-            UUID p1 = UUID.randomUUID();
-            UUID p2 = UUID.randomUUID();
-            casinoManager.updateRanking(p1, 5000);
-            casinoManager.updateRanking(p2, -3000);
-            casinoManager.updateRanking(p1, 2000);
-
-            var ranking = casinoManager.getSortedRanking(10);
-            assertEquals(2, ranking.size());
-            assertEquals(p1, ranking.get(0).getKey());
-            assertEquals(7000, ranking.get(0).getValue());
-            assertEquals(p2, ranking.get(1).getKey());
-            assertEquals(-3000, ranking.get(1).getValue());
+        @DisplayName("RankingManager 未接続時、updateRanking は例外を投げない")
+        void updateRankingDoesNotThrowWithoutRankingManager() {
+            assertDoesNotThrow(() -> casinoManager.updateRanking(UUID.randomUUID(), 5000));
         }
 
         @Test
-        @DisplayName("ランキングはlimit件まで")
-        void rankingIsLimitedByLimit() {
-            for (int i = 0; i < 20; i++) {
-                casinoManager.updateRanking(UUID.randomUUID(), i * 100);
-            }
-            assertEquals(5, casinoManager.getSortedRanking(5).size());
-        }
-
-        @Test
-        @DisplayName("ランキングは降順")
-        void rankingIsInDescendingOrder() {
-            UUID p1 = UUID.randomUUID();
-            UUID p2 = UUID.randomUUID();
-            UUID p3 = UUID.randomUUID();
-            casinoManager.updateRanking(p1, 1000);
-            casinoManager.updateRanking(p2, 5000);
-            casinoManager.updateRanking(p3, 3000);
-
-            List<Map.Entry<UUID, Long>> ranking = casinoManager.getSortedRanking(10);
-            assertEquals(p2, ranking.get(0).getKey());
-            assertEquals(p3, ranking.get(1).getKey());
-            assertEquals(p1, ranking.get(2).getKey());
-        }
-
-        @Test
-        @DisplayName("負の損益もランキングに含まれる")
-        void negativeProfitIsIncludedInRanking() {
-            UUID p1 = UUID.randomUUID();
-            casinoManager.updateRanking(p1, -5000);
-
-            var ranking = casinoManager.getSortedRanking(10);
-            assertEquals(1, ranking.size());
-            assertEquals(-5000, ranking.get(0).getValue());
-        }
-
-        @Test
-        @DisplayName("limit=0は空リスト")
-        void limitZeroReturnsEmptyList() {
-            casinoManager.updateRanking(UUID.randomUUID(), 1000);
-            assertEquals(0, casinoManager.getSortedRanking(0).size());
-        }
-
-        @Test
-        @DisplayName("ランキングが空の場合は空リスト")
-        void emptyRankingReturnsEmptyList() {
+        @DisplayName("RankingManager 未接続時、getSortedRanking は空リスト")
+        void getSortedRankingReturnsEmptyWithoutRankingManager() {
             assertEquals(0, casinoManager.getSortedRanking(10).size());
+        }
+
+        @Test
+        @DisplayName("resetRanking は例外を投げない")
+        void resetRankingDoesNotThrow() {
+            assertDoesNotThrow(() -> casinoManager.resetRanking());
         }
     }
 

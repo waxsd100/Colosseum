@@ -1,6 +1,8 @@
 package io.wax100.chipLib;
 
 import io.wax100.chipLib.command.ChipCommand;
+import io.wax100.chipLib.command.RankingCommand;
+import io.wax100.chipLib.ranking.RankingManager;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
@@ -39,6 +41,11 @@ public final class ChipPlugin extends JavaPlugin {
     private ChipManager chipManager;
 
     /**
+     * ランキング管理マネージャ
+     */
+    private RankingManager rankingManager;
+
+    /**
      * チップ使用を許可されたプレイヤーのセット
      */
     private final Set<UUID> allowedPlayers = new HashSet<>();
@@ -65,6 +72,7 @@ public final class ChipPlugin extends JavaPlugin {
         }
 
         chipManager = new ChipManager(this);
+        rankingManager = new RankingManager(this);
 
         ChipCommand chipCommand = new ChipCommand(this);
         PluginCommand cmd = getCommand("chip");
@@ -75,6 +83,15 @@ public final class ChipPlugin extends JavaPlugin {
             getLogger().warning("コマンド 'chip' がplugin.ymlに定義されていません。");
         }
 
+        RankingCommand rankingCommand = new RankingCommand(this);
+        PluginCommand rankingCmd = getCommand("ranking");
+        if (rankingCmd != null) {
+            rankingCmd.setExecutor(rankingCommand);
+            rankingCmd.setTabCompleter(rankingCommand);
+        } else {
+            getLogger().warning("コマンド 'ranking' がplugin.ymlに定義されていません。");
+        }
+
         getLogger().info("ChipLib が有効化されました！");
     }
 
@@ -83,6 +100,9 @@ public final class ChipPlugin extends JavaPlugin {
      */
     @Override
     public void onDisable() {
+        if (rankingManager != null) {
+            rankingManager.saveData();
+        }
         getLogger().info("ChipLib が無効化されました。");
     }
 
@@ -116,6 +136,15 @@ public final class ChipPlugin extends JavaPlugin {
      */
     public ChipManager getChipManager() {
         return chipManager;
+    }
+
+    /**
+     * ランキング管理マネージャを取得する。
+     *
+     * @return {@link RankingManager} インスタンス
+     */
+    public RankingManager getRankingManager() {
+        return rankingManager;
     }
 
     /**

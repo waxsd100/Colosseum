@@ -5,6 +5,7 @@ import io.wax100.casinoCore.CasinoCore;
 import io.wax100.chipLib.Chip;
 import io.wax100.chipLib.ChipManager;
 import io.wax100.chipLib.ChipPlugin;
+import io.wax100.chipLib.ranking.RankingManager;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
@@ -14,10 +15,11 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 
-import java.util.ArrayList;
+
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -71,10 +73,7 @@ public class CasinoManager {
      * <p>非同期保存時のイテレーション安全性のため {@link ConcurrentHashMap} を使用。
      */
     private final Map<UUID, Long> sessionPurchases = new ConcurrentHashMap<>();
-    /**
-     * 累計損益ランキング (UUID -> 累計損益)
-     */
-    private final Map<UUID, Long> ranking = new LinkedHashMap<>();
+
     /**
      * プレイヤーごとの累計統計データ (UUID -> PlayerStats)
      */
@@ -340,8 +339,10 @@ public class CasinoManager {
      * @param netResult 今回の損益（正: 勝ち、負: 負け）
      */
     public void updateRanking(UUID playerId, long netResult) {
-        ranking.merge(playerId, netResult, Long::sum);
-        saveData();
+        RankingManager rm = getRankingManager();
+        if (rm != null) {
+            rm.updateRanking("casino", playerId, netResult);
+        }
     }
 
     /**
@@ -351,16 +352,21 @@ public class CasinoManager {
      * @return 損益の降順でソートされたエントリリスト
      */
     public List<Map.Entry<UUID, Long>> getSortedRanking(int limit) {
-        List<Map.Entry<UUID, Long>> sorted = new ArrayList<>(ranking.entrySet());
-        sorted.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
-        return sorted.subList(0, Math.min(sorted.size(), limit));
+        RankingManager rm = getRankingManager();
+        if (rm != null) {
+            return rm.getSortedRanking("casino", limit);
+        }
+        return Collections.emptyList();
     }
 
     /**
      * ランキングと全プレイヤー統計をリセットする。
      */
     public void resetRanking() {
-        ranking.clear();
+        RankingManager rm = getRankingManager();
+        if (rm != null) {
+            rm.resetRanking("casino");
+        }
         playerStats.clear();
         saveData();
     }
@@ -559,8 +565,8 @@ public class CasinoManager {
         savedWorldName = source.getString("saved-world-name", null);
         dataStore.loadGameModes(source, savedGameModes);
 
-        // ランキングの読み込み
-        dataStore.loadUuidLongMap(dataConfig, "ranking", ranking);
+        // ランキングの読み込み（RankingManager に移行済み。旧データの互換読み込み）
+        migrateOldRankingData(dataConfig);
 
         // プレイヤー統計の読み込み
         dataStore.loadPlayerStats(playerStats);
@@ -584,7 +590,7 @@ public class CasinoManager {
      */
     public synchronized void saveData(boolean async) {
         dataStore.save(async, casinoPlayers, sessionPurchases, savedKeepInventory,
-                savedWorldName, savedGameModes, ranking, playerStats);
+                savedWorldName, savedGameModes, playerStats);
     }
 
     /**
@@ -598,6 +604,51 @@ public class CasinoManager {
             return (p instanceof ChipPlugin) ? (ChipPlugin) p : null;
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    /**
+     * RankingManager を ChipLib から取得するヘルパー。
+     *
+     * @return RankingManager インスタンス。未ロードの場合は null
+     */
+    private RankingManager getRankingManager() {
+        ChipPlugin chipPlugin = getChipPlugin();
+        return chipPlugin != null ? chipPlugin.getRankingManager() : null;
+    }
+
+    /**
+     * 旧 data.yml のランキングデータを RankingManager に移行する。
+     *
+     * <p>旧形式で保存されたランキングデータが存在する場合、
+     * RankingManager に一括登録して旧データを削除する。
+     *
+     * @param dataConfig データ設定ファイル
+     */
+    private void migrateOldRankingData(FileConfiguration dataConfig) {
+        ConfigurationSection rankingSection = dataConfig.getConfigurationSection("ranking");
+        if (rankingSection == null) return;
+
+        RankingManager rm = getRankingManager();
+        if (rm == null) return;
+
+        // 旧データが空でない場合のみ移行
+        boolean hasMigrated = false;
+        for (String key : rankingSection.getKeys(false)) {
+            try {
+                UUID uuid = UUID.fromString(key);
+                long value = rankingSection.getLong(key);
+                // RankingManager に既存データがなければ移行
+                if (rm.getRankingData("casino").getOrDefault(uuid, 0L) == 0L && value != 0) {
+                    rm.updateRanking("casino", uuid, value);
+                    hasMigrated = true;
+                }
+            } catch (IllegalArgumentException e) {
+                plugin.getLogger().warning("無効なUUID (ranking migration): " + key);
+            }
+        }
+        if (hasMigrated) {
+            plugin.getLogger().info("旧ランキングデータを RankingManager に移行しました。");
         }
     }
 }

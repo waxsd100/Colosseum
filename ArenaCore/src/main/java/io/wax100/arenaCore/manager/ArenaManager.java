@@ -11,7 +11,6 @@ import io.wax100.arenaCore.model.ArenaFieldConfig;
 import io.wax100.arenaCore.model.BettingRegion;
 import io.wax100.arenaCore.util.ArenaMessages;
 import io.wax100.arenaCore.wincondition.WinCondition;
-import io.wax100.casinoCore.manager.CasinoManager;
 import io.wax100.chipLib.ChipManager;
 import io.wax100.chipLib.ChipPlugin;
 import net.milkbowl.vault.economy.Economy;
@@ -656,21 +655,39 @@ public class ArenaManager {
     }
 
     /**
-     * 全オンラインプレイヤーのチップを換金し、CasinoManager のランキングに記録する。
+     * 全オンラインプレイヤーのチップを換金し、アリーナランキングに記録する。
      *
      * <p>アリーナ終了時に呼び出される。ChipPlugin でチップを換金し、
-     * CasinoManager の cashoutSinglePlayer で損益計算・ランキング更新を行う。
+     * RankingManager にアリーナカテゴリの損益を記録する。
      */
     private void cashoutAllPlayers() {
         try {
-            org.bukkit.plugin.Plugin casinoPlugin = Bukkit.getPluginManager().getPlugin("CasinoCore");
-            if (casinoPlugin instanceof io.wax100.casinoCore.CasinoCore casinoCore) {
-                CasinoManager casinoManager = casinoCore.getCasinoManager();
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    long chipValue = plugin.getChipManager().calculateTotalValue(p);
-                    if (chipValue > 0) {
-                        casinoManager.cashoutSinglePlayer(p);
+            ChipPlugin chipPlugin = getChipPlugin();
+            if (chipPlugin == null) return;
+
+            io.wax100.chipLib.ranking.RankingManager rankingManager = chipPlugin.getRankingManager();
+
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                long chipValue = plugin.getChipManager().calculateTotalValue(p);
+                if (chipValue <= 0) continue;
+
+                // セッション購入額を CasinoManager から取得
+                long purchased = 0;
+                try {
+                    org.bukkit.plugin.Plugin casinoPlugin = Bukkit.getPluginManager().getPlugin("CasinoCore");
+                    if (casinoPlugin instanceof io.wax100.casinoCore.CasinoCore casinoCore) {
+                        purchased = casinoCore.getCasinoManager().getSessionPurchases(p.getUniqueId());
                     }
+                } catch (Exception ignored) {
+                }
+
+                // ChipPlugin で換金
+                long cashoutAmount = chipPlugin.cashoutPlayer(p);
+
+                // アリーナランキングに記録
+                if (rankingManager != null && purchased > 0) {
+                    long netResult = cashoutAmount - purchased;
+                    rankingManager.updateRanking("arena", p.getUniqueId(), netResult);
                 }
             }
         } catch (Exception e) {

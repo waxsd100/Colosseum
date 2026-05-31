@@ -11,8 +11,15 @@ commands:
     description: チップの購入・情報コマンド
     usage: /chip <額面> <枚数> | /chip <金額> | /chip info | /chip balance | /chip cashout
     permission: chip.use
+  ranking:
+    description: ランキング表示コマンド
+    usage: /ranking [casino|arena|total]
+    permission: ranking.use
 
 permissions:
   chip.use:
     description: チップコマンドの使用権限
+    default: true
+  ranking.use:
+    description: ランキングコマンドの使用権限
     default: true

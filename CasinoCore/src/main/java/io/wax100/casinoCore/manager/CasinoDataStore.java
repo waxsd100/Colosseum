@@ -191,7 +191,6 @@ public class CasinoDataStore {
      * @param savedKeepInventory 保存済み keepInventory 値
      * @param savedWorldName     保存済みワールド名
      * @param savedGameModes     保存済みゲームモード
-     * @param ranking            ランキングデータ
      * @param playerStats        プレイヤー統計データ
      */
     public void save(boolean async,
@@ -200,7 +199,6 @@ public class CasinoDataStore {
                      boolean savedKeepInventory,
                      String savedWorldName,
                      Map<UUID, GameMode> savedGameModes,
-                     Map<UUID, Long> ranking,
                      Map<UUID, PlayerStats> playerStats) {
         YamlConfiguration copy = new YamlConfiguration();
 
@@ -213,9 +211,6 @@ public class CasinoDataStore {
         runtime.set("saved-keep-inventory", savedKeepInventory);
         runtime.set("saved-world-name", savedWorldName);
         saveGameModes(runtime, savedGameModes);
-
-        // ランキング
-        saveUuidLongMap(copy, "ranking", ranking);
 
         // プレイヤー統計
         for (Map.Entry<UUID, PlayerStats> entry : playerStats.entrySet()) {
