@@ -14,7 +14,21 @@ subprojects {
     apply plugin: 'java'
 
     group = findProperty('group') ?: 'com.github.waxsd100'
-    version = findProperty('version') ?: '1.0-SNAPSHOT'
+
+    // モジュール別バージョン
+    switch (project.name) {
+        case 'ChipLib':
+            version = findProperty('chipLibVersion') ?: '1.0.0'
+            break
+        case 'CasinoCore':
+            version = findProperty('casinoCoreVersion') ?: '1.0.0'
+            break
+        case 'ArenaCore':
+            version = findProperty('arenaCoreVersion') ?: '1.0.0'
+            break
+        default:
+            version = '1.0.0'
+    }
 
     repositories {
         mavenLocal()
