@@ -11,7 +11,7 @@ import java.util.UUID;
  *
  * <p>キルごとにチームのスコアが加算され、
  * 目標スコアに到達したチームが勝利する。
- * 目標スコアが 0 の場合は自動判定しない（{@code /arena end} で手動集計）。
+ * 目標スコアが 0 の場合は自動判定しない（{@code /arena win <チーム名>} で手動宣言）。
  */
 public class ScoreCondition implements WinCondition {
 

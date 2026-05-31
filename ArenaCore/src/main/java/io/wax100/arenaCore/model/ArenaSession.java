@@ -66,14 +66,6 @@ public class ArenaSession {
         }
     }
 
-    /**
-     * チームなしでセッションを作成する。
-     *
-     * @param name セッション名（null不可）
-     */
-    public ArenaSession(String name) {
-        this(name, new ArrayList<>());
-    }
 
     // ── 基本情報 ──
 
@@ -340,9 +332,6 @@ public class ArenaSession {
         scores.merge(teamName, points, Integer::sum);
     }
 
-    public Map<String, Integer> getScores() {
-        return Collections.unmodifiableMap(scores);
-    }
 
     /**
      * セッション終了時に全データをクリアする。
@@ -366,6 +355,9 @@ public class ArenaSession {
         scores.clear();
         teamAreaConfigs.clear();
         mobTeams.clear();
+        entryFeePool = 0;
+        winningTeam = null;
+        teamColors.clear();
         fieldConfig = null;
     }
 

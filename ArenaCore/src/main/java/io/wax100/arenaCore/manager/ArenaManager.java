@@ -100,31 +100,6 @@ public class ArenaManager {
     }
 
     /**
-     * チームにメンバーを追加する。参加費がある場合は徴収する。
-     */
-    public boolean addTeamMember(String teamName, Player player) {
-        if (activeSession == null || activeSession.getState() != ArenaState.SETUP) return false;
-        if (!activeSession.hasTeam(teamName)) return false;
-        if (activeSession.isFighter(player.getUniqueId())) return false;
-
-        long entryFee = plugin.getConfig().getLong("entry-fee", 0);
-        if (entryFee > 0) {
-            Economy economy = plugin.getEconomy();
-            if (economy == null || !economy.has(player, entryFee)) {
-                player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
-                        + "参加費 " + ChatColor.YELLOW
-                        + ChipManager.formatAmount(entryFee) + " E"
-                        + ChatColor.RED + " が不足しています。");
-                return false;
-            }
-            economy.withdrawPlayer(player, entryFee);
-            activeSession.addEntryFee(entryFee);
-        }
-
-        return activeSession.addTeamMember(teamName, player.getUniqueId());
-    }
-
-    /**
      * 賭け受付を開始する。
      */
     public boolean openBetting() {
@@ -231,8 +206,6 @@ public class ArenaManager {
             if (areaConfig == null) continue;
 
             // 待機場内のプレイヤーをチームに自動登録
-            // NOTE: startMatch で状態が ACTIVE に遷移済みのため、
-            //       addTeamMember（SETUP ガード）ではなく直接セッションに追加する
             List<Player> playersInArea = areaConfig.scanPlayers();
             for (Player player : playersInArea) {
                 if (!activeSession.isFighter(player.getUniqueId())) {
@@ -484,9 +457,6 @@ public class ArenaManager {
         return activeSession != null && activeSession.getMobTeam(entityId) != null;
     }
 
-    public boolean isFighter(UUID playerId) {
-        return activeSession != null && activeSession.isFighter(playerId);
-    }
 
     public Set<UUID> getEliminatedPlayers() {
         return Collections.unmodifiableSet(eliminatedPlayers);

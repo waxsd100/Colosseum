@@ -12,7 +12,6 @@ import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 
 import java.util.Collections;
-import java.util.List;
 
 /**
  * {@code /arena create <名前>} を処理する。

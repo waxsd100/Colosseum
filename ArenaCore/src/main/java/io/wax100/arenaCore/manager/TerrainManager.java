@@ -503,14 +503,6 @@ public class TerrainManager {
         return state != State.IDLE;
     }
 
-    /**
-     * 地形復元が有効かどうかを返す。
-     *
-     * @return 有効な場合 {@code true}
-     */
-    public boolean isEnabled() {
-        return enabled;
-    }
 
     /**
      * すべてのタスクをキャンセルし、状態をクリアする。

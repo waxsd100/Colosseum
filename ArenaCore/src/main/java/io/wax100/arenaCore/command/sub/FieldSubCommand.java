@@ -102,7 +102,7 @@ public class FieldSubCommand implements SubCommand {
             return;
         }
 
-        ArenaFieldConfig fieldConfig = createFieldConfigFromSelection(player);
+        ArenaFieldConfig fieldConfig = CommandHelper.createFieldConfigFromSelection(player);
         if (fieldConfig == null) {
             sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + ArenaMessages.MSG_WE_SELECT_FIRST);
             return;
@@ -140,18 +140,6 @@ public class FieldSubCommand implements SubCommand {
                 field.getMinX(), field.getMinY(), field.getMinZ(),
                 field.getMaxX(), field.getMaxY(), field.getMaxZ(),
                 field.getBlockCount()));
-    }
-
-    // ── WorldEdit 連携 ──
-
-    /**
-     * WorldEdit の選択範囲から ArenaFieldConfig を生成する。
-     *
-     * @param player 選択範囲を持つプレイヤー
-     * @return 生成した ArenaFieldConfig。選択範囲がない場合 {@code null}
-     */
-    private static ArenaFieldConfig createFieldConfigFromSelection(Player player) {
-        return CommandHelper.createFieldConfigFromSelection(player);
     }
 
     // ── Tab 補完 ──

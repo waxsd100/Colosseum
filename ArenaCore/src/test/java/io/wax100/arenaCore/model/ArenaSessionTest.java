@@ -122,7 +122,7 @@ class ArenaSessionTest {
         @Test
         @DisplayName("名前のみのコンストラクタでチーム0個のセッションを作成できる")
         void nameOnlyConstructor_createsEmptySession() {
-            ArenaSession session = new ArenaSession("Solo");
+            ArenaSession session = new ArenaSession("Solo", List.of());
             assertEquals("Solo", session.getName());
             assertTrue(session.getTeamNames().isEmpty());
             assertEquals(ArenaState.SETUP, session.getState());
@@ -131,7 +131,7 @@ class ArenaSessionTest {
         @Test
         @DisplayName("addTeamでチームを後から追加できる")
         void addTeam_addsTeamToSession() {
-            ArenaSession session = new ArenaSession("Dynamic");
+            ArenaSession session = new ArenaSession("Dynamic", List.of());
             assertTrue(session.addTeam("Alpha"));
             assertTrue(session.addTeam("Beta"));
             assertEquals(2, session.getTeamNames().size());
@@ -142,7 +142,7 @@ class ArenaSessionTest {
         @Test
         @DisplayName("addTeamで重複チームはfalseを返す")
         void addTeam_duplicateReturnsFalse() {
-            ArenaSession session = new ArenaSession("Dynamic");
+            ArenaSession session = new ArenaSession("Dynamic", List.of());
             assertTrue(session.addTeam("Alpha"));
             assertFalse(session.addTeam("Alpha"));
             assertEquals(1, session.getTeamNames().size());
@@ -638,21 +638,12 @@ class ArenaSessionTest {
         }
 
         @Test
-        @DisplayName("getScoresは変更不可マップを返す")
-        void getScores_isUnmodifiable() {
-            Map<String, Integer> scores = session.getScores();
-            assertThrows(UnsupportedOperationException.class,
-                    () -> scores.put(TEAM_RED, 999));
-        }
-
-        @Test
-        @DisplayName("getScoresは全チームの現在スコアを含む")
-        void getScores_containsAllTeams() {
+        @DisplayName("getScoreは個別チームのスコアを取得できる")
+        void getScore_returnsIndividualTeamScores() {
             session.addScore(TEAM_RED, 4);
             session.addScore(TEAM_BLUE, 7);
-            Map<String, Integer> scores = session.getScores();
-            assertEquals(4, scores.get(TEAM_RED));
-            assertEquals(7, scores.get(TEAM_BLUE));
+            assertEquals(4, session.getScore(TEAM_RED));
+            assertEquals(7, session.getScore(TEAM_BLUE));
         }
     }
 

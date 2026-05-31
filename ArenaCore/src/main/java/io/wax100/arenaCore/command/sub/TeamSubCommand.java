@@ -35,7 +35,7 @@ public class TeamSubCommand implements SubCommand {
 
     @Override
     public void execute(CommandSender sender, String[] args) {
-        // args: [sub, ...]  例: ["add", "チーム名", "プレイヤー"]
+        // args: [sub, ...]  例: ["add", "チーム名"]
         if (!CommandHelper.requireArgs(sender, args, 1, getUsage())) return;
 
         switch (args[0].toLowerCase()) {

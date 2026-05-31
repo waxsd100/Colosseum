@@ -8,7 +8,6 @@ import io.wax100.arenaCore.manager.RegionManager;
 import io.wax100.arenaCore.model.ArenaSession;
 import io.wax100.arenaCore.model.ArenaState;
 import io.wax100.arenaCore.util.ArenaMessages;
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -49,10 +48,10 @@ public class RegionSubCommand implements SubCommand {
 
         ChatColor teamColor = session.getTeamColor(teamName);
 
-        handleBet(sender, player, session, regionManager, teamName, teamColor);
+        handleSetRegion(sender, player, session, regionManager, teamName, teamColor);
     }
 
-    private void handleBet(CommandSender sender, Player player, ArenaSession session,
+    private void handleSetRegion(CommandSender sender, Player player, ArenaSession session,
                            RegionManager regionManager, String teamName, ChatColor teamColor) {
         if (session.getState() != ArenaState.SETUP && session.getState() != ArenaState.BETTING) {
             sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED

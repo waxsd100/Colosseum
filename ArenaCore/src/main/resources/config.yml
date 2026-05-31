@@ -20,12 +20,6 @@ score-target: 0
 # 賭け受付中にオッズを定期表示する間隔（秒, 0 = 無効, 推奨: 15〜60）
 odds-broadcast-interval: 30
 
-# 最低賭け額（チップ枚数）
-min-bet: 1
-
-# 最大賭け額（チップ枚数, 0 = 無制限）
-max-bet: 0
-
 # ── 地形復元 ──
 terrain-restore:
   # 地形復元を有効にするか (WorldEdit 必須)

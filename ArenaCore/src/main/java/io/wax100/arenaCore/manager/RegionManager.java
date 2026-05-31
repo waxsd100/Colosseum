@@ -6,14 +6,10 @@ import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.regions.Region;
 import io.wax100.arenaCore.model.BettingRegion;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.World;
 import org.bukkit.entity.Player;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -112,44 +108,7 @@ public class RegionManager {
         return bettingRegions.get(teamName);
     }
 
-    /**
-     * プレイヤーの WorldEdit 選択範囲内にいるプレイヤーの UUID リストを返す。
-     *
-     * @param selector  選択範囲を持つプレイヤー（管理者）
-     * @return エリア内のプレイヤー UUID リスト
-     */
-    public List<UUID> getPlayersInSelection(Player selector) {
-        List<UUID> players = new ArrayList<>();
-        if (!worldEditAvailable) return players;
 
-        try {
-            com.sk89q.worldedit.entity.Player wePlayer = BukkitAdapter.adapt(selector);
-            Region region = WorldEdit.getInstance().getSessionManager()
-                    .get(wePlayer).getSelection(wePlayer.getWorld());
-
-            BlockVector3 min = region.getMinimumPoint();
-            BlockVector3 max = region.getMaximumPoint();
-            World world = selector.getWorld();
-
-            for (Player p : Bukkit.getOnlinePlayers()) {
-                if (!p.getWorld().equals(world)) continue;
-                Location loc = p.getLocation();
-                int x = loc.getBlockX();
-                int y = loc.getBlockY();
-                int z = loc.getBlockZ();
-                if (x >= min.getX() && x <= max.getX()
-                        && y >= min.getY() && y <= max.getY()
-                        && z >= min.getZ() && z <= max.getZ()) {
-                    players.add(p.getUniqueId());
-                }
-            }
-
-        } catch (IncompleteRegionException e) {
-            // 選択範囲がない場合は空リスト
-        }
-
-        return players;
-    }
 
     /**
      * プリセットロード時にBettingRegionを直接登録する。
