@@ -114,13 +114,16 @@ public class ArenaManager {
 
         int teamsWithMembers = 0;
         for (String team : activeSession.getTeamNames()) {
-            if (activeSession.isMobTeam(team)) {
-                // Mobチームは待機場にMobが実際にいる場合のみカウント
-                TeamAreaConfig config = activeSession.getTeamAreaConfig(team);
-                if (config != null && !config.scanEntities().isEmpty()) {
-                    teamsWithMembers++;
-                }
-            } else if (activeSession.getTeamSize(team) > 0) {
+            // プレイヤーメンバーがいればカウント
+            if (activeSession.getTeamSize(team) > 0) {
+                teamsWithMembers++;
+                continue;
+            }
+            // プレイヤーがいなくても、待機場にMobがいればカウント
+            TeamAreaConfig config = activeSession.getTeamAreaConfig(team);
+            if (config != null && !config.scanEntities().isEmpty()) {
+                // 自動でMobチームとしてマーク
+                activeSession.markAsMobTeam(team);
                 teamsWithMembers++;
             }
         }
