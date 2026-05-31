@@ -54,6 +54,56 @@ public class StatusSubCommand implements SubCommand {
                     + ChatColor.GRAY + " (" + label + ")"
                     + " | 賭け: " + ChatColor.WHITE + ChipManager.formatAmount(session.getTeamPool(team)) + " E"
                     + " | スコア: " + ChatColor.WHITE + session.getScore(team));
+
+            // 待機場情報
+            io.wax100.arenaCore.model.TeamAreaConfig areaConfig = session.getTeamAreaConfig(team);
+            if (areaConfig != null) {
+                StringBuilder areaInfo = new StringBuilder();
+                areaInfo.append(ChatColor.GRAY).append("    待機場: ");
+
+                if (session.isMobTeam(team)) {
+                    List<org.bukkit.entity.LivingEntity> mobs = areaConfig.scanEntities();
+                    areaInfo.append(ChatColor.WHITE).append(mobs.size()).append("体");
+                    if (!mobs.isEmpty()) {
+                        areaInfo.append(ChatColor.GRAY).append(" (");
+                        java.util.Map<String, Integer> typeCounts = new java.util.LinkedHashMap<>();
+                        for (org.bukkit.entity.LivingEntity mob : mobs) {
+                            typeCounts.merge(mob.getName(), 1, Integer::sum);
+                        }
+                        boolean first = true;
+                        for (var entry : typeCounts.entrySet()) {
+                            if (!first) areaInfo.append(", ");
+                            areaInfo.append(entry.getKey());
+                            if (entry.getValue() > 1) areaInfo.append("x").append(entry.getValue());
+                            first = false;
+                        }
+                        areaInfo.append(")");
+                    }
+                } else {
+                    List<org.bukkit.entity.Player> players = areaConfig.scanPlayers();
+                    areaInfo.append(ChatColor.WHITE).append(players.size()).append("人");
+                    if (!players.isEmpty()) {
+                        areaInfo.append(ChatColor.GRAY).append(" (");
+                        for (int j = 0; j < players.size(); j++) {
+                            if (j > 0) areaInfo.append(", ");
+                            areaInfo.append(players.get(j).getName());
+                        }
+                        areaInfo.append(")");
+                    }
+                }
+
+                // TP先
+                org.bukkit.Location dest = areaConfig.getDestination();
+                if (dest != null) {
+                    areaInfo.append(ChatColor.GREEN).append(" TP✔");
+                } else {
+                    areaInfo.append(ChatColor.RED).append(" TP✘");
+                }
+
+                sender.sendMessage(areaInfo.toString());
+            } else {
+                sender.sendMessage(ChatColor.GRAY + "    待機場: " + ChatColor.RED + "未設定");
+            }
         }
     }
 
