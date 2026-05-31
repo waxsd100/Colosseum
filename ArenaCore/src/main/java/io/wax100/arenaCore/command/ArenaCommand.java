@@ -72,7 +72,7 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
 
     private void sendUsage(CommandSender sender) {
         sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "使い方:");
-        sender.sendMessage(ChatColor.YELLOW + "  /arena create <名前> [チーム...]");
+        sender.sendMessage(ChatColor.YELLOW + "  /arena create <名前>");
         sender.sendMessage(ChatColor.YELLOW + "  /arena team add <チーム名>" + ChatColor.GRAY + " <- チーム追加");
         sender.sendMessage(ChatColor.YELLOW + "  /arena team list");
         sender.sendMessage(ChatColor.YELLOW + "  /arena team area <チーム> [待機場名]" + ChatColor.GRAY + " <- 待機場設定/リンク");
@@ -82,7 +82,7 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "  /arena mob dest <チーム名>" + ChatColor.GRAY + " <- 現在地をMobのTP先に");
         sender.sendMessage(ChatColor.YELLOW + "  /arena area save/list/delete/info" + ChatColor.GRAY + " <- 待機場管理");
         sender.sendMessage(ChatColor.YELLOW + "  /arena region <チーム名>" + ChatColor.GRAY + " <- WE選択範囲を賭けエリアに");
-        sender.sendMessage(ChatColor.YELLOW + "  /arena field set" + ChatColor.GRAY + " <- WE選択範囲を戦闘エリアに");
+        sender.sendMessage(ChatColor.YELLOW + "  /arena field set [名前]" + ChatColor.GRAY + " <- 戦闘エリア設定");
         sender.sendMessage(ChatColor.YELLOW + "  /arena field save/load/list/delete" + ChatColor.GRAY + " <- 戦闘エリア管理");
         sender.sendMessage(ChatColor.YELLOW + "  /arena preset save/load/list/delete" + ChatColor.GRAY + " <- プリセット管理");
         sender.sendMessage(ChatColor.YELLOW + "  /arena open" + ChatColor.GRAY + " <- 賭け受付開始");
