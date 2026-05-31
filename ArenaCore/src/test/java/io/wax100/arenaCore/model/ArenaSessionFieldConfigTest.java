@@ -48,7 +48,7 @@ class ArenaSessionFieldConfigTest {
         @Test
         @DisplayName("設定した値が取得できる")
         void setAndGet() {
-            ArenaFieldConfig field = new ArenaFieldConfig("world", 0, 0, 0, 100, 64, 100);
+            ArenaFieldConfig field = ArenaFieldConfig.of("world", 0, 0, 0, 100, 64, 100);
             session.setFieldConfig(field);
             assertSame(field, session.getFieldConfig());
         }
@@ -56,8 +56,8 @@ class ArenaSessionFieldConfigTest {
         @Test
         @DisplayName("異なる設定で上書きできる")
         void overwrite() {
-            ArenaFieldConfig first = new ArenaFieldConfig("world", 0, 0, 0, 10, 10, 10);
-            ArenaFieldConfig second = new ArenaFieldConfig("world", -50, 0, -50, 50, 100, 50);
+            ArenaFieldConfig first = ArenaFieldConfig.of("world", 0, 0, 0, 10, 10, 10);
+            ArenaFieldConfig second = ArenaFieldConfig.of("world", -50, 0, -50, 50, 100, 50);
             session.setFieldConfig(first);
             session.setFieldConfig(second);
             assertSame(second, session.getFieldConfig());
@@ -66,7 +66,7 @@ class ArenaSessionFieldConfigTest {
         @Test
         @DisplayName("nullを設定してリセットできる")
         void setNull_resetsToNull() {
-            session.setFieldConfig(new ArenaFieldConfig("world", 0, 0, 0, 10, 10, 10));
+            session.setFieldConfig(ArenaFieldConfig.of("world", 0, 0, 0, 10, 10, 10));
             session.setFieldConfig(null);
             assertNull(session.getFieldConfig());
         }
@@ -83,7 +83,7 @@ class ArenaSessionFieldConfigTest {
         @Test
         @DisplayName("clearAllData後にfieldConfigがnullになる")
         void clearAllData_resetsFieldConfig() {
-            session.setFieldConfig(new ArenaFieldConfig("world", 0, 0, 0, 100, 64, 100));
+            session.setFieldConfig(ArenaFieldConfig.of("world", 0, 0, 0, 100, 64, 100));
 
             // clearAllDataを呼ぶにはFINISHED状態が必要
             session.setState(ArenaState.BETTING);
@@ -106,7 +106,7 @@ class ArenaSessionFieldConfigTest {
         @Test
         @DisplayName("fieldConfigは他のセッションデータと独立している")
         void fieldConfig_independentOfOtherData() {
-            ArenaFieldConfig field = new ArenaFieldConfig("world", 0, 0, 0, 50, 50, 50);
+            ArenaFieldConfig field = ArenaFieldConfig.of("world", 0, 0, 0, 50, 50, 50);
             session.setFieldConfig(field);
 
             // チーム操作がfieldConfigに影響しない
@@ -119,7 +119,7 @@ class ArenaSessionFieldConfigTest {
         @Test
         @DisplayName("同じArenaFieldConfigを複数セッションに設定できる")
         void sameConfig_onMultipleSessions() {
-            ArenaFieldConfig field = new ArenaFieldConfig("world", 0, 0, 0, 100, 64, 100);
+            ArenaFieldConfig field = ArenaFieldConfig.of("world", 0, 0, 0, 100, 64, 100);
 
             ArenaSession session2 = new ArenaSession("Arena2", TWO_TEAMS);
             session.setFieldConfig(field);

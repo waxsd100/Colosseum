@@ -19,7 +19,7 @@ class ArenaFieldConfigTest {
     @BeforeEach
     void setUp() {
         // (10, 20, 30) → (50, 80, 70) の範囲
-        config = new ArenaFieldConfig(WORLD_NAME, 10, 20, 30, 50, 80, 70);
+        config = ArenaFieldConfig.of(WORLD_NAME, 10, 20, 30, 50, 80, 70);
     }
 
     // ========================================================================
@@ -40,21 +40,21 @@ class ArenaFieldConfigTest {
         @DisplayName("座標が逆順でもmin/maxが自動計算される")
         void autoSwapMinMax() {
             // 大→小の順で渡す
-            ArenaFieldConfig reversed = new ArenaFieldConfig(WORLD_NAME, 50, 80, 70, 10, 20, 30);
-            assertEquals(10, reversed.getMinX());
-            assertEquals(20, reversed.getMinY());
-            assertEquals(30, reversed.getMinZ());
-            assertEquals(50, reversed.getMaxX());
-            assertEquals(80, reversed.getMaxY());
-            assertEquals(70, reversed.getMaxZ());
+            ArenaFieldConfig reversed = ArenaFieldConfig.of(WORLD_NAME, 50, 80, 70, 10, 20, 30);
+            assertEquals(10, reversed.minX());
+            assertEquals(20, reversed.minY());
+            assertEquals(30, reversed.minZ());
+            assertEquals(50, reversed.maxX());
+            assertEquals(80, reversed.maxY());
+            assertEquals(70, reversed.maxZ());
         }
 
         @Test
         @DisplayName("同一座標で1x1x1が作られる")
         void samePoint_creates1x1x1() {
-            ArenaFieldConfig single = new ArenaFieldConfig(WORLD_NAME, 5, 5, 5, 5, 5, 5);
-            assertEquals(5, single.getMinX());
-            assertEquals(5, single.getMaxX());
+            ArenaFieldConfig single = ArenaFieldConfig.of(WORLD_NAME, 5, 5, 5, 5, 5, 5);
+            assertEquals(5, single.minX());
+            assertEquals(5, single.maxX());
             assertEquals(1L, single.getBlockCount());
         }
 
@@ -62,7 +62,7 @@ class ArenaFieldConfigTest {
         @DisplayName("nullのワールド名でNPEが発生する")
         void nullWorldName_throwsNPE() {
             assertThrows(NullPointerException.class,
-                    () -> new ArenaFieldConfig(null, 0, 0, 0, 1, 1, 1));
+                    () -> ArenaFieldConfig.of(null, 0, 0, 0, 1, 1, 1));
         }
     }
 
@@ -77,23 +77,23 @@ class ArenaFieldConfigTest {
         @Test
         @DisplayName("ワールド名が正しく返される")
         void worldName() {
-            assertEquals(WORLD_NAME, config.getWorldName());
+            assertEquals(WORLD_NAME, config.worldName());
         }
 
         @Test
         @DisplayName("min座標が正しく返される")
         void minCoords() {
-            assertEquals(10, config.getMinX());
-            assertEquals(20, config.getMinY());
-            assertEquals(30, config.getMinZ());
+            assertEquals(10, config.minX());
+            assertEquals(20, config.minY());
+            assertEquals(30, config.minZ());
         }
 
         @Test
         @DisplayName("max座標が正しく返される")
         void maxCoords() {
-            assertEquals(50, config.getMaxX());
-            assertEquals(80, config.getMaxY());
-            assertEquals(70, config.getMaxZ());
+            assertEquals(50, config.maxX());
+            assertEquals(80, config.maxY());
+            assertEquals(70, config.maxZ());
         }
     }
 
@@ -179,7 +179,7 @@ class ArenaFieldConfigTest {
         @Test
         @DisplayName("1x1x1の場合は1を返す")
         void singleBlock_returnsOne() {
-            ArenaFieldConfig single = new ArenaFieldConfig(WORLD_NAME, 0, 0, 0, 0, 0, 0);
+            ArenaFieldConfig single = ArenaFieldConfig.of(WORLD_NAME, 0, 0, 0, 0, 0, 0);
             assertEquals(1L, single.getBlockCount());
         }
 
@@ -187,7 +187,7 @@ class ArenaFieldConfigTest {
         @DisplayName("大きなエリアでもオーバーフローしない（long）")
         void largeArea_noOverflow() {
             // 2001 * 321 * 2001 = 1,285,282,321 (int範囲内だがlongで正確)
-            ArenaFieldConfig large = new ArenaFieldConfig(WORLD_NAME,
+            ArenaFieldConfig large = ArenaFieldConfig.of(WORLD_NAME,
                     -1000, 0, -1000, 1000, 320, 1000);
             long expected = 2001L * 321L * 2001L;
             assertEquals(expected, large.getBlockCount());
@@ -205,7 +205,7 @@ class ArenaFieldConfigTest {
         @Test
         @DisplayName("同一パラメータで等しい")
         void sameParams_areEqual() {
-            ArenaFieldConfig other = new ArenaFieldConfig(WORLD_NAME, 10, 20, 30, 50, 80, 70);
+            ArenaFieldConfig other = ArenaFieldConfig.of(WORLD_NAME, 10, 20, 30, 50, 80, 70);
             assertEquals(config, other);
             assertEquals(config.hashCode(), other.hashCode());
         }
@@ -213,21 +213,21 @@ class ArenaFieldConfigTest {
         @Test
         @DisplayName("座標が逆順でも結果的に等しい")
         void reversedParams_areEqual() {
-            ArenaFieldConfig reversed = new ArenaFieldConfig(WORLD_NAME, 50, 80, 70, 10, 20, 30);
+            ArenaFieldConfig reversed = ArenaFieldConfig.of(WORLD_NAME, 50, 80, 70, 10, 20, 30);
             assertEquals(config, reversed);
         }
 
         @Test
         @DisplayName("座標が異なると等しくない")
         void differentCoords_notEqual() {
-            ArenaFieldConfig other = new ArenaFieldConfig(WORLD_NAME, 10, 20, 30, 50, 80, 71);
+            ArenaFieldConfig other = ArenaFieldConfig.of(WORLD_NAME, 10, 20, 30, 50, 80, 71);
             assertNotEquals(config, other);
         }
 
         @Test
         @DisplayName("ワールドが異なると等しくない")
         void differentWorld_notEqual() {
-            ArenaFieldConfig other = new ArenaFieldConfig("nether", 10, 20, 30, 50, 80, 70);
+            ArenaFieldConfig other = ArenaFieldConfig.of("nether", 10, 20, 30, 50, 80, 70);
             assertNotEquals(config, other);
         }
 

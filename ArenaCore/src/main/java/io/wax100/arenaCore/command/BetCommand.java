@@ -74,19 +74,19 @@ public class BetCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        ChatColor teamColor = session.getTeamColor(bet.getTeamName());
+        ChatColor teamColor = session.getTeamColor(bet.teamName());
         double houseEdge = plugin.getConfig().getDouble("house-edge", 0.1);
-        double odds = plugin.getPayoutStrategy().calculateOdds(session, bet.getTeamName(), houseEdge);
+        double odds = plugin.getPayoutStrategy().calculateOdds(session, bet.teamName(), houseEdge);
 
         player.sendMessage(ChatColor.DARK_RED.toString() + ChatColor.BOLD + "═══ あなたの賭け情報 ═══");
         player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "賭け先: "
-                + teamColor + ChatColor.BOLD + bet.getTeamName());
+                + teamColor + ChatColor.BOLD + bet.teamName());
         player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "賭け金: "
-                + ChatColor.YELLOW + ChipManager.formatAmount(bet.getAmount()) + " E");
+                + ChatColor.YELLOW + ChipManager.formatAmount(bet.amount()) + " E");
 
         if (odds > 0) {
-            long expectedPayout = (long) (bet.getAmount() * odds);
-            long expectedProfit = expectedPayout - bet.getAmount();
+            long expectedPayout = (long) (bet.amount() * odds);
+            long expectedProfit = expectedPayout - bet.amount();
             player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "現在のオッズ: "
                     + ChatColor.YELLOW + String.format("%.2f倍", odds));
             player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "予想配当: "

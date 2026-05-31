@@ -71,9 +71,9 @@ public class ArenaPresetStore {
         // field
         ArenaFieldConfig fieldConfig = session.getFieldConfig();
         if (fieldConfig != null) {
-            yaml.set("field.world", fieldConfig.getWorldName());
-            yaml.set("field.min", List.of(fieldConfig.getMinX(), fieldConfig.getMinY(), fieldConfig.getMinZ()));
-            yaml.set("field.max", List.of(fieldConfig.getMaxX(), fieldConfig.getMaxY(), fieldConfig.getMaxZ()));
+            yaml.set("field.world", fieldConfig.worldName());
+            yaml.set("field.min", List.of(fieldConfig.minX(), fieldConfig.minY(), fieldConfig.minZ()));
+            yaml.set("field.max", List.of(fieldConfig.maxX(), fieldConfig.maxY(), fieldConfig.maxZ()));
         }
 
         // team-areas
@@ -82,9 +82,9 @@ public class ArenaPresetStore {
             if (config == null) continue;
 
             String basePath = "team-areas." + team;
-            yaml.set(basePath + ".world", config.getWorldName());
-            yaml.set(basePath + ".min", List.of(config.getMinX(), config.getMinY(), config.getMinZ()));
-            yaml.set(basePath + ".max", List.of(config.getMaxX(), config.getMaxY(), config.getMaxZ()));
+            yaml.set(basePath + ".world", config.worldName());
+            yaml.set(basePath + ".min", List.of(config.minX(), config.minY(), config.minZ()));
+            yaml.set(basePath + ".max", List.of(config.maxX(), config.maxY(), config.maxZ()));
 
             Location dest = config.getDestination();
             if (dest != null && dest.getWorld() != null) {
@@ -104,9 +104,9 @@ public class ArenaPresetStore {
             if (region == null) continue;
 
             String basePath = "betting-regions." + team;
-            yaml.set(basePath + ".world", region.getWorldName());
-            yaml.set(basePath + ".min", List.of(region.getMinX(), region.getMinY(), region.getMinZ()));
-            yaml.set(basePath + ".max", List.of(region.getMaxX(), region.getMaxY(), region.getMaxZ()));
+            yaml.set(basePath + ".world", region.worldName());
+            yaml.set(basePath + ".min", List.of(region.minX(), region.minY(), region.minZ()));
+            yaml.set(basePath + ".max", List.of(region.maxX(), region.maxY(), region.maxZ()));
         }
 
         // team-colors
@@ -161,7 +161,7 @@ public class ArenaPresetStore {
             List<Integer> min = fieldSec.getIntegerList("min");
             List<Integer> max = fieldSec.getIntegerList("max");
             if (worldName != null && min.size() == 3 && max.size() == 3) {
-                fieldConfig = new ArenaFieldConfig(worldName,
+                fieldConfig = ArenaFieldConfig.of(worldName,
                         min.get(0), min.get(1), min.get(2),
                         max.get(0), max.get(1), max.get(2));
             }
@@ -218,7 +218,7 @@ public class ArenaPresetStore {
                 List<Integer> max = regionSec.getIntegerList("max");
                 if (worldName == null || min.size() != 3 || max.size() != 3) continue;
 
-                bettingRegions.put(team, new BettingRegion(team, worldName,
+                bettingRegions.put(team, BettingRegion.of(team, worldName,
                         min.get(0), min.get(1), min.get(2),
                         max.get(0), max.get(1), max.get(2)));
             }

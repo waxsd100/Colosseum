@@ -142,11 +142,11 @@ public class AreaSubCommand implements SubCommand {
 
         sender.sendMessage(ArenaMessages.SEPARATOR);
         sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GOLD + "待機場情報: " + ChatColor.WHITE + name);
-        sender.sendMessage(ChatColor.GRAY + "  ワールド: " + ChatColor.WHITE + config.getWorldName());
+        sender.sendMessage(ChatColor.GRAY + "  ワールド: " + ChatColor.WHITE + config.worldName());
         sender.sendMessage(ChatColor.GRAY + "  範囲: " + ChatColor.WHITE
-                + "(" + config.getMinX() + ", " + config.getMinY() + ", " + config.getMinZ() + ")"
+                + "(" + config.minX() + ", " + config.minY() + ", " + config.minZ() + ")"
                 + ChatColor.GRAY + " → " + ChatColor.WHITE
-                + "(" + config.getMaxX() + ", " + config.getMaxY() + ", " + config.getMaxZ() + ")");
+                + "(" + config.maxX() + ", " + config.maxY() + ", " + config.maxZ() + ")");
 
         Location dest = config.getDestination();
         if (dest != null && dest.getWorld() != null) {

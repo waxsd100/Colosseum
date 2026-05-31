@@ -82,7 +82,7 @@ public class BettingManager {
                 + ChatColor.YELLOW + ChipManager.formatAmount(chipValue) + " E"
                 + ChatColor.GREEN + " を賭けました！"
                 + ChatColor.GRAY + " (合計: "
-                + ChipManager.formatAmount(session.getBet(player.getUniqueId()).getAmount()) + " E)");
+                + ChipManager.formatAmount(session.getBet(player.getUniqueId()).amount()) + " E)");
 
         return true;
     }
@@ -100,7 +100,7 @@ public class BettingManager {
         if (chipInfo == null) return false;
 
         // 自分の賭けのみ取消可能
-        if (!chipInfo.getPlayerId().equals(player.getUniqueId())) return false;
+        if (!chipInfo.playerId().equals(player.getUniqueId())) return false;
 
         session.removePlacedChip(location);
 
@@ -110,9 +110,9 @@ public class BettingManager {
         // 賭け金額の更新（減算）
         Bet bet = session.getBet(player.getUniqueId());
         if (bet != null) {
-            bet.addAmount(-chipInfo.getChipValue());
+            bet.addAmount(-chipInfo.chipValue());
             // 金額が0以下になった場合は賭け自体を削除
-            if (bet.getAmount() <= 0) {
+            if (bet.amount() <= 0) {
                 session.removeBet(player.getUniqueId());
             }
         }
@@ -121,7 +121,7 @@ public class BettingManager {
         playChipBreakEffect(location);
 
         player.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
-                + "賭けを " + ChipManager.formatAmount(chipInfo.getChipValue())
+                + "賭けを " + ChipManager.formatAmount(chipInfo.chipValue())
                 + " E 分取り消しました。");
 
         return true;
@@ -215,7 +215,7 @@ public class BettingManager {
 
                 Bet playerBet = session.getBet(playerId);
                 if (playerBet == null) continue;
-                long originalBet = playerBet.getAmount();
+                long originalBet = playerBet.amount();
                 long profit = payout - originalBet;
 
                 player.sendMessage("");
@@ -243,13 +243,13 @@ public class BettingManager {
 
         // 負けた人への通知
         for (Bet bet : session.getBets().values()) {
-            if (!bet.getTeamName().equals(winningTeam)) {
-                Player player = Bukkit.getPlayer(bet.getPlayerId());
+            if (!bet.teamName().equals(winningTeam)) {
+                Player player = Bukkit.getPlayer(bet.playerId());
                 if (player != null && player.isOnline()) {
                     player.sendMessage("");
                     player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
                             + "残念… 賭け金 " + ChatColor.YELLOW
-                            + ChipManager.formatAmount(bet.getAmount()) + " E"
+                            + ChipManager.formatAmount(bet.amount()) + " E"
                             + ChatColor.RED + " は没収されました。");
                     player.sendMessage("");
                 }
@@ -275,11 +275,11 @@ public class BettingManager {
 
         // 賭け者に返金（チップとして）
         for (Bet bet : session.getBets().values()) {
-            if (bet.getAmount() <= 0) continue;
+            if (bet.amount() <= 0) continue;
 
-            Player player = Bukkit.getPlayer(bet.getPlayerId());
+            Player player = Bukkit.getPlayer(bet.playerId());
             if (player != null && player.isOnline()) {
-                Map<Chip, Integer> chips = chipManager.breakdownAmount(bet.getAmount());
+                Map<Chip, Integer> chips = chipManager.breakdownAmount(bet.amount());
                 int slotsNeeded = chipManager.calculateSlotsNeeded(chips);
                 int emptySlots = chipManager.countEmptySlots(player);
 
@@ -287,7 +287,7 @@ public class BettingManager {
 
                 player.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
                         + "賭け金 " + ChatColor.WHITE
-                        + ChipManager.formatAmount(bet.getAmount()) + " E"
+                        + ChipManager.formatAmount(bet.amount()) + " E"
                         + ChatColor.YELLOW + " をチップで返金しました。");
 
                 if (emptySlots < slotsNeeded) {
@@ -297,13 +297,13 @@ public class BettingManager {
             } else {
                 // オフラインプレイヤーへの返金: Vault経由
                 plugin.getLogger().warning("オフラインプレイヤーへの返金をVault経由で実行: "
-                        + bet.getPlayerId() + " / " + bet.getAmount() + " E");
-                org.bukkit.OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(bet.getPlayerId());
+                        + bet.playerId() + " / " + bet.amount() + " E");
+                org.bukkit.OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(bet.playerId());
                 if (plugin.getEconomy() != null) {
-                    plugin.getEconomy().depositPlayer(offlinePlayer, bet.getAmount());
+                    plugin.getEconomy().depositPlayer(offlinePlayer, bet.amount());
                 } else {
                     plugin.getLogger().severe("Vault経済APIが利用不可: オフラインプレイヤー "
-                            + bet.getPlayerId() + " への返金 " + bet.getAmount() + " E が喪失しました");
+                            + bet.playerId() + " への返金 " + bet.amount() + " E が喪失しました");
                 }
             }
         }

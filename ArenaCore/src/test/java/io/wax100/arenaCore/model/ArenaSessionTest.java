@@ -370,9 +370,9 @@ class ArenaSessionTest {
 
             Bet bet = session.getBet(player);
             assertNotNull(bet);
-            assertEquals(player, bet.getPlayerId());
-            assertEquals(TEAM_RED, bet.getTeamName());
-            assertEquals(100L, bet.getAmount());
+            assertEquals(player, bet.playerId());
+            assertEquals(TEAM_RED, bet.teamName());
+            assertEquals(100L, bet.amount());
         }
 
         @Test
@@ -383,8 +383,8 @@ class ArenaSessionTest {
             session.addOrUpdateBet(player, TEAM_RED, 50L);
 
             Bet bet = session.getBet(player);
-            assertEquals(150L, bet.getAmount());
-            assertEquals(TEAM_RED, bet.getTeamName());
+            assertEquals(150L, bet.amount());
+            assertEquals(TEAM_RED, bet.teamName());
         }
 
         @Test
@@ -397,8 +397,8 @@ class ArenaSessionTest {
 
             // 既存の賭けは変更されていないことを確認
             Bet bet = session.getBet(player);
-            assertEquals(TEAM_RED, bet.getTeamName());
-            assertEquals(100L, bet.getAmount());
+            assertEquals(TEAM_RED, bet.teamName());
+            assertEquals(100L, bet.amount());
         }
 
         @Test
@@ -410,8 +410,8 @@ class ArenaSessionTest {
             session.addOrUpdateBet(player, TEAM_RED, 50L);
 
             Bet bet = session.getBet(player);
-            assertEquals(TEAM_RED, bet.getTeamName());
-            assertEquals(350L, bet.getAmount());
+            assertEquals(TEAM_RED, bet.teamName());
+            assertEquals(350L, bet.amount());
         }
 
         @Test
@@ -422,8 +422,8 @@ class ArenaSessionTest {
             session.addOrUpdateBet(p1, TEAM_RED, 100L);
             session.addOrUpdateBet(p2, TEAM_BLUE, 200L);
 
-            assertEquals(100L, session.getBet(p1).getAmount());
-            assertEquals(200L, session.getBet(p2).getAmount());
+            assertEquals(100L, session.getBet(p1).amount());
+            assertEquals(200L, session.getBet(p2).amount());
         }
     }
 
@@ -464,7 +464,7 @@ class ArenaSessionTest {
             session.addOrUpdateBet(player, TEAM_RED, 500L);
             Bet bet = session.getBet(player);
             assertNotNull(bet);
-            assertEquals(500L, bet.getAmount());
+            assertEquals(500L, bet.amount());
         }
     }
 
@@ -760,9 +760,9 @@ class ArenaSessionTest {
             ArenaSession.PlacedChipInfo info =
                     new ArenaSession.PlacedChipInfo(player, TEAM_RED, 500L, Material.AIR);
 
-            assertEquals(player, info.getPlayerId());
-            assertEquals(TEAM_RED, info.getTeamName());
-            assertEquals(500L, info.getChipValue());
+            assertEquals(player, info.playerId());
+            assertEquals(TEAM_RED, info.teamName());
+            assertEquals(500L, info.chipValue());
         }
 
         @Test
@@ -770,7 +770,7 @@ class ArenaSessionTest {
         void zeroChipValue_isValid() {
             ArenaSession.PlacedChipInfo info =
                     new ArenaSession.PlacedChipInfo(UUID.randomUUID(), TEAM_BLUE, 0L, Material.AIR);
-            assertEquals(0L, info.getChipValue());
+            assertEquals(0L, info.chipValue());
         }
 
         @Test
@@ -779,7 +779,7 @@ class ArenaSessionTest {
             long largeValue = Long.MAX_VALUE;
             ArenaSession.PlacedChipInfo info =
                     new ArenaSession.PlacedChipInfo(UUID.randomUUID(), TEAM_RED, largeValue, Material.AIR);
-            assertEquals(largeValue, info.getChipValue());
+            assertEquals(largeValue, info.chipValue());
         }
     }
 

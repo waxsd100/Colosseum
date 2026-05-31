@@ -95,7 +95,7 @@ class ArenaPresetStoreTest {
         @Test
         @DisplayName("保存したプリセットを正しくロードできる")
         void saveAndLoad_roundTrip() {
-            ArenaFieldConfig field = new ArenaFieldConfig("world", 0, 0, 0, 100, 64, 100);
+            ArenaFieldConfig field = ArenaFieldConfig.of("world", 0, 0, 0, 100, 64, 100);
             ArenaSession session = mockSession("test_arena", field);
             RegionManager rm = mockRegionManager();
 
@@ -113,24 +113,24 @@ class ArenaPresetStoreTest {
             // field
             ArenaFieldConfig loadedField = data.fieldConfig();
             assertNotNull(loadedField);
-            assertEquals("world", loadedField.getWorldName());
-            assertEquals(0, loadedField.getMinX());
-            assertEquals(0, loadedField.getMinY());
-            assertEquals(0, loadedField.getMinZ());
-            assertEquals(100, loadedField.getMaxX());
-            assertEquals(64, loadedField.getMaxY());
-            assertEquals(100, loadedField.getMaxZ());
+            assertEquals("world", loadedField.worldName());
+            assertEquals(0, loadedField.minX());
+            assertEquals(0, loadedField.minY());
+            assertEquals(0, loadedField.minZ());
+            assertEquals(100, loadedField.maxX());
+            assertEquals(64, loadedField.maxY());
+            assertEquals(100, loadedField.maxZ());
 
             // team-areas（Redのみ設定済み）
             TeamAreaConfig redArea = data.teamAreaConfigs().get("Red");
             assertNotNull(redArea);
-            assertEquals("world", redArea.getWorldName());
-            assertEquals(10, redArea.getMinX());
-            assertEquals(0, redArea.getMinY());
-            assertEquals(10, redArea.getMinZ());
-            assertEquals(20, redArea.getMaxX());
-            assertEquals(5, redArea.getMaxY());
-            assertEquals(20, redArea.getMaxZ());
+            assertEquals("world", redArea.worldName());
+            assertEquals(10, redArea.minX());
+            assertEquals(0, redArea.minY());
+            assertEquals(10, redArea.minZ());
+            assertEquals(20, redArea.maxX());
+            assertEquals(5, redArea.maxY());
+            assertEquals(20, redArea.maxZ());
             assertNull(data.teamAreaConfigs().get("Blue"));
         }
 

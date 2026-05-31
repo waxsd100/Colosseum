@@ -152,7 +152,7 @@ public class TerrainManager {
         World bukkitWorld = field.getWorld();
         if (bukkitWorld == null) {
             plugin.getLogger().severe("ワールドが見つかりません: "
-                    + field.getWorldName());
+                    + field.worldName());
             return;
         }
         com.sk89q.worldedit.world.World weWorld =
@@ -274,7 +274,7 @@ public class TerrainManager {
         }.runTaskTimer(plugin, 1L, 1L);
 
         // .active マーカーファイル作成
-        writeActiveMarker(sessionName, fieldConfig.getWorldName());
+        writeActiveMarker(sessionName, fieldConfig.worldName());
 
         Bukkit.broadcastMessage(ArenaMessages.MSG_TERRAIN_TRACKING);
     }
@@ -382,7 +382,7 @@ public class TerrainManager {
      */
     void onFlushComplete() {
         // Stage 3: Schematic ペースト（差分ゼロ保証）
-        pasteSchematic(sessionName, fieldConfig.getWorldName());
+        pasteSchematic(sessionName, fieldConfig.worldName());
 
         // .active マーカー削除
         deleteActiveMarker(sessionName);

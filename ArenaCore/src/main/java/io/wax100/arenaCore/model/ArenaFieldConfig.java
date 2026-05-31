@@ -10,21 +10,36 @@ import org.bukkit.World;
 import java.util.Objects;
 
 /**
- * 戦闘エリアの軸平行境界ボックス（AABB）を保持する設定クラス。
+ * 戦闘エリアの軸平行境界ボックス（AABB）を保持する設定レコード。
  *
  * <p>フィールド範囲内のブロック変更を地形復元の対象とするために使用する。
  * WorldEdit の {@link CuboidRegion} への変換もサポートする。
+ *
+ * <p>インスタンスは {@link #of(String, int, int, int, int, int, int)} で生成する。
+ *
+ * @param worldName ワールド名
+ * @param minX      最小 X
+ * @param minY      最小 Y
+ * @param minZ      最小 Z
+ * @param maxX      最大 X
+ * @param maxY      最大 Y
+ * @param maxZ      最大 Z
  */
-public class ArenaFieldConfig {
-
-    private final String worldName;
-    private final int minX, minY, minZ;
-    private final int maxX, maxY, maxZ;
+public record ArenaFieldConfig(
+        String worldName,
+        int minX, int minY, int minZ,
+        int maxX, int maxY, int maxZ
+) {
 
     /**
-     * 戦闘エリアを指定して作成する。
-     *
-     * <p>2点の座標から最小・最大を自動計算する。
+     * 正規化済みの値でレコードを生成する（コンパクトコンストラクタ）。
+     */
+    public ArenaFieldConfig {
+        Objects.requireNonNull(worldName, "worldName must not be null");
+    }
+
+    /**
+     * 2点の座標から最小・最大を自動計算してインスタンスを生成する。
      *
      * @param worldName ワールド名（null不可）
      * @param x1        第1点 X
@@ -33,18 +48,14 @@ public class ArenaFieldConfig {
      * @param x2        第2点 X
      * @param y2        第2点 Y
      * @param z2        第2点 Z
-     * @throws NullPointerException worldName が null の場合
+     * @return 正規化済みの ArenaFieldConfig
      */
-    public ArenaFieldConfig(String worldName,
-                            int x1, int y1, int z1,
-                            int x2, int y2, int z2) {
-        this.worldName = Objects.requireNonNull(worldName, "worldName must not be null");
-        this.minX = Math.min(x1, x2);
-        this.minY = Math.min(y1, y2);
-        this.minZ = Math.min(z1, z2);
-        this.maxX = Math.max(x1, x2);
-        this.maxY = Math.max(y1, y2);
-        this.maxZ = Math.max(z1, z2);
+    public static ArenaFieldConfig of(String worldName,
+                                      int x1, int y1, int z1,
+                                      int x2, int y2, int z2) {
+        return new ArenaFieldConfig(worldName,
+                Math.min(x1, x2), Math.min(y1, y2), Math.min(z1, z2),
+                Math.max(x1, x2), Math.max(y1, y2), Math.max(z1, z2));
     }
 
     /**
@@ -95,28 +106,6 @@ public class ArenaFieldConfig {
      */
     public long getBlockCount() {
         return (long) (maxX - minX + 1) * (maxY - minY + 1) * (maxZ - minZ + 1);
-    }
-
-    public String getWorldName() { return worldName; }
-    public int getMinX() { return minX; }
-    public int getMinY() { return minY; }
-    public int getMinZ() { return minZ; }
-    public int getMaxX() { return maxX; }
-    public int getMaxY() { return maxY; }
-    public int getMaxZ() { return maxZ; }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof ArenaFieldConfig that)) return false;
-        return minX == that.minX && minY == that.minY && minZ == that.minZ
-                && maxX == that.maxX && maxY == that.maxY && maxZ == that.maxZ
-                && worldName.equals(that.worldName);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(worldName, minX, minY, minZ, maxX, maxY, maxZ);
     }
 
     @Override

@@ -84,10 +84,10 @@ public class ArenaBettingListener implements Listener {
 
         // 既に別のチームに賭けている場合
         io.wax100.arenaCore.model.Bet existingBet = session.getBet(player.getUniqueId());
-        if (existingBet != null && !existingBet.getTeamName().equals(teamName)) {
+        if (existingBet != null && !existingBet.teamName().equals(teamName)) {
             event.setCancelled(true);
             player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
-                    + "既に " + existingBet.getTeamName() + " に賭けています。"
+                    + "既に " + existingBet.teamName() + " に賭けています。"
                     + " 別のチームには賭けられません。");
             return;
         }
@@ -126,7 +126,7 @@ public class ArenaBettingListener implements Listener {
 
         // 賭け受付中: 自分のチップのみ回収可能
         if (session.getState() == ArenaState.BETTING) {
-            if (!chipInfo.getPlayerId().equals(player.getUniqueId())) {
+            if (!chipInfo.playerId().equals(player.getUniqueId())) {
                 event.setCancelled(true);
                 player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "他人の賭けカーペットは回収できません。");
                 return;

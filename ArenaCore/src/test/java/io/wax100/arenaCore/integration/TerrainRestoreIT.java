@@ -101,7 +101,7 @@ class TerrainRestoreIT {
 
     private ArenaSession createSessionWithField() {
         ArenaSession session = new ArenaSession("ITArena", List.of("Red", "Blue"));
-        session.setFieldConfig(new ArenaFieldConfig("world", 0, 0, 0, 10, 10, 10));
+        session.setFieldConfig(ArenaFieldConfig.of("world", 0, 0, 0, 10, 10, 10));
         return session;
     }
 
@@ -338,7 +338,7 @@ class TerrainRestoreIT {
 
             // 2回目
             ArenaSession session2 = new ArenaSession("Arena2", List.of("A", "B"));
-            session2.setFieldConfig(new ArenaFieldConfig("world", -10, 0, -10, 10, 20, 10));
+            session2.setFieldConfig(ArenaFieldConfig.of("world", -10, 0, -10, 10, 20, 10));
             terrainManager.startTracking(session2);
             assertTrue(terrainManager.isBlocking());
             terrainManager.cancelAndClear();

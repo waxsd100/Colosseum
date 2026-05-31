@@ -61,7 +61,7 @@ public class RegionManager {
             BlockVector3 max = region.getMaximumPoint();
             String worldName = player.getWorld().getName();
 
-            BettingRegion bettingRegion = new BettingRegion(teamName, worldName,
+            BettingRegion bettingRegion = BettingRegion.of(teamName, worldName,
                     min.getX(), min.getY(), min.getZ(),
                     max.getX(), max.getY(), max.getZ());
 
@@ -82,7 +82,7 @@ public class RegionManager {
     public String getTeamForLocation(Location location) {
         for (BettingRegion region : bettingRegions.values()) {
             if (region.contains(location)) {
-                return region.getTeamName();
+                return region.teamName();
             }
         }
         return null;

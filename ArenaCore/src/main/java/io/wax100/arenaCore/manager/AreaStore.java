@@ -50,9 +50,9 @@ public class AreaStore {
 
         YamlConfiguration yaml = new YamlConfiguration();
         yaml.set("name", name);
-        yaml.set("world", config.getWorldName());
-        yaml.set("min", List.of(config.getMinX(), config.getMinY(), config.getMinZ()));
-        yaml.set("max", List.of(config.getMaxX(), config.getMaxY(), config.getMaxZ()));
+        yaml.set("world", config.worldName());
+        yaml.set("min", List.of(config.minX(), config.minY(), config.minZ()));
+        yaml.set("max", List.of(config.maxX(), config.maxY(), config.maxZ()));
 
         // destination (nullable)
         Location dest = config.getDestination();

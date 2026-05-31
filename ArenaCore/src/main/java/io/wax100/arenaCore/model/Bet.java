@@ -33,10 +33,10 @@ public class Bet {
         this.lockedOdds = 0.0;
     }
 
-    public UUID getPlayerId() { return playerId; }
-    public String getTeamName() { return teamName; }
-    public long getAmount() { return amount; }
-    public double getLockedOdds() { return lockedOdds; }
+    public UUID playerId() { return playerId; }
+    public String teamName() { return teamName; }
+    public long amount() { return amount; }
+    public double lockedOdds() { return lockedOdds; }
 
     /**
      * 賭け金額を加算する。

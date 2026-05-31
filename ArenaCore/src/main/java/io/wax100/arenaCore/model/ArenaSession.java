@@ -246,12 +246,12 @@ public class ArenaSession {
         Objects.requireNonNull(playerId, "playerId must not be null");
         Objects.requireNonNull(teamName, "teamName must not be null");
         Bet existing = bets.get(playerId);
-        if (existing != null && existing.getTeamName().equals(teamName)) {
+        if (existing != null && existing.teamName().equals(teamName)) {
             existing.addAmount(amount);
         } else if (existing != null) {
             // 別チームへの賭け変更は許可しない（チップ追跡整合性のため）
             throw new IllegalStateException(
-                    "既に「" + existing.getTeamName() + "」に賭けています。"
+                    "既に「" + existing.teamName() + "」に賭けています。"
                     + "別チームに賭ける場合は、先に既存の賭けを取り消してください。");
         } else {
             bets.put(playerId, new Bet(playerId, teamName, amount));
@@ -262,8 +262,8 @@ public class ArenaSession {
     public long getTeamPool(String teamName) {
         long total = 0;
         for (Bet bet : bets.values()) {
-            if (bet.getTeamName().equals(teamName)) {
-                total = Math.addExact(total, bet.getAmount());
+            if (bet.teamName().equals(teamName)) {
+                total = Math.addExact(total, bet.amount());
             }
         }
         return total;
@@ -273,7 +273,7 @@ public class ArenaSession {
     public long getTotalPool() {
         long total = 0;
         for (Bet bet : bets.values()) {
-            total = Math.addExact(total, bet.getAmount());
+            total = Math.addExact(total, bet.amount());
         }
         return total;
     }
@@ -532,16 +532,16 @@ public class ArenaSession {
             this.originalBlock = originalBlock;
         }
 
-        public UUID getPlayerId() { return playerId; }
-        public String getTeamName() { return teamName; }
-        public long getChipValue() { return chipValue; }
+        public UUID playerId() { return playerId; }
+        public String teamName() { return teamName; }
+        public long chipValue() { return chipValue; }
 
         /**
          * カーペット設置前の元ブロック素材を返す。
          *
          * @return 元ブロック素材。{@code null} の場合は {@link Material#AIR} として扱うこと。
          */
-        public Material getOriginalBlock() { return originalBlock; }
+        public Material originalBlock() { return originalBlock; }
 
         /**
          * 元ブロック素材を返す（null安全版）。

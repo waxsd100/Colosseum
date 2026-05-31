@@ -136,9 +136,9 @@ public class FieldSubCommand implements SubCommand {
         }
 
         sender.sendMessage(String.format(ArenaMessages.MSG_FIELD_INFO_FMT,
-                field.getWorldName(),
-                field.getMinX(), field.getMinY(), field.getMinZ(),
-                field.getMaxX(), field.getMaxY(), field.getMaxZ(),
+                field.worldName(),
+                field.minX(), field.minY(), field.minZ(),
+                field.maxX(), field.maxY(), field.maxZ(),
                 field.getBlockCount()));
     }
 
@@ -264,7 +264,7 @@ public class FieldSubCommand implements SubCommand {
             ArenaFieldConfig config = store.load(name);
             if (config != null) {
                 sender.sendMessage("  " + ChatColor.YELLOW + name
-                        + ChatColor.GRAY + " (" + config.getWorldName()
+                        + ChatColor.GRAY + " (" + config.worldName()
                         + ", " + config.getBlockCount() + "ブロック)");
             } else {
                 sender.sendMessage("  " + ChatColor.YELLOW + name);

@@ -79,7 +79,7 @@ class PresetLifecycleIT {
         assertNotNull(session);
 
         // フィールド設定
-        session.setFieldConfig(new ArenaFieldConfig("world", -50, 0, -50, 50, 100, 50));
+        session.setFieldConfig(ArenaFieldConfig.of("world", -50, 0, -50, 50, 100, 50));
 
         // 待機場設定（Warriors のみ）
         session.setTeamAreaConfig("Warriors",
@@ -145,29 +145,29 @@ class PresetLifecycleIT {
             // フィールド
             ArenaFieldConfig field = restored.getFieldConfig();
             assertNotNull(field);
-            assertEquals("world", field.getWorldName());
-            assertEquals(-50, field.getMinX());
-            assertEquals(0, field.getMinY());
-            assertEquals(-50, field.getMinZ());
-            assertEquals(50, field.getMaxX());
-            assertEquals(100, field.getMaxY());
-            assertEquals(50, field.getMaxZ());
+            assertEquals("world", field.worldName());
+            assertEquals(-50, field.minX());
+            assertEquals(0, field.minY());
+            assertEquals(-50, field.minZ());
+            assertEquals(50, field.maxX());
+            assertEquals(100, field.maxY());
+            assertEquals(50, field.maxZ());
 
             // 待機場 (Warriors)
             TeamAreaConfig warriorsArea = restored.getTeamAreaConfig("Warriors");
             assertNotNull(warriorsArea);
-            assertEquals("world", warriorsArea.getWorldName());
-            assertEquals(-100, warriorsArea.getMinX());
-            assertEquals(60, warriorsArea.getMinY());
-            assertEquals(-100, warriorsArea.getMinZ());
-            assertEquals(-80, warriorsArea.getMaxX());
-            assertEquals(70, warriorsArea.getMaxY());
-            assertEquals(-80, warriorsArea.getMaxZ());
+            assertEquals("world", warriorsArea.worldName());
+            assertEquals(-100, warriorsArea.minX());
+            assertEquals(60, warriorsArea.minY());
+            assertEquals(-100, warriorsArea.minZ());
+            assertEquals(-80, warriorsArea.maxX());
+            assertEquals(70, warriorsArea.maxY());
+            assertEquals(-80, warriorsArea.maxZ());
 
             // 待機場 (Monsters)
             TeamAreaConfig monstersArea = restored.getTeamAreaConfig("Monsters");
             assertNotNull(monstersArea);
-            assertEquals(80, monstersArea.getMinX());
+            assertEquals(80, monstersArea.minX());
         }
     }
 
@@ -185,9 +185,9 @@ class PresetLifecycleIT {
             ArenaSession session = createConfiguredSession();
 
             // BettingRegion 登録
-            BettingRegion warRegion = new BettingRegion(
+            BettingRegion warRegion = BettingRegion.of(
                     "Warriors", "world", -30, 60, -30, -20, 65, -20);
-            BettingRegion monRegion = new BettingRegion(
+            BettingRegion monRegion = BettingRegion.of(
                     "Monsters", "world", 20, 60, 20, 30, 65, 30);
             regionManager.registerBettingRegion("Warriors", warRegion);
             regionManager.registerBettingRegion("Monsters", monRegion);
@@ -212,9 +212,9 @@ class PresetLifecycleIT {
 
             BettingRegion loadedWarRegion = newRegionManager.getBettingRegion("Warriors");
             assertNotNull(loadedWarRegion);
-            assertEquals("world", loadedWarRegion.getWorldName());
-            assertEquals(-30, loadedWarRegion.getMinX());
-            assertEquals(60, loadedWarRegion.getMinY());
+            assertEquals("world", loadedWarRegion.worldName());
+            assertEquals(-30, loadedWarRegion.minX());
+            assertEquals(60, loadedWarRegion.minY());
         }
     }
 
@@ -252,13 +252,13 @@ class PresetLifecycleIT {
             presetStore.save("Colosseum", session, regionManager);
 
             // fieldConfig を変更して再保存
-            session.setFieldConfig(new ArenaFieldConfig("world", 0, 0, 0, 200, 200, 200));
+            session.setFieldConfig(ArenaFieldConfig.of("world", 0, 0, 0, 200, 200, 200));
             presetStore.save("Colosseum", session, regionManager);
 
             PresetData data = presetStore.load("Colosseum");
             assertNotNull(data);
-            assertEquals(200, data.fieldConfig().getMaxX());
-            assertEquals(200, data.fieldConfig().getMaxY());
+            assertEquals(200, data.fieldConfig().maxX());
+            assertEquals(200, data.fieldConfig().maxY());
         }
 
         @Test
@@ -323,7 +323,7 @@ class PresetLifecycleIT {
                 assertNotNull(session);
 
                 session.setFieldConfig(
-                        new ArenaFieldConfig("world", i * 100, 0, 0, i * 100 + 50, 64, 50));
+                        ArenaFieldConfig.of("world", i * 100, 0, 0, i * 100 + 50, 64, 50));
                 presetStore.save("Arena" + i, session, rm);
             }
 
@@ -336,7 +336,7 @@ class PresetLifecycleIT {
 
                 ArenaFieldConfig field = data.fieldConfig();
                 assertNotNull(field);
-                assertEquals(i * 100, field.getMinX());
+                assertEquals(i * 100, field.minX());
             }
 
             // 一覧検証

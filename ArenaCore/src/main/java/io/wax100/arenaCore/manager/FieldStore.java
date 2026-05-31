@@ -48,9 +48,9 @@ public class FieldStore {
 
         YamlConfiguration yaml = new YamlConfiguration();
         yaml.set("name", name);
-        yaml.set("world", config.getWorldName());
-        yaml.set("min", List.of(config.getMinX(), config.getMinY(), config.getMinZ()));
-        yaml.set("max", List.of(config.getMaxX(), config.getMaxY(), config.getMaxZ()));
+        yaml.set("world", config.worldName());
+        yaml.set("min", List.of(config.minX(), config.minY(), config.minZ()));
+        yaml.set("max", List.of(config.maxX(), config.maxY(), config.maxZ()));
 
         File file = new File(fieldsDir, name + ".yml");
         try {
@@ -83,7 +83,7 @@ public class FieldStore {
         List<Integer> max = yaml.getIntegerList("max");
         if (worldName == null || min.size() != 3 || max.size() != 3) return null;
 
-        return new ArenaFieldConfig(worldName,
+        return ArenaFieldConfig.of(worldName,
                 min.get(0), min.get(1), min.get(2),
                 max.get(0), max.get(1), max.get(2));
     }

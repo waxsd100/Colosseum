@@ -122,13 +122,13 @@ public class TeamAreaConfig {
         this.destination = destination != null ? destination.clone() : null;
     }
 
-    public String getWorldName() { return worldName; }
-    public int getMinX() { return minX; }
-    public int getMinY() { return minY; }
-    public int getMinZ() { return minZ; }
-    public int getMaxX() { return maxX; }
-    public int getMaxY() { return maxY; }
-    public int getMaxZ() { return maxZ; }
+    public String worldName() { return worldName; }
+    public int minX() { return minX; }
+    public int minY() { return minY; }
+    public int minZ() { return minZ; }
+    public int maxX() { return maxX; }
+    public int maxY() { return maxY; }
+    public int maxZ() { return maxZ; }
 
     @Override
     public boolean equals(Object o) {
