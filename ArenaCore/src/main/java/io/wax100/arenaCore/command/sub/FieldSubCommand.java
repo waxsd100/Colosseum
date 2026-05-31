@@ -29,7 +29,7 @@ import java.util.List;
  */
 public class FieldSubCommand implements SubCommand {
 
-    private static final List<String> SUB_COMMANDS = Arrays.asList("set", "info", "save", "load", "list", "delete");
+    private static final List<String> SUB_COMMANDS = Arrays.asList("set", "info", "save", "list", "delete");
     private static final int FIELD_SIZE_WARNING = 500_000;
 
     private final ArenaCore plugin;
@@ -46,7 +46,6 @@ public class FieldSubCommand implements SubCommand {
             case "set"    -> handleSet(sender, args);
             case "info"   -> handleInfo(sender);
             case "save"   -> handleSave(sender, args);
-            case "load"   -> handleLoad(sender, args);
             case "list"   -> handleFieldList(sender);
             case "delete" -> handleDelete(sender, args);
             default -> sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "使い方: " + getUsage());
@@ -203,47 +202,6 @@ public class FieldSubCommand implements SubCommand {
         sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GREEN
                 + "戦闘エリア「" + ChatColor.YELLOW + saveName + ChatColor.GREEN
                 + "」を保存しました。");
-    }
-
-    // ── load (読込) ──
-
-    private void handleLoad(CommandSender sender, String[] args) {
-        if (!CommandHelper.requireArgs(sender, args, 2,
-                "/arena field load <名前>")) return;
-
-        ArenaManager manager = plugin.getArenaManager();
-        ArenaSession session = CommandHelper.requireSessionInState(
-                sender, manager, ArenaState.SETUP, ArenaMessages.MSG_SETUP_ONLY);
-        if (session == null) return;
-
-        String loadName = args[1];
-        FieldStore store = plugin.getFieldStore();
-        ArenaFieldConfig fieldConfig = store.load(loadName);
-        if (fieldConfig == null) {
-            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
-                    + "戦闘エリア「" + loadName + "」が見つかりません。");
-            return;
-        }
-
-        session.setFieldConfig(fieldConfig);
-
-        // Schematic ファイルをコピー: fields/<名前>.schem → arenas/<セッション名>.schem
-        File srcSchem = store.getFieldFile(loadName);
-        File dstSchem = new File(plugin.getDataFolder(), "arenas/" + session.getName() + ".schem");
-        if (srcSchem.exists()) {
-            try {
-                dstSchem.getParentFile().mkdirs();
-                Files.copy(srcSchem.toPath(), dstSchem.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            } catch (IOException e) {
-                sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
-                        + "Schematic コピー失敗: " + e.getMessage());
-                return;
-            }
-        }
-
-        sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GREEN
-                + "戦闘エリア「" + ChatColor.YELLOW + loadName + ChatColor.GREEN
-                + "」を読み込みました。");
     }
 
     // ── list (一覧) ──
