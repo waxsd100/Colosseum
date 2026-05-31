@@ -173,21 +173,4 @@ public final class CommandHelper {
         if (!manager.hasActiveSession()) return List.of();
         return filterStartsWith(manager.getActiveSession().getTeamNames(), input);
     }
-
-    /**
-     * オンラインプレイヤー名の補完候補を取得する。
-     *
-     * @param input ユーザ入力
-     * @return フィルタ済みプレイヤー名リスト
-     */
-    public static List<String> getOnlinePlayerNames(String input) {
-        List<String> result = new ArrayList<>();
-        String lower = input.toLowerCase();
-        for (Player p : org.bukkit.Bukkit.getOnlinePlayers()) {
-            if (p.getName().toLowerCase().startsWith(lower)) {
-                result.add(p.getName());
-            }
-        }
-        return result;
-    }
 }

@@ -130,7 +130,7 @@ public class FieldSubCommand implements SubCommand {
         }
         if (args.length == 2) {
             String sub = args[0].toLowerCase();
-            if ("load".equals(sub) || "delete".equals(sub)) {
+            if ("load".equals(sub) || "delete".equals(sub) || "save".equals(sub)) {
                 // 保存済み戦闘エリア名の補完
                 return CommandHelper.filterStartsWith(
                         plugin.getFieldStore().list(), args[1]);
@@ -171,6 +171,11 @@ public class FieldSubCommand implements SubCommand {
                         + "Schematic コピー失敗: " + e.getMessage());
                 return;
             }
+        } else {
+            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                    + "⚠ Schematic ファイルが見つかりません。地形復元は利用できません。");
+            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY
+                    + "先に /arena field set で戦闘エリアを設定してください。");
         }
 
         sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GREEN

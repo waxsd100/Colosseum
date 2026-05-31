@@ -86,6 +86,9 @@ public class PresetSubCommand implements SubCommand {
         }
 
         sender.sendMessage(ArenaMessages.MSG_PRESET_LOADED + ChatColor.WHITE + name);
+        sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY
+                + "→ " + ChatColor.YELLOW + "/arena status" + ChatColor.GRAY + " で設定確認  "
+                + ChatColor.YELLOW + "/arena open" + ChatColor.GRAY + " で賭け受付開始");
     }
 
     // ── list ──
@@ -129,7 +132,7 @@ public class PresetSubCommand implements SubCommand {
         }
         if (args.length == 2) {
             String sub = args[0].toLowerCase();
-            if ("load".equals(sub) || "delete".equals(sub)) {
+            if ("load".equals(sub) || "delete".equals(sub) || "save".equals(sub)) {
                 return CommandHelper.filterStartsWith(plugin.getPresetStore().list(), args[1]);
             }
         }

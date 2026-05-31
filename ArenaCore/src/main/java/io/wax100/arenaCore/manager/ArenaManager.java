@@ -94,6 +94,9 @@ public class ArenaManager {
         for (var entry : data.bettingRegions().entrySet()) {
             regionManager.registerBettingRegion(entry.getKey(), entry.getValue());
         }
+        for (var colorEntry : data.teamColors().entrySet()) {
+            session.setTeamColor(colorEntry.getKey(), colorEntry.getValue());
+        }
         return session;
     }
 
@@ -141,6 +144,23 @@ public class ArenaManager {
             }
         }
         if (teamsWithMembers < 2) return false;
+
+        // 設定漏れ警告
+        for (String team : activeSession.getTeamNames()) {
+            TeamAreaConfig areaConfig = activeSession.getTeamAreaConfig(team);
+            ChatColor teamColor = activeSession.getTeamColor(team);
+            if (areaConfig == null) {
+                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                        + "⚠ " + teamColor + team + ChatColor.YELLOW + " の待機場が未設定です。");
+            } else if (areaConfig.getDestination() == null) {
+                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                        + "⚠ " + teamColor + team + ChatColor.YELLOW + " のTP先が未設定です。");
+            }
+        }
+        if (activeSession.getFieldConfig() == null) {
+            Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                    + "⚠ 戦闘エリアが未設定です。地形復元が行われません。");
+        }
 
         // カスタムイベント発火（キャンセル可能）
         ArenaBettingOpenEvent openEvent = new ArenaBettingOpenEvent(activeSession);
@@ -308,25 +328,27 @@ public class ArenaManager {
         Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
         Bukkit.broadcastMessage("");
 
-        bettingManager.calculateAndDistributePayout(activeSession, winningTeam);
+        try {
+            bettingManager.calculateAndDistributePayout(activeSession, winningTeam);
 
-        // 地形復元開始（非同期。TerrainManager が sessionName/fieldConfig を独自保持するため、
-        // この後の activeSession=null でも問題ない）
-        terrainManager.finishAndFlush();
+            // 地形復元開始（非同期。TerrainManager が sessionName/fieldConfig を独自保持するため、
+            // この後の activeSession=null でも問題ない）
+            terrainManager.finishAndFlush();
 
-        // カスタムイベント発火（情報通知）
-        Bukkit.getPluginManager().callEvent(new ArenaWinnerDeclaredEvent(activeSession, winningTeam));
+            // カスタムイベント発火（情報通知）
+            Bukkit.getPluginManager().callEvent(new ArenaWinnerDeclaredEvent(activeSession, winningTeam));
 
-        // バニラ Scoreboard Team を解除
-        unregisterScoreboardTeams();
-
-        // 残存Mobをワールドから削除
-        cleanupMobs();
-
-        activeSession.clearAllData();
-        activeSession = null;
-        eliminatedPlayers.clear();
-        regionManager.clearRegions();
+            // 残存Mobをワールドから削除
+            cleanupMobs();
+        } finally {
+            // バニラ Scoreboard Team を解除
+            unregisterScoreboardTeams();
+            removeTrackedMobs();
+            activeSession.clearAllData();
+            activeSession = null;
+            eliminatedPlayers.clear();
+            regionManager.clearRegions();
+        }
 
         return true;
     }
@@ -339,43 +361,45 @@ public class ArenaManager {
         plugin.getLogger().warning("闘技場セッションがキャンセルされました: " + activeSession.getName());
         stopOddsBroadcast();
 
-        bettingManager.refundAll(activeSession);
+        try {
+            bettingManager.refundAll(activeSession);
 
-        // 地形復元開始
-        terrainManager.finishAndFlush();
+            // 地形復元開始
+            terrainManager.finishAndFlush();
 
-        long entryFee = plugin.getConfig().getLong("entry-fee", 0);
-        if (entryFee > 0) {
-            Economy economy = plugin.getEconomy();
-            if (economy != null) {
-                for (String team : activeSession.getTeamNames()) {
-                    if (activeSession.isMobTeam(team)) continue; // Mobチームは参加費不要
-                    for (UUID playerId : activeSession.getTeamMembers(team)) {
-                        // オフラインプレイヤーにも返金するため OfflinePlayer を使用
-                        org.bukkit.OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerId);
-                        economy.depositPlayer(offlinePlayer, entryFee);
+            long entryFee = plugin.getConfig().getLong("entry-fee", 0);
+            if (entryFee > 0) {
+                Economy economy = plugin.getEconomy();
+                if (economy != null) {
+                    for (String team : activeSession.getTeamNames()) {
+                        if (activeSession.isMobTeam(team)) continue; // Mobチームは参加費不要
+                        for (UUID playerId : activeSession.getTeamMembers(team)) {
+                            // オフラインプレイヤーにも返金するため OfflinePlayer を使用
+                            org.bukkit.OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerId);
+                            economy.depositPlayer(offlinePlayer, entryFee);
 
-                        Player onlinePlayer = Bukkit.getPlayer(playerId);
-                        if (onlinePlayer != null && onlinePlayer.isOnline()) {
-                            onlinePlayer.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
-                                    + "参加費 " + ChipManager.formatAmount(entryFee) + " E を返金しました。");
+                            Player onlinePlayer = Bukkit.getPlayer(playerId);
+                            if (onlinePlayer != null && onlinePlayer.isOnline()) {
+                                onlinePlayer.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                                        + "参加費 " + ChipManager.formatAmount(entryFee) + " E を返金しました。");
+                            }
                         }
                     }
                 }
             }
+
+            // スポーン済みモンスターを削除
+            cleanupMobs();
+        } finally {
+            // バニラ Scoreboard Team を解除
+            unregisterScoreboardTeams();
+            removeTrackedMobs();
+            activeSession.setState(ArenaState.FINISHED);
+            activeSession.clearAllData();
+            activeSession = null;
+            eliminatedPlayers.clear();
+            regionManager.clearRegions();
         }
-
-        // スポーン済みモンスターを削除
-        cleanupMobs();
-
-        // バニラ Scoreboard Team を解除
-        unregisterScoreboardTeams();
-
-        activeSession.setState(ArenaState.FINISHED);
-        activeSession.clearAllData();
-        activeSession = null;
-        eliminatedPlayers.clear();
-        regionManager.clearRegions();
 
         return true;
     }
@@ -491,6 +515,27 @@ public class ArenaManager {
                     entity.remove();
                 }
             }
+        }
+    }
+
+    /**
+     * トラッキング中のモンスターを安全に除去する（finally 用）。
+     *
+     * <p>cleanupMobs() が正常完了しなかった場合の安全策として、
+     * 残存エンティティの除去を試みる。個別の例外は握りつぶしてログ出力のみ行う。
+     */
+    private void removeTrackedMobs() {
+        if (activeSession == null) return;
+        try {
+            for (World world : Bukkit.getWorlds()) {
+                for (Entity entity : world.getEntities()) {
+                    if (activeSession.getMobTeam(entity.getUniqueId()) != null) {
+                        entity.remove();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("トラッキングMob除去中にエラーが発生しました: " + e.getMessage());
         }
     }
 

@@ -233,7 +233,7 @@ class PresetLifecycleIT {
 
             PresetData data = new PresetData("Another",
                     List.of("C", "D"), Set.of(), null,
-                    Map.of(), Map.of());
+                    Map.of(), Map.of(), Map.of());
 
             ArenaSession result = arenaManager.createFromPreset(data);
             assertNull(result);

@@ -72,6 +72,9 @@ public class TeamSubCommand implements SubCommand {
         Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GREEN
                 + "チーム " + teamColor + ChatColor.BOLD + teamName
                 + ChatColor.RESET + ChatColor.GREEN + " が追加されました！");
+        sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY
+                + "→ " + ChatColor.YELLOW + "/arena team area " + teamName + " [待機場名]"
+                + ChatColor.GRAY + " で待機場を設定");
     }
 
     // ── list ──
@@ -241,7 +244,7 @@ public class TeamSubCommand implements SubCommand {
         // 装飾コード（BOLD, ITALIC等）は弾く
         if (!chatColor.isColor()) {
             sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
-                    + chatColor.name() + " は装飾コードです。色を指定してください。");
+                    + chatColor.name().toLowerCase() + " は装飾コードです。色を指定してください。");
             sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY
                     + "使用可能: " + getAvailableColors());
             return;
@@ -250,7 +253,7 @@ public class TeamSubCommand implements SubCommand {
         session.setTeamColor(teamName, chatColor);
         sender.sendMessage(ArenaMessages.PREFIX + chatColor + ChatColor.BOLD + teamName
                 + ChatColor.RESET + ChatColor.GREEN + " のチームカラーを "
-                + chatColor + chatColor.name() + ChatColor.GREEN + " に設定しました。");
+                + chatColor + chatColor.name().toLowerCase() + ChatColor.GREEN + " に設定しました。");
     }
 
     private static String getAvailableColors() {
@@ -258,7 +261,7 @@ public class TeamSubCommand implements SubCommand {
         for (ChatColor c : ChatColor.values()) {
             if (c.isColor()) {
                 if (sb.length() > 0) sb.append(ChatColor.GRAY + ", ");
-                sb.append(c).append(c.name());
+                sb.append(c).append(c.name().toLowerCase());
             }
         }
         return sb.toString();

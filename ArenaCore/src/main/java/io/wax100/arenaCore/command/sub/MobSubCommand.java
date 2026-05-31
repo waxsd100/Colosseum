@@ -18,7 +18,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * {@code /arena mob <チーム名> <area|dest|list>} を処理する。
+ * {@code /arena mob <area|dest|list> <チーム名> [待機場名]} を処理する。
  */
 public class MobSubCommand implements SubCommand {
 
@@ -32,39 +32,56 @@ public class MobSubCommand implements SubCommand {
 
     @Override
     public void execute(CommandSender sender, String[] args) {
-        // args: [teamName, sub, ...]
-        if (!CommandHelper.requireArgs(sender, args, 2, getUsage())) return;
+        // args: [sub, teamName, ...]  例: ["area", "チーム名", "待機場名"]
+        if (!CommandHelper.requireArgs(sender, args, 1, getUsage())) return;
 
-        String teamName = args[0];
-        switch (args[1].toLowerCase()) {
-            case "area" -> handleArea(sender, teamName);
-            case "dest" -> handleDest(sender, teamName);
-            case "list" -> handleList(sender, teamName);
+        switch (args[0].toLowerCase()) {
+            case "area" -> handleArea(sender, args);
+            case "dest" -> handleDest(sender, args);
+            case "list" -> handleList(sender, args);
             default -> sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "使い方: " + getUsage());
         }
     }
 
     // ── area (Mob待機場設定) ──
 
-    private void handleArea(CommandSender sender, String teamName) {
-        Player player = CommandHelper.requirePlayer(sender);
-        if (player == null) return;
+    private void handleArea(CommandSender sender, String[] args) {
+        if (!CommandHelper.requireArgs(sender, args, 2,
+                "/arena mob area <チーム名> [待機場名]")) return;
 
+        String teamName = args[1];
         ArenaManager manager = plugin.getArenaManager();
         ArenaSession session = CommandHelper.requireSessionInState(
                 sender, manager, ArenaState.SETUP, ArenaMessages.MSG_SETUP_ONLY);
         if (session == null) return;
         if (!CommandHelper.requireTeamExists(sender, session, teamName)) return;
 
-        if (!plugin.getRegionManager().isWorldEditAvailable()) {
-            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + ArenaMessages.MSG_WE_REQUIRED);
-            return;
-        }
+        TeamAreaConfig newConfig;
 
-        TeamAreaConfig newConfig = CommandHelper.createAreaConfigFromSelection(player);
-        if (newConfig == null) {
-            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + ArenaMessages.MSG_WE_SELECT_FIRST);
-            return;
+        if (args.length >= 3) {
+            // 保存済み待機場名を指定
+            String areaName = args[2];
+            newConfig = plugin.getAreaStore().load(areaName);
+            if (newConfig == null) {
+                sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                        + "待機場「" + areaName + "」が見つかりません。");
+                return;
+            }
+        } else {
+            // WE選択範囲から作成
+            Player player = CommandHelper.requirePlayer(sender);
+            if (player == null) return;
+
+            if (!plugin.getRegionManager().isWorldEditAvailable()) {
+                sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + ArenaMessages.MSG_WE_REQUIRED);
+                return;
+            }
+
+            newConfig = CommandHelper.createAreaConfigFromSelection(player);
+            if (newConfig == null) {
+                sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + ArenaMessages.MSG_WE_SELECT_FIRST);
+                return;
+            }
         }
 
         // 既存の destination を引き継ぎ
@@ -86,10 +103,14 @@ public class MobSubCommand implements SubCommand {
 
     // ── dest (MobTP先設定) ──
 
-    private void handleDest(CommandSender sender, String teamName) {
+    private void handleDest(CommandSender sender, String[] args) {
+        if (!CommandHelper.requireArgs(sender, args, 2,
+                "/arena mob dest <チーム名>")) return;
+
         Player player = CommandHelper.requirePlayer(sender);
         if (player == null) return;
 
+        String teamName = args[1];
         ArenaManager manager = plugin.getArenaManager();
         ArenaSession session = CommandHelper.requireSessionInState(
                 sender, manager, ArenaState.SETUP, ArenaMessages.MSG_SETUP_ONLY);
@@ -99,7 +120,7 @@ public class MobSubCommand implements SubCommand {
         TeamAreaConfig config = session.getTeamAreaConfig(teamName);
         if (config == null) {
             sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
-                    + String.format(ArenaMessages.MSG_AREA_NOT_SET_FMT, "/arena mob " + teamName + " area"));
+                    + String.format(ArenaMessages.MSG_AREA_NOT_SET_FMT, "/arena mob area " + teamName));
             return;
         }
 
@@ -112,7 +133,11 @@ public class MobSubCommand implements SubCommand {
 
     // ── list (Mob一覧) ──
 
-    private void handleList(CommandSender sender, String teamName) {
+    private void handleList(CommandSender sender, String[] args) {
+        if (!CommandHelper.requireArgs(sender, args, 2,
+                "/arena mob list <チーム名>")) return;
+
+        String teamName = args[1];
         ArenaManager manager = plugin.getArenaManager();
         ArenaSession session = CommandHelper.requireActiveSession(sender, manager);
         if (session == null) return;
@@ -147,19 +172,30 @@ public class MobSubCommand implements SubCommand {
 
     @Override
     public List<String> tabComplete(CommandSender sender, String[] args) {
-        // args[0]=teamName, args[1]=sub
+        // args[0]=sub args[1]=teamName args[2]=...
         if (args.length == 1) {
-            return CommandHelper.getTeamNameCandidates(plugin.getArenaManager(), args[0]);
+            return CommandHelper.filterStartsWith(SUB_COMMANDS, args[0]);
         }
         if (args.length == 2) {
-            return CommandHelper.filterStartsWith(SUB_COMMANDS, args[1]);
+            String sub = args[0].toLowerCase();
+            if ("area".equals(sub) || "dest".equals(sub) || "list".equals(sub)) {
+                return CommandHelper.getTeamNameCandidates(plugin.getArenaManager(), args[1]);
+            }
+        }
+        if (args.length == 3) {
+            String sub = args[0].toLowerCase();
+            if ("area".equals(sub)) {
+                // 保存済み待機場名の補完
+                return CommandHelper.filterStartsWith(
+                        plugin.getAreaStore().list(), args[2]);
+            }
         }
         return List.of();
     }
 
     @Override
     public String getUsage() {
-        return "/arena mob <チーム名> <area|dest|list>";
+        return "/arena mob <area|dest|list> <チーム名>";
     }
 
 }

@@ -5,6 +5,7 @@ import io.wax100.arenaCore.model.ArenaSession;
 import io.wax100.arenaCore.model.BettingRegion;
 import io.wax100.arenaCore.model.TeamAreaConfig;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
@@ -106,6 +107,14 @@ public class ArenaPresetStore {
             yaml.set(basePath + ".world", region.getWorldName());
             yaml.set(basePath + ".min", List.of(region.getMinX(), region.getMinY(), region.getMinZ()));
             yaml.set(basePath + ".max", List.of(region.getMaxX(), region.getMaxY(), region.getMaxZ()));
+        }
+
+        // team-colors
+        Map<String, ChatColor> teamColors = session.getTeamColors();
+        if (!teamColors.isEmpty()) {
+            for (Map.Entry<String, ChatColor> entry : teamColors.entrySet()) {
+                yaml.set("team-colors." + entry.getKey(), entry.getValue().name());
+            }
         }
 
         File file = new File(arenasDir, name + ".yml");
@@ -215,8 +224,22 @@ public class ArenaPresetStore {
             }
         }
 
+        // team-colors
+        Map<String, ChatColor> teamColors = new LinkedHashMap<>();
+        ConfigurationSection colorSec = yaml.getConfigurationSection("team-colors");
+        if (colorSec != null) {
+            for (String team : colorSec.getKeys(false)) {
+                try {
+                    ChatColor color = ChatColor.valueOf(colorSec.getString(team));
+                    teamColors.put(team, color);
+                } catch (IllegalArgumentException ignored) {
+                    // 無効な色名はスキップ
+                }
+            }
+        }
+
         return new PresetData(presetName, teamNames, mobTeams,
-                fieldConfig, teamAreaConfigs, bettingRegions);
+                fieldConfig, teamAreaConfigs, bettingRegions, teamColors);
     }
 
     // ══════════════════════════════════════
@@ -275,6 +298,7 @@ public class ArenaPresetStore {
      * @param fieldConfig     戦闘エリア設定（nullable）
      * @param teamAreaConfigs チーム別待機場設定
      * @param bettingRegions  チーム別賭けエリア設定
+     * @param teamColors      チーム別カラー設定
      */
     public record PresetData(
             String name,
@@ -282,6 +306,7 @@ public class ArenaPresetStore {
             Set<String> mobTeams,
             ArenaFieldConfig fieldConfig,
             Map<String, TeamAreaConfig> teamAreaConfigs,
-            Map<String, BettingRegion> bettingRegions
+            Map<String, BettingRegion> bettingRegions,
+            Map<String, ChatColor> teamColors
     ) {}
 }

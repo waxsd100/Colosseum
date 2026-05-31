@@ -16,7 +16,7 @@ import org.bukkit.entity.Player;
 import java.util.List;
 
 /**
- * {@code /arena region bet <チーム名>} を処理する。
+ * {@code /arena region <チーム名>} を処理する。賭けエリアをWE選択範囲で設定する。
  */
 public class RegionSubCommand implements SubCommand {
 
@@ -30,10 +30,10 @@ public class RegionSubCommand implements SubCommand {
 
     @Override
     public void execute(CommandSender sender, String[] args) {
-        // args: [sub, teamName]
+        // args: [teamName] または ["bet", teamName] (後方互換)
         Player player = CommandHelper.requirePlayer(sender);
         if (player == null) return;
-        if (!CommandHelper.requireArgs(sender, args, 2, getUsage())) return;
+        if (!CommandHelper.requireArgs(sender, args, 1, getUsage())) return;
 
         ArenaManager manager = plugin.getArenaManager();
         ArenaSession session = CommandHelper.requireActiveSession(sender, manager);
@@ -45,7 +45,13 @@ public class RegionSubCommand implements SubCommand {
             return;
         }
 
-        String teamName = args[1];
+        // 後方互換: 「/arena region bet <チーム>」も受け付ける
+        String teamName;
+        if (args.length >= 2 && "bet".equalsIgnoreCase(args[0])) {
+            teamName = args[1];
+        } else {
+            teamName = args[0];
+        }
         if (!CommandHelper.requireTeamExists(sender, session, teamName)) return;
 
         ChatColor teamColor = session.getTeamColor(teamName);
@@ -74,7 +80,6 @@ public class RegionSubCommand implements SubCommand {
 
     @Override
     public List<String> tabComplete(CommandSender sender, String[] args) {
-        // args[0]=sub, args[1]=teamName
         if (args.length == 1) {
             return CommandHelper.getTeamNameCandidates(plugin.getArenaManager(), args[0]);
         }
@@ -83,6 +88,6 @@ public class RegionSubCommand implements SubCommand {
 
     @Override
     public String getUsage() {
-        return "/arena region bet <チーム名>";
+        return "/arena region <チーム名>";
     }
 }

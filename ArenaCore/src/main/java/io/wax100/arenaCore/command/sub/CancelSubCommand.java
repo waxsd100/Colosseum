@@ -30,6 +30,9 @@ public class CancelSubCommand implements SubCommand {
             Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED
                     + "闘技場がキャンセルされました。賭け金・参加費は返金されます。");
             Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
+        } else {
+            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                    + "キャンセルに失敗しました。セッションの状態を確認してください。");
         }
     }
 

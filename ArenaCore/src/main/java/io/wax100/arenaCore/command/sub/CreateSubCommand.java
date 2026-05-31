@@ -52,7 +52,14 @@ public class CreateSubCommand implements SubCommand {
 
         ArenaSession session = manager.createArena(name, teamNames);
         if (session == null) {
-            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + ArenaMessages.MSG_SESSION_CREATE_FAILED);
+            if (plugin.getTerrainManager() != null
+                    && plugin.getTerrainManager().isBlocking()) {
+                sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                        + "地形復元中のため、セッションを作成できません。");
+            } else {
+                sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                        + ArenaMessages.MSG_SESSION_CREATE_FAILED);
+            }
             return;
         }
 
@@ -77,6 +84,16 @@ public class CreateSubCommand implements SubCommand {
             Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
                     + "参加費: " + ChatColor.YELLOW + ChipManager.formatAmount(entryFee) + " E");
         }
+        Bukkit.broadcastMessage("");
+        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "次のステップ:");
+        if (teamNames.isEmpty()) {
+            Bukkit.broadcastMessage(ChatColor.GRAY + "  1. " + ChatColor.YELLOW + "/arena team add <チーム名>");
+        }
+        Bukkit.broadcastMessage(ChatColor.GRAY + "  " + (teamNames.isEmpty() ? "2" : "1") + ". "
+                + ChatColor.YELLOW + "/arena team area <チーム> [待機場名]");
+        Bukkit.broadcastMessage(ChatColor.GRAY + "  " + (teamNames.isEmpty() ? "3" : "2") + ". "
+                + ChatColor.YELLOW + "/arena field set" + ChatColor.GRAY + " or "
+                + ChatColor.YELLOW + "/arena field load <名前>");
         Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
     }
 
