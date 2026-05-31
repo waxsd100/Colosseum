@@ -47,16 +47,12 @@ public class ArenaSession {
 
     /**
      * @param name      セッション名（null不可）
-     * @param teamNames チーム名リスト（null不可・空不可）
-     * @throws NullPointerException     name または teamNames が null の場合
-     * @throws IllegalArgumentException teamNames が空の場合
+     * @param teamNames チーム名リスト（null不可・空許容）
+     * @throws NullPointerException name または teamNames が null の場合
      */
     public ArenaSession(String name, List<String> teamNames) {
         this.name = Objects.requireNonNull(name, "name must not be null");
         Objects.requireNonNull(teamNames, "teamNames must not be null");
-        if (teamNames.isEmpty()) {
-            throw new IllegalArgumentException("teamNames must not be empty");
-        }
         this.teamNames = new ArrayList<>(teamNames);
         this.teams = new LinkedHashMap<>();
         this.bets = new HashMap<>();
@@ -69,6 +65,15 @@ public class ArenaSession {
             teams.put(team, new ArrayList<>());
             scores.put(team, 0);
         }
+    }
+
+    /**
+     * チームなしでセッションを作成する。
+     *
+     * @param name セッション名（null不可）
+     */
+    public ArenaSession(String name) {
+        this(name, new ArrayList<>());
     }
 
     // ── 基本情報 ──
@@ -158,6 +163,20 @@ public class ArenaSession {
     }
 
     // ── チーム管理 ──
+
+    /**
+     * チームを追加する。同名チームが存在する場合は false を返す。
+     *
+     * @param teamName チーム名
+     * @return 追加成功時 true
+     */
+    public boolean addTeam(String teamName) {
+        if (teams.containsKey(teamName)) return false;
+        teamNames.add(teamName);
+        teams.put(teamName, new ArrayList<>());
+        scores.put(teamName, 0);
+        return true;
+    }
 
     public boolean hasTeam(String teamName) { return teams.containsKey(teamName); }
 

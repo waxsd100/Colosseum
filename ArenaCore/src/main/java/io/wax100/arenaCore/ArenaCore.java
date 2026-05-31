@@ -6,9 +6,11 @@ import io.wax100.arenaCore.listener.ArenaBettingListener;
 import io.wax100.arenaCore.listener.ArenaFightListener;
 import io.wax100.arenaCore.listener.ArenaTerrainListener;
 import io.wax100.arenaCore.listener.MobAreaProtectionListener;
+import io.wax100.arenaCore.manager.AreaStore;
 import io.wax100.arenaCore.manager.ArenaManager;
 import io.wax100.arenaCore.manager.ArenaPresetStore;
 import io.wax100.arenaCore.manager.BettingManager;
+import io.wax100.arenaCore.manager.FieldStore;
 import io.wax100.arenaCore.manager.RegionManager;
 import io.wax100.arenaCore.manager.TerrainManager;
 import io.wax100.arenaCore.payout.FixedOddsPayout;
@@ -44,6 +46,8 @@ public final class ArenaCore extends JavaPlugin {
     private RegionManager regionManager;
     private TerrainManager terrainManager;
     private ArenaPresetStore presetStore;
+    private AreaStore areaStore;
+    private FieldStore fieldStore;
     private PayoutStrategy payoutStrategy;
     private WinCondition winCondition;
 
@@ -84,6 +88,8 @@ public final class ArenaCore extends JavaPlugin {
         bettingManager = new BettingManager(this);
         terrainManager = new TerrainManager(this);
         presetStore = new ArenaPresetStore(getDataFolder(), getLogger());
+        areaStore = new AreaStore(getDataFolder(), getLogger());
+        fieldStore = new FieldStore(getDataFolder(), getLogger());
         arenaManager = new ArenaManager(this, bettingManager, regionManager, terrainManager);
 
         // コマンド登録
@@ -184,4 +190,6 @@ public final class ArenaCore extends JavaPlugin {
     public WinCondition getWinCondition() { return winCondition; }
     public TerrainManager getTerrainManager() { return terrainManager; }
     public ArenaPresetStore getPresetStore() { return presetStore; }
+    public AreaStore getAreaStore() { return areaStore; }
+    public FieldStore getFieldStore() { return fieldStore; }
 }

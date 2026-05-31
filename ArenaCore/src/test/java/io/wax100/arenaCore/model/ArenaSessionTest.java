@@ -97,11 +97,12 @@ class ArenaSessionTest {
         }
 
         @Test
-        @DisplayName("空のチーム名リストでIllegalArgumentExceptionが発生する")
-        void emptyTeamList_throwsIllegalArgumentException() {
-            // 改善: コンストラクタのバリデーション強化に合わせてテストを更新
-            assertThrows(IllegalArgumentException.class,
-                    () -> new ArenaSession("Empty", Collections.emptyList()));
+        @DisplayName("空のチーム名リストでもセッションを作成できる")
+        void emptyTeamList_createsSession() {
+            ArenaSession session = new ArenaSession("Empty", Collections.emptyList());
+            assertEquals("Empty", session.getName());
+            assertTrue(session.getTeamNames().isEmpty());
+            assertEquals(ArenaState.SETUP, session.getState());
         }
 
         @Test
@@ -116,6 +117,35 @@ class ArenaSessionTest {
         void nullTeamList_throwsNPE() {
             assertThrows(NullPointerException.class,
                     () -> new ArenaSession("test", null));
+        }
+
+        @Test
+        @DisplayName("名前のみのコンストラクタでチーム0個のセッションを作成できる")
+        void nameOnlyConstructor_createsEmptySession() {
+            ArenaSession session = new ArenaSession("Solo");
+            assertEquals("Solo", session.getName());
+            assertTrue(session.getTeamNames().isEmpty());
+            assertEquals(ArenaState.SETUP, session.getState());
+        }
+
+        @Test
+        @DisplayName("addTeamでチームを後から追加できる")
+        void addTeam_addsTeamToSession() {
+            ArenaSession session = new ArenaSession("Dynamic");
+            assertTrue(session.addTeam("Alpha"));
+            assertTrue(session.addTeam("Beta"));
+            assertEquals(2, session.getTeamNames().size());
+            assertTrue(session.hasTeam("Alpha"));
+            assertTrue(session.hasTeam("Beta"));
+        }
+
+        @Test
+        @DisplayName("addTeamで重複チームはfalseを返す")
+        void addTeam_duplicateReturnsFalse() {
+            ArenaSession session = new ArenaSession("Dynamic");
+            assertTrue(session.addTeam("Alpha"));
+            assertFalse(session.addTeam("Alpha"));
+            assertEquals(1, session.getTeamNames().size());
         }
     }
 

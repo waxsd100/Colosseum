@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * {@code /arena create <名前> <チーム1> <チーム2> [チーム3...]} を処理する。
+ * {@code /arena create <名前> [チーム1] [チーム2] [チーム3...]} を処理する。
  */
 public class CreateSubCommand implements SubCommand {
 
@@ -30,7 +30,7 @@ public class CreateSubCommand implements SubCommand {
 
     @Override
     public void execute(CommandSender sender, String[] args) {
-        if (!CommandHelper.requireArgs(sender, args, 3, getUsage())) return;
+        if (!CommandHelper.requireArgs(sender, args, 1, getUsage())) return;
 
         ArenaManager manager = plugin.getArenaManager();
         if (manager.hasActiveSession()) {
@@ -60,9 +60,15 @@ public class CreateSubCommand implements SubCommand {
         Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GOLD + ChatColor.BOLD
                 + "闘技場「" + name + "」が開設されました！");
         Bukkit.broadcastMessage("");
-        for (int i = 0; i < teamNames.size(); i++) {
-            ChatColor color = session.getTeamColor(teamNames.get(i));
-            Bukkit.broadcastMessage(ArenaMessages.PREFIX + "  " + color + "■ " + teamNames.get(i));
+        if (teamNames.isEmpty()) {
+            Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
+                    + "チーム未設定 — " + ChatColor.YELLOW + "/arena team add <チーム名>"
+                    + ChatColor.GRAY + " で追加してください。");
+        } else {
+            for (int i = 0; i < teamNames.size(); i++) {
+                ChatColor color = session.getTeamColor(teamNames.get(i));
+                Bukkit.broadcastMessage(ArenaMessages.PREFIX + "  " + color + "■ " + teamNames.get(i));
+            }
         }
 
         long entryFee = plugin.getConfig().getLong("entry-fee", 0);
@@ -76,6 +82,6 @@ public class CreateSubCommand implements SubCommand {
 
     @Override
     public String getUsage() {
-        return "/arena create <名前> <チーム1> <チーム2> [チーム3...]";
+        return "/arena create <名前> [チーム1] [チーム2] [チーム3...]";
     }
 }

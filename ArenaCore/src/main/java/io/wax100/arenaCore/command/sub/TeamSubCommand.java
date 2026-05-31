@@ -18,14 +18,14 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * {@code /arena team <list|area|dest|color>} を処理する。
+ * {@code /arena team <add|list|area|dest|color>} を処理する。
  *
- * <p>第2階層のサブコマンドとして list/area/dest/color を持つ。
+ * <p>第2階層のサブコマンドとして add/list/area/dest/color を持つ。
  * チームメンバーの登録は待機場による自動登録（{@code /arena start} 時）に一本化されている。
  */
 public class TeamSubCommand implements SubCommand {
 
-    private static final List<String> SUB_COMMANDS = Arrays.asList("list", "area", "dest", "color");
+    private static final List<String> SUB_COMMANDS = Arrays.asList("add", "list", "area", "dest", "color");
 
     private final ArenaCore plugin;
 
@@ -39,6 +39,7 @@ public class TeamSubCommand implements SubCommand {
         if (!CommandHelper.requireArgs(sender, args, 1, getUsage())) return;
 
         switch (args[0].toLowerCase()) {
+            case "add"  -> handleAdd(sender, args);
             case "list" -> handleList(sender);
             case "area" -> handleArea(sender, args);
             case "dest" -> handleDest(sender, args);
@@ -47,6 +48,31 @@ public class TeamSubCommand implements SubCommand {
         }
     }
 
+
+    // ── add (チーム追加) ──
+
+    private void handleAdd(CommandSender sender, String[] args) {
+        if (!CommandHelper.requireArgs(sender, args, 2,
+                "/arena team add <チーム名>")) return;
+
+        ArenaManager manager = plugin.getArenaManager();
+        ArenaSession session = CommandHelper.requireSessionInState(
+                sender, manager, ArenaState.SETUP, ArenaMessages.MSG_SETUP_ONLY);
+        if (session == null) return;
+
+        String teamName = args[1];
+        if (session.hasTeam(teamName)) {
+            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                    + "チーム「" + teamName + "」は既に存在します。");
+            return;
+        }
+
+        session.addTeam(teamName);
+        ChatColor teamColor = session.getTeamColor(teamName);
+        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GREEN
+                + "チーム " + teamColor + ChatColor.BOLD + teamName
+                + ChatColor.RESET + ChatColor.GREEN + " が追加されました！");
+    }
 
     // ── list ──
 
@@ -103,10 +129,7 @@ public class TeamSubCommand implements SubCommand {
 
     private void handleArea(CommandSender sender, String[] args) {
         if (!CommandHelper.requireArgs(sender, args, 2,
-                "/arena team area <チーム名>")) return;
-
-        Player player = CommandHelper.requirePlayer(sender);
-        if (player == null) return;
+                "/arena team area <チーム名> [待機場名]")) return;
 
         String teamName = args[1];
         ArenaManager manager = plugin.getArenaManager();
@@ -115,15 +138,32 @@ public class TeamSubCommand implements SubCommand {
         if (session == null) return;
         if (!CommandHelper.requireTeamExists(sender, session, teamName)) return;
 
-        if (!plugin.getRegionManager().isWorldEditAvailable()) {
-            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + ArenaMessages.MSG_WE_REQUIRED);
-            return;
-        }
+        TeamAreaConfig newConfig;
 
-        TeamAreaConfig newConfig = CommandHelper.createAreaConfigFromSelection(player);
-        if (newConfig == null) {
-            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + ArenaMessages.MSG_WE_SELECT_FIRST);
-            return;
+        if (args.length >= 3) {
+            // 保存済み待機場名を指定
+            String areaName = args[2];
+            newConfig = plugin.getAreaStore().load(areaName);
+            if (newConfig == null) {
+                sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                        + "待機場「" + areaName + "」が見つかりません。");
+                return;
+            }
+        } else {
+            // WE選択範囲から作成
+            Player player = CommandHelper.requirePlayer(sender);
+            if (player == null) return;
+
+            if (!plugin.getRegionManager().isWorldEditAvailable()) {
+                sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + ArenaMessages.MSG_WE_REQUIRED);
+                return;
+            }
+
+            newConfig = CommandHelper.createAreaConfigFromSelection(player);
+            if (newConfig == null) {
+                sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + ArenaMessages.MSG_WE_SELECT_FIRST);
+                return;
+            }
         }
 
         // 既存の destination を引き継ぎ
@@ -228,7 +268,7 @@ public class TeamSubCommand implements SubCommand {
 
     @Override
     public List<String> tabComplete(CommandSender sender, String[] args) {
-        // args[0]=sub args[1]=teamName args[2]=playerName
+        // args[0]=sub args[1]=teamName args[2]=...
         if (args.length == 1) {
             return CommandHelper.filterStartsWith(SUB_COMMANDS, args[0]);
         }
@@ -238,21 +278,29 @@ public class TeamSubCommand implements SubCommand {
                 return CommandHelper.getTeamNameCandidates(plugin.getArenaManager(), args[1]);
             }
         }
-        if (args.length == 3 && "color".equalsIgnoreCase(args[0])) {
-            // 色名の補完
-            return CommandHelper.filterStartsWith(
-                    Arrays.stream(ChatColor.values())
-                            .filter(ChatColor::isColor)
-                            .map(c -> c.name().toLowerCase())
-                            .toList(),
-                    args[2]);
+        if (args.length == 3) {
+            String sub = args[0].toLowerCase();
+            if ("color".equals(sub)) {
+                // 色名の補完
+                return CommandHelper.filterStartsWith(
+                        Arrays.stream(ChatColor.values())
+                                .filter(ChatColor::isColor)
+                                .map(c -> c.name().toLowerCase())
+                                .toList(),
+                        args[2]);
+            }
+            if ("area".equals(sub)) {
+                // 保存済み待機場名の補完
+                return CommandHelper.filterStartsWith(
+                        plugin.getAreaStore().list(), args[2]);
+            }
         }
         return List.of();
     }
 
     @Override
     public String getUsage() {
-        return "/arena team <list|area|dest|color>";
+        return "/arena team <add|list|area|dest|color>";
     }
 
 
