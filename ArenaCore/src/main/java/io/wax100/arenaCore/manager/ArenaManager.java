@@ -107,14 +107,14 @@ public class ArenaManager {
 
         int teamsWithMembers = 0;
         for (String team : activeSession.getTeamNames()) {
-            if (activeSession.getTeamSize(team) > 0) {
-                teamsWithMembers++;
-            } else if (activeSession.isMobTeam(team)) {
+            if (activeSession.isMobTeam(team)) {
                 // Mobチームは待機場にMobが実際にいる場合のみカウント
                 TeamAreaConfig config = activeSession.getTeamAreaConfig(team);
                 if (config != null && !config.scanEntities().isEmpty()) {
                     teamsWithMembers++;
                 }
+            } else if (activeSession.getTeamSize(team) > 0) {
+                teamsWithMembers++;
             }
         }
         if (teamsWithMembers < 2) return false;
