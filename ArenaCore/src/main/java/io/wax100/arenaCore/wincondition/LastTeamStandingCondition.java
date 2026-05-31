@@ -20,26 +20,27 @@ public class LastTeamStandingCondition implements WinCondition {
         List<String> survivingTeams = new ArrayList<>();
 
         for (String team : session.getTeamNames()) {
-            // チーム全体が全滅マークされている場合はスキップ（Mobチーム用）
+            // チーム全体が全滅マークされている場合はスキップ
             if (session.isTeamEliminated(team)) continue;
 
-            // Mobチームの場合、生存Mobがいればまだ生き残り
-            if (session.isMobTeam(team)) {
-                if (session.hasAliveMobs(team)) {
-                    survivingTeams.add(team);
-                }
-                continue;
+            boolean hasAlive = false;
+
+            // Mobが生存していれば存続
+            if (session.isMobTeam(team) && session.hasAliveMobs(team)) {
+                hasAlive = true;
             }
 
-            // プレイヤーチーム: 1人でも脱落していなければ生存
-            List<UUID> members = session.getTeamMembers(team);
-            boolean hasAlive = false;
-            for (UUID member : members) {
-                if (!eliminatedPlayers.contains(member)) {
-                    hasAlive = true;
-                    break;
+            // プレイヤーが1人でも生存していれば存続
+            if (!hasAlive) {
+                List<UUID> members = session.getTeamMembers(team);
+                for (UUID member : members) {
+                    if (!eliminatedPlayers.contains(member)) {
+                        hasAlive = true;
+                        break;
+                    }
                 }
             }
+
             if (hasAlive) survivingTeams.add(team);
         }
 

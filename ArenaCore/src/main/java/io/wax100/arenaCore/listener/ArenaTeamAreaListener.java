@@ -126,11 +126,9 @@ public class ArenaTeamAreaListener implements Listener {
 
     /**
      * 指定座標がどのチームの待機エリアに含まれるかを返す。
-     * モンスターチームのエリアは対象外。
      */
     private String findTeamArea(ArenaSession session, Location loc) {
         for (String team : session.getTeamNames()) {
-            if (session.isMobTeam(team)) continue;
             TeamAreaConfig config = session.getTeamAreaConfig(team);
             if (config != null && config.contains(loc)) {
                 return team;

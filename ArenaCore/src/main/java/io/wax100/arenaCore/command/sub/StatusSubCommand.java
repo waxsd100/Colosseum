@@ -78,17 +78,23 @@ public class StatusSubCommand implements SubCommand {
                         }
                         areaInfo.append(")");
                     }
-                } else {
-                    List<org.bukkit.entity.Player> players = areaConfig.scanPlayers();
-                    areaInfo.append(ChatColor.WHITE).append(players.size()).append("人");
-                    if (!players.isEmpty()) {
-                        areaInfo.append(ChatColor.GRAY).append(" (");
-                        for (int j = 0; j < players.size(); j++) {
-                            if (j > 0) areaInfo.append(", ");
-                            areaInfo.append(players.get(j).getName());
-                        }
-                        areaInfo.append(")");
+                }
+
+                // プレイヤー情報（全チーム共通）
+                List<org.bukkit.entity.Player> players = areaConfig.scanPlayers();
+                if (!players.isEmpty()) {
+                    if (session.isMobTeam(team)) {
+                        areaInfo.append(ChatColor.GRAY).append(" + ");
                     }
+                    areaInfo.append(ChatColor.WHITE).append(players.size()).append("人");
+                    areaInfo.append(ChatColor.GRAY).append(" (");
+                    for (int j = 0; j < players.size(); j++) {
+                        if (j > 0) areaInfo.append(", ");
+                        areaInfo.append(players.get(j).getName());
+                    }
+                    areaInfo.append(")");
+                } else if (!session.isMobTeam(team)) {
+                    areaInfo.append(ChatColor.WHITE).append("0人");
                 }
 
                 // TP先

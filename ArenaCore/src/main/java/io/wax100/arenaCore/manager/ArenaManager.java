@@ -210,8 +210,6 @@ public class ArenaManager {
         if (activeSession == null) return;
 
         for (String team : activeSession.getTeamNames()) {
-            if (activeSession.isMobTeam(team)) continue;
-
             TeamAreaConfig areaConfig = activeSession.getTeamAreaConfig(team);
             if (areaConfig == null) continue;
 
@@ -223,10 +221,12 @@ public class ArenaManager {
                 }
             }
 
+            List<UUID> members = activeSession.getTeamMembers(team);
+            if (members.isEmpty()) continue;
+
             // TP先が設定されていればチーム全員を転送
             Location dest = areaConfig.getDestination();
             if (dest != null && dest.getWorld() != null) {
-                List<UUID> members = activeSession.getTeamMembers(team);
                 for (UUID memberId : members) {
                     Player player = Bukkit.getPlayer(memberId);
                     if (player != null && player.isOnline()) {
@@ -249,25 +249,14 @@ public class ArenaManager {
         if (activeSession == null) return;
 
         for (String team : activeSession.getTeamNames()) {
-            if (!activeSession.isMobTeam(team)) continue;
-
             TeamAreaConfig config = activeSession.getTeamAreaConfig(team);
-            if (config == null) {
-                plugin.getLogger().warning("Mob待機場が未設定です: " + team);
-                continue;
-            }
-
-            Location dest = config.getDestination();
-            if (dest == null || dest.getWorld() == null) {
-                plugin.getLogger().warning("MobのTP先が未設定です: " + team);
-                continue;
-            }
+            if (config == null) continue;
 
             List<LivingEntity> mobs = config.scanEntities();
-            if (mobs.isEmpty()) {
-                plugin.getLogger().warning("待機場にMobがいません: " + team);
-                continue;
-            }
+            if (mobs.isEmpty()) continue;
+
+            Location dest = config.getDestination();
+            if (dest == null || dest.getWorld() == null) continue;
 
             int count = 0;
             for (LivingEntity mob : mobs) {
@@ -276,6 +265,9 @@ public class ArenaManager {
                 activeSession.trackMob(mob.getUniqueId(), team);
                 count++;
             }
+
+            // Mobがいたら自動でMobチームマーク
+            activeSession.markAsMobTeam(team);
 
             ChatColor teamColor = activeSession.getTeamColor(team);
             Bukkit.broadcastMessage(ArenaMessages.PREFIX + teamColor + team
