@@ -172,10 +172,10 @@ public class TerrainManager {
                     "arenas/" + arenaName + ".schem");
             file.getParentFile().mkdirs();
 
-            // SPONGE_V3_SCHEMATIC を直接使用
+            // WE バージョンにより SPONGE_V3_SCHEMATIC / SPONGE_SCHEMATIC が異なる
+            ClipboardFormat schemFormat = resolveSchematicFormat();
             try (ClipboardWriter writer =
-                         BuiltInClipboardFormat.SPONGE_V3_SCHEMATIC
-                                 .getWriter(new FileOutputStream(file))) {
+                         schemFormat.getWriter(new FileOutputStream(file))) {
                 writer.write(clipboard);
             }
             plugin.getLogger().info("Schematic保存完了: " + arenaName
@@ -183,6 +183,27 @@ public class TerrainManager {
         } catch (Exception e) {
             plugin.getLogger().severe("Schematic保存失敗: " + e.getMessage());
         }
+    }
+
+    /**
+     * WorldEdit バージョンに応じた Schematic 書き出しフォーマットを解決する。
+     *
+     * <p>SPONGE_V3_SCHEMATIC → SPONGE_SCHEMATIC の順にフォールバックする。
+     *
+     * @return 利用可能な {@link ClipboardFormat}
+     */
+    private static ClipboardFormat resolveSchematicFormat() {
+        for (BuiltInClipboardFormat fmt : BuiltInClipboardFormat.values()) {
+            String name = fmt.name();
+            if (name.contains("SPONGE")) {
+                return fmt;
+            }
+        }
+        // フォールバック: 拡張子から検出
+        ClipboardFormat fallback = ClipboardFormats.findByAlias("sponge");
+        if (fallback != null) return fallback;
+        // 最終手段: enum の先頭を返す
+        return BuiltInClipboardFormat.values()[0];
     }
 
     // ══════════════════════════════════════
