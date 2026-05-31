@@ -249,6 +249,8 @@ public class TeamSubCommand implements SubCommand {
         }
 
         session.setTeamColor(teamName, chatColor);
+        // Scoreboard Team のカラーも同期
+        plugin.getArenaManager().ensureScoreboardTeam(teamName);
         sender.sendMessage(ArenaMessages.PREFIX + chatColor + ChatColor.BOLD + teamName
                 + ChatColor.RESET + ChatColor.GREEN + " のチームカラーを "
                 + chatColor + chatColor.name().toLowerCase() + ChatColor.GREEN + " に設定しました。");

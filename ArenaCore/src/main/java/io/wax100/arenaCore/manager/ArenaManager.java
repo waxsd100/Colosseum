@@ -101,6 +101,7 @@ public class ArenaManager {
         }
         for (var colorEntry : data.teamColors().entrySet()) {
             session.setTeamColor(colorEntry.getKey(), colorEntry.getValue());
+            ensureScoreboardTeam(colorEntry.getKey());
         }
         return session;
     }

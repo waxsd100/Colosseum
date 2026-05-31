@@ -44,8 +44,7 @@ public class StatusSubCommand implements SubCommand {
                 + ChatColor.YELLOW + ChipManager.formatAmount(session.getTotalPool()) + " E");
 
         List<String> teamNames = session.getTeamNames();
-        for (int i = 0; i < teamNames.size(); i++) {
-            String team = teamNames.get(i);
+        for (String team : teamNames) {
             ChatColor color = session.getTeamColor(team);
 
             String label = ArenaMessages.formatTeamLabel(session, team);
