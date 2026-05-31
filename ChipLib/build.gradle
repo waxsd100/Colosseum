@@ -11,6 +11,8 @@ dependencies {
 
     // テスト依存関係
     testImplementation("org.junit.jupiter:junit-jupiter:${junitVersion}")
+    testImplementation("org.mockito:mockito-core:${mockitoVersion}")
+    testImplementation("org.mockito:mockito-junit-jupiter:${mockitoVersion}")
     testImplementation("org.spigotmc:spigot-api:${spigotApiVersion}")
 }
 
