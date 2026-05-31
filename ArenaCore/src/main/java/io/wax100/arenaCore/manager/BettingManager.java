@@ -67,7 +67,7 @@ public class BettingManager {
         String payoutMethod = plugin.getConfig().getString("payout-method", "pari-mutuel");
         if ("fixed-odds".equals(payoutMethod)) {
             double houseEdge = plugin.getConfig().getDouble("house-edge", 0.1);
-            Bet bet = session.getBet(player.getUniqueId());
+            Bet bet = session.getBet(player.getUniqueId(), teamName);
             if (bet != null) {
                 double currentOdds = plugin.getPayoutStrategy().calculateOdds(session, teamName, houseEdge);
                 bet.setLockedOdds(currentOdds);
@@ -82,7 +82,7 @@ public class BettingManager {
                 + ChatColor.YELLOW + ChipManager.formatAmount(chipValue) + " E"
                 + ChatColor.GREEN + " を賭けました！"
                 + ChatColor.GRAY + " (合計: "
-                + ChipManager.formatAmount(session.getBet(player.getUniqueId()).amount()) + " E)");
+                + ChipManager.formatAmount(session.getBet(player.getUniqueId(), teamName).amount()) + " E)");
 
         return true;
     }
@@ -108,12 +108,12 @@ public class BettingManager {
         location.getBlock().setType(org.bukkit.Material.AIR);
 
         // 賭け金額の更新（減算）
-        Bet bet = session.getBet(player.getUniqueId());
+        Bet bet = session.getBet(player.getUniqueId(), chipInfo.teamName());
         if (bet != null) {
             bet.addAmount(-chipInfo.chipValue());
             // 金額が0以下になった場合は賭け自体を削除
             if (bet.amount() <= 0) {
-                session.removeBet(player.getUniqueId());
+                session.removeBet(player.getUniqueId(), chipInfo.teamName());
             }
         }
 
@@ -213,7 +213,7 @@ public class BettingManager {
                             + "チップ配布にエラーが発生しましたが、Vault経由で入金しました。");
                 }
 
-                Bet playerBet = session.getBet(playerId);
+                Bet playerBet = session.getBet(playerId, winningTeam);
                 if (playerBet == null) continue;
                 long originalBet = playerBet.amount();
                 long profit = payout - originalBet;
@@ -242,7 +242,7 @@ public class BettingManager {
         }
 
         // 負けた人への通知
-        for (Bet bet : session.getBets().values()) {
+        for (Bet bet : session.getAllBets()) {
             if (!bet.teamName().equals(winningTeam)) {
                 Player player = Bukkit.getPlayer(bet.playerId());
                 if (player != null && player.isOnline()) {
@@ -274,7 +274,7 @@ public class BettingManager {
         clearPlacedChips(session);
 
         // 賭け者に返金（チップとして）
-        for (Bet bet : session.getBets().values()) {
+        for (Bet bet : session.getAllBets()) {
             if (bet.amount() <= 0) continue;
 
             Player player = Bukkit.getPlayer(bet.playerId());

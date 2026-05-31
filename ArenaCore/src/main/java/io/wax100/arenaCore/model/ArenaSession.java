@@ -23,7 +23,7 @@ public class ArenaSession {
     private final String name;
     private final List<String> teamNames;
     private final Map<String, List<UUID>> teams;
-    private final Map<UUID, Bet> bets;
+    private final Map<UUID, Map<String, Bet>> bets;
     /** 設置されたカーペットの座標 → 賭け情報(playerId, teamName, chipValue) */
     private final Map<Location, PlacedChipInfo> placedChips;
     /** チーム別スコア（キル数） */
@@ -222,20 +222,59 @@ public class ArenaSession {
 
     // ── 賭け管理 ──
 
-    public Map<UUID, Bet> getBets() { return Collections.unmodifiableMap(bets); }
-
-    public Bet getBet(UUID playerId) { return bets.get(playerId); }
+    /**
+     * 全賭けをフラットなコレクションとして返す。
+     *
+     * @return 全プレイヤーの全チームへの賭けリスト（変更不可）
+     */
+    public List<Bet> getAllBets() {
+        List<Bet> result = new ArrayList<>();
+        for (Map<String, Bet> teamBets : bets.values()) {
+            result.addAll(teamBets.values());
+        }
+        return Collections.unmodifiableList(result);
+    }
 
     /**
-     * 指定プレイヤーの賭けを削除する（金額が0以下になった場合等）。
+     * 指定プレイヤーの全賭けを返す。
      *
      * @param playerId プレイヤーの UUID
-     * @return 削除された賭け。存在しない場合 {@code null}
+     * @return チーム名→Bet のマップ。賭けがない場合は空マップ
      */
-    public Bet removeBet(UUID playerId) { return bets.remove(playerId); }
+    public Map<String, Bet> getPlayerBets(UUID playerId) {
+        Map<String, Bet> teamBets = bets.get(playerId);
+        return teamBets != null ? Collections.unmodifiableMap(teamBets) : Collections.emptyMap();
+    }
 
     /**
-     * 賭けを追加または更新する。
+     * 指定プレイヤーの指定チームへの賭けを返す。
+     *
+     * @param playerId プレイヤーの UUID
+     * @param teamName チーム名
+     * @return 賭け。存在しない場合 {@code null}
+     */
+    public Bet getBet(UUID playerId, String teamName) {
+        Map<String, Bet> teamBets = bets.get(playerId);
+        return teamBets != null ? teamBets.get(teamName) : null;
+    }
+
+    /**
+     * 指定プレイヤーの指定チームへの賭けを削除する。
+     *
+     * @param playerId プレイヤーの UUID
+     * @param teamName チーム名
+     * @return 削除された賭け。存在しない場合 {@code null}
+     */
+    public Bet removeBet(UUID playerId, String teamName) {
+        Map<String, Bet> teamBets = bets.get(playerId);
+        if (teamBets == null) return null;
+        Bet removed = teamBets.remove(teamName);
+        if (teamBets.isEmpty()) bets.remove(playerId);
+        return removed;
+    }
+
+    /**
+     * 賭けを追加または更新する。複数チームへの賭けも許可される。
      *
      * @param playerId 賭けたプレイヤーの UUID（null不可）
      * @param teamName 賭け先チーム名（null不可）
@@ -245,23 +284,19 @@ public class ArenaSession {
     public void addOrUpdateBet(UUID playerId, String teamName, long amount) {
         Objects.requireNonNull(playerId, "playerId must not be null");
         Objects.requireNonNull(teamName, "teamName must not be null");
-        Bet existing = bets.get(playerId);
-        if (existing != null && existing.teamName().equals(teamName)) {
+        Map<String, Bet> teamBets = bets.computeIfAbsent(playerId, k -> new HashMap<>());
+        Bet existing = teamBets.get(teamName);
+        if (existing != null) {
             existing.addAmount(amount);
-        } else if (existing != null) {
-            // 別チームへの賭け変更は許可しない（チップ追跡整合性のため）
-            throw new IllegalStateException(
-                    "既に「" + existing.teamName() + "」に賭けています。"
-                    + "別チームに賭ける場合は、先に既存の賭けを取り消してください。");
         } else {
-            bets.put(playerId, new Bet(playerId, teamName, amount));
+            teamBets.put(teamName, new Bet(playerId, teamName, amount));
         }
     }
 
     /** チーム別の賭け金合計 */
     public long getTeamPool(String teamName) {
         long total = 0;
-        for (Bet bet : bets.values()) {
+        for (Bet bet : getAllBets()) {
             if (bet.teamName().equals(teamName)) {
                 total = Math.addExact(total, bet.amount());
             }
@@ -272,7 +307,7 @@ public class ArenaSession {
     /** 全賭け金合計 */
     public long getTotalPool() {
         long total = 0;
-        for (Bet bet : bets.values()) {
+        for (Bet bet : getAllBets()) {
             total = Math.addExact(total, bet.amount());
         }
         return total;
@@ -496,7 +531,7 @@ public class ArenaSession {
                 "name='" + name + '\'' +
                 ", state=" + state +
                 ", teams=" + teamNames.size() +
-                ", bets=" + bets.size() +
+                ", bets=" + getAllBets().size() +
                 ", winningTeam='" + winningTeam + '\'' +
                 '}';
     }

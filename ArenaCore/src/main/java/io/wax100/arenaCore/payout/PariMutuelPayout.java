@@ -31,9 +31,9 @@ public class PariMutuelPayout implements PayoutStrategy {
 
         // 全員が勝利チームに賭けた場合は再分配不要 → 元金返却
         if (totalPool == winningPool) {
-            for (Bet bet : session.getBets().values()) {
+            for (Bet bet : session.getAllBets()) {
                 if (bet.teamName().equals(winningTeam)) {
-                    payouts.put(bet.playerId(), bet.amount());
+                    payouts.merge(bet.playerId(), bet.amount(), Long::sum);
                 }
             }
             return payouts;
@@ -44,11 +44,11 @@ public class PariMutuelPayout implements PayoutStrategy {
         double payoutPool = totalPool * (1.0 - clampedEdge);
         double odds = payoutPool / winningPool;
 
-        for (Bet bet : session.getBets().values()) {
+        for (Bet bet : session.getAllBets()) {
             if (bet.teamName().equals(winningTeam)) {
                 // Math.floor で切り捨て: プールを超過しない保証
                 long payout = Math.max(0L, (long) Math.floor(bet.amount() * odds));
-                payouts.put(bet.playerId(), payout);
+                payouts.merge(bet.playerId(), payout, Long::sum);
             }
         }
 

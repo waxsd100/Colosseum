@@ -49,7 +49,6 @@ public class TeamAreaConfig implements CuboidArea {
         this.maxZ = Math.max(z1, z2);
     }
 
-
     /**
      * 待機エリア内の全 LivingEntity（Player を除く）を取得する。
      *

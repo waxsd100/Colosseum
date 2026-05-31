@@ -259,7 +259,7 @@ class PayoutStrategyTest {
                 session.addOrUpdateBet(PLAYER_B1, "TeamB", 5000);
 
                 // Lock odds at 2.5 for PLAYER_A1
-                session.getBet(PLAYER_A1).setLockedOdds(2.5);
+                session.getBet(PLAYER_A1, "TeamA").setLockedOdds(2.5);
 
                 Map<UUID, Long> payouts = strategy.calculatePayouts(session, "TeamA", 0.1);
 
@@ -294,7 +294,7 @@ class PayoutStrategyTest {
                 session.addOrUpdateBet(PLAYER_A2, "TeamA", 5000);
                 session.addOrUpdateBet(PLAYER_B1, "TeamB", 5000);
 
-                session.getBet(PLAYER_A1).setLockedOdds(3.0);
+                session.getBet(PLAYER_A1, "TeamA").setLockedOdds(3.0);
                 // A2 remains unlocked (0.0)
 
                 Map<UUID, Long> payouts = strategy.calculatePayouts(session, "TeamA", 0.1);
@@ -311,7 +311,7 @@ class PayoutStrategyTest {
                 session.addOrUpdateBet(PLAYER_A1, "TeamA", 10000);
                 session.addOrUpdateBet(PLAYER_B1, "TeamB", 5000);
 
-                session.getBet(PLAYER_A1).setLockedOdds(2.0);
+                session.getBet(PLAYER_A1, "TeamA").setLockedOdds(2.0);
 
                 Map<UUID, Long> payoutsLowEdge = strategy.calculatePayouts(session, "TeamA", 0.0);
                 Map<UUID, Long> payoutsHighEdge = strategy.calculatePayouts(session, "TeamA", 0.5);
@@ -349,7 +349,7 @@ class PayoutStrategyTest {
                 session.addOrUpdateBet(PLAYER_A1, "TeamA", 10000);
                 session.addOrUpdateBet(PLAYER_B1, "TeamB", 5000);
 
-                session.getBet(PLAYER_A1).setLockedOdds(-1.0);
+                session.getBet(PLAYER_A1, "TeamA").setLockedOdds(-1.0);
 
                 Map<UUID, Long> payouts = strategy.calculatePayouts(session, "TeamA", 0.1);
 

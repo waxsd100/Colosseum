@@ -82,16 +82,6 @@ public class ArenaBettingListener implements Listener {
             return;
         }
 
-        // 既に別のチームに賭けている場合
-        io.wax100.arenaCore.model.Bet existingBet = session.getBet(player.getUniqueId());
-        if (existingBet != null && !existingBet.teamName().equals(teamName)) {
-            event.setCancelled(true);
-            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
-                    + "既に " + existingBet.teamName() + " に賭けています。"
-                    + " 別のチームには賭けられません。");
-            return;
-        }
-
         long chipValue = chipManager.getChipValue(item);
 
         // 賭け処理

@@ -12,6 +12,8 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
+
+import java.util.Map;
 import org.bukkit.entity.Player;
 
 import java.util.Arrays;
@@ -67,33 +69,36 @@ public class BetCommand implements CommandExecutor, TabCompleter {
         ArenaSession session = CommandHelper.requireActiveSession(player, manager);
         if (session == null) return;
 
-        Bet bet = session.getBet(player.getUniqueId());
+        Map<String, Bet> playerBets = session.getPlayerBets(player.getUniqueId());
 
-        if (bet == null) {
+        if (playerBets.isEmpty()) {
             player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + ArenaMessages.MSG_NO_BET);
             return;
         }
 
-        ChatColor teamColor = session.getTeamColor(bet.teamName());
         double houseEdge = plugin.getConfig().getDouble("house-edge", 0.1);
-        double odds = plugin.getPayoutStrategy().calculateOdds(session, bet.teamName(), houseEdge);
 
         player.sendMessage(ChatColor.DARK_RED.toString() + ChatColor.BOLD + "═══ あなたの賭け情報 ═══");
-        player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "賭け先: "
-                + teamColor + ChatColor.BOLD + bet.teamName());
-        player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "賭け金: "
-                + ChatColor.YELLOW + ChipManager.formatAmount(bet.amount()) + " E");
+        for (Bet bet : playerBets.values()) {
+            ChatColor teamColor = session.getTeamColor(bet.teamName());
+            double odds = plugin.getPayoutStrategy().calculateOdds(session, bet.teamName(), houseEdge);
 
-        if (odds > 0) {
-            long expectedPayout = (long) (bet.amount() * odds);
-            long expectedProfit = expectedPayout - bet.amount();
-            player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "現在のオッズ: "
-                    + ChatColor.YELLOW + String.format("%.2f倍", odds));
-            player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "予想配当: "
-                    + ChatColor.YELLOW + ChipManager.formatAmount(expectedPayout) + " E");
-            player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "予想損益: "
-                    + (expectedProfit >= 0 ? ChatColor.GREEN + "+" : ChatColor.RED.toString())
-                    + ChipManager.formatAmount(expectedProfit) + " E");
+            player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "賭け先: "
+                    + teamColor + ChatColor.BOLD + bet.teamName()
+                    + ChatColor.RESET + ChatColor.GRAY + " / 賭け金: "
+                    + ChatColor.YELLOW + ChipManager.formatAmount(bet.amount()) + " E");
+
+            if (odds > 0) {
+                long expectedPayout = (long) (bet.amount() * odds);
+                long expectedProfit = expectedPayout - bet.amount();
+                player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "  オッズ: "
+                        + ChatColor.YELLOW + String.format("%.2f倍", odds)
+                        + ChatColor.GRAY + " / 予想配当: "
+                        + ChatColor.YELLOW + ChipManager.formatAmount(expectedPayout) + " E"
+                        + ChatColor.GRAY + " / 損益: "
+                        + (expectedProfit >= 0 ? ChatColor.GREEN + "+" : ChatColor.RED.toString())
+                        + ChipManager.formatAmount(expectedProfit) + " E");
+            }
         }
     }
 

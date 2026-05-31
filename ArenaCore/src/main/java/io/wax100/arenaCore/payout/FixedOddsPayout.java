@@ -26,7 +26,7 @@ public class FixedOddsPayout implements PayoutStrategy {
     public Map<UUID, Long> calculatePayouts(ArenaSession session, String winningTeam, double houseEdge) {
         Map<UUID, Long> payouts = new HashMap<>();
 
-        for (Bet bet : session.getBets().values()) {
+        for (Bet bet : session.getAllBets()) {
             if (bet.teamName().equals(winningTeam)) {
                 double odds = bet.lockedOdds();
                 if (odds <= 0) {
@@ -39,7 +39,7 @@ public class FixedOddsPayout implements PayoutStrategy {
                 }
                 // Math.floor で切り捨て: プールを超過しない保証
                 long payout = Math.max(0L, (long) Math.floor(bet.amount() * odds));
-                payouts.put(bet.playerId(), payout);
+                payouts.merge(bet.playerId(), payout, Long::sum);
             }
         }
 

@@ -34,14 +34,14 @@ public class SimpleRedistributionPayout implements PayoutStrategy {
         // 負けチームの賭け金から手数料を引いた分を再分配
         double redistributable = losingPool * (1.0 - clampedEdge);
 
-        for (Bet bet : session.getBets().values()) {
+        for (Bet bet : session.getAllBets()) {
             if (bet.teamName().equals(winningTeam)) {
                 // 元金 + 再分配分の按分 (Math.floor で切り捨て)
                 double share = (double) bet.amount() / winningPool;
                 long bonus = (long) Math.floor(redistributable * share);
                 // 最低でも元金を返す
                 long payout = Math.max(bet.amount(), bet.amount() + bonus);
-                payouts.put(bet.playerId(), payout);
+                payouts.merge(bet.playerId(), payout, Long::sum);
             }
         }
 

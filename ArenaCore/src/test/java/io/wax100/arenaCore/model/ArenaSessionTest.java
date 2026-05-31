@@ -87,7 +87,7 @@ class ArenaSessionTest {
         @Test
         @DisplayName("賭けマップが空で初期化される")
         void bets_areEmpty() {
-            assertTrue(session.getBets().isEmpty());
+            assertTrue(session.getAllBets().isEmpty());
         }
 
         @Test
@@ -368,7 +368,7 @@ class ArenaSessionTest {
             UUID player = UUID.randomUUID();
             session.addOrUpdateBet(player, TEAM_RED, 100L);
 
-            Bet bet = session.getBet(player);
+            Bet bet = session.getBet(player, TEAM_RED);
             assertNotNull(bet);
             assertEquals(player, bet.playerId());
             assertEquals(TEAM_RED, bet.teamName());
@@ -382,23 +382,25 @@ class ArenaSessionTest {
             session.addOrUpdateBet(player, TEAM_RED, 100L);
             session.addOrUpdateBet(player, TEAM_RED, 50L);
 
-            Bet bet = session.getBet(player);
+            Bet bet = session.getBet(player, TEAM_RED);
             assertEquals(150L, bet.amount());
             assertEquals(TEAM_RED, bet.teamName());
         }
 
         @Test
-        @DisplayName("異なるチームへの賭けはIllegalStateExceptionをスローする")
-        void differentTeam_throwsException() {
+        @DisplayName("異なるチームへの賭けも許可される")
+        void differentTeam_allowsMultipleBets() {
             UUID player = UUID.randomUUID();
             session.addOrUpdateBet(player, TEAM_RED, 100L);
-            assertThrows(IllegalStateException.class,
-                    () -> session.addOrUpdateBet(player, TEAM_BLUE, 200L));
+            session.addOrUpdateBet(player, TEAM_BLUE, 200L);
 
-            // 既存の賭けは変更されていないことを確認
-            Bet bet = session.getBet(player);
-            assertEquals(TEAM_RED, bet.teamName());
-            assertEquals(100L, bet.amount());
+            Bet betRed = session.getBet(player, TEAM_RED);
+            assertEquals(TEAM_RED, betRed.teamName());
+            assertEquals(100L, betRed.amount());
+
+            Bet betBlue = session.getBet(player, TEAM_BLUE);
+            assertEquals(TEAM_BLUE, betBlue.teamName());
+            assertEquals(200L, betBlue.amount());
         }
 
         @Test
@@ -409,7 +411,7 @@ class ArenaSessionTest {
             session.addOrUpdateBet(player, TEAM_RED, 200L);
             session.addOrUpdateBet(player, TEAM_RED, 50L);
 
-            Bet bet = session.getBet(player);
+            Bet bet = session.getBet(player, TEAM_RED);
             assertEquals(TEAM_RED, bet.teamName());
             assertEquals(350L, bet.amount());
         }
@@ -422,8 +424,8 @@ class ArenaSessionTest {
             session.addOrUpdateBet(p1, TEAM_RED, 100L);
             session.addOrUpdateBet(p2, TEAM_BLUE, 200L);
 
-            assertEquals(100L, session.getBet(p1).amount());
-            assertEquals(200L, session.getBet(p2).amount());
+            assertEquals(100L, session.getBet(p1, TEAM_RED).amount());
+            assertEquals(200L, session.getBet(p2, TEAM_BLUE).amount());
         }
     }
 
@@ -434,16 +436,16 @@ class ArenaSessionTest {
         @Test
         @DisplayName("賭けがない場合は空マップを返す")
         void noBets_returnsEmptyMap() {
-            assertTrue(session.getBets().isEmpty());
+            assertTrue(session.getAllBets().isEmpty());
         }
 
         @Test
-        @DisplayName("返されたマップは変更不可である")
-        void returnedMap_isUnmodifiable() {
+        @DisplayName("返されたリストは変更不可である")
+        void returnedList_isUnmodifiable() {
             session.addOrUpdateBet(UUID.randomUUID(), TEAM_RED, 100L);
-            Map<UUID, Bet> bets = session.getBets();
+            List<Bet> bets = session.getAllBets();
             assertThrows(UnsupportedOperationException.class,
-                    () -> bets.put(UUID.randomUUID(), new Bet(UUID.randomUUID(), TEAM_RED, 50L)));
+                    () -> bets.add(new Bet(UUID.randomUUID(), TEAM_RED, 50L)));
         }
     }
 
@@ -454,7 +456,7 @@ class ArenaSessionTest {
         @Test
         @DisplayName("賭けが存在しないプレイヤーにはnullを返す")
         void noBet_returnsNull() {
-            assertNull(session.getBet(UUID.randomUUID()));
+            assertNull(session.getBet(UUID.randomUUID(), TEAM_RED));
         }
 
         @Test
@@ -462,7 +464,7 @@ class ArenaSessionTest {
         void existingBet_returnsBet() {
             UUID player = UUID.randomUUID();
             session.addOrUpdateBet(player, TEAM_RED, 500L);
-            Bet bet = session.getBet(player);
+            Bet bet = session.getBet(player, TEAM_RED);
             assertNotNull(bet);
             assertEquals(500L, bet.amount());
         }
@@ -535,16 +537,15 @@ class ArenaSessionTest {
         }
 
         @Test
-        @DisplayName("チーム切り替えはIllegalStateExceptionとなり、元の賭けが保持される")
-        void teamSwitch_throwsAndPreservesOriginal() {
+        @DisplayName("複数チームへの賭けも合計に反映される")
+        void multiTeamBet_reflectedInTotal() {
             UUID player = UUID.randomUUID();
             session.addOrUpdateBet(player, TEAM_RED, 100L);
-            assertThrows(IllegalStateException.class,
-                    () -> session.addOrUpdateBet(player, TEAM_BLUE, 200L));
+            session.addOrUpdateBet(player, TEAM_BLUE, 200L);
 
-            assertEquals(100L, session.getTotalPool());
+            assertEquals(300L, session.getTotalPool());
             assertEquals(100L, session.getTeamPool(TEAM_RED));
-            assertEquals(0L, session.getTeamPool(TEAM_BLUE));
+            assertEquals(200L, session.getTeamPool(TEAM_BLUE));
         }
     }
 
@@ -824,8 +825,8 @@ class ArenaSessionTest {
 
             assertTrue(session.isFighter(fighter));
             assertFalse(session.isFighter(spectator));
-            assertNotNull(session.getBet(spectator));
-            assertNull(session.getBet(fighter));
+            assertNotNull(session.getBet(spectator, TEAM_RED));
+            assertNull(session.getBet(fighter, TEAM_RED));
         }
 
         @Test
@@ -924,7 +925,7 @@ class ArenaSessionTest {
             assertDoesNotThrow(() -> session.clearAllData());
 
             // クリア後の状態を確認
-            assertTrue(session.getBets().isEmpty());
+            assertTrue(session.getAllBets().isEmpty());
             assertTrue(session.getPlacedChips().isEmpty());
             assertEquals(0, session.getTeamMembers(TEAM_RED).size());
         }
