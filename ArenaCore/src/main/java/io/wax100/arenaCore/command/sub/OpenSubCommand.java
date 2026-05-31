@@ -32,19 +32,26 @@ public class OpenSubCommand implements SubCommand {
 
         if (!manager.openBetting()) {
             ArenaSession session = manager.getActiveSession();
+            if (session == null) {
+                sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                        + "セッションが存在しません。");
+                return;
+            }
             if (session.getState() != ArenaState.SETUP) {
                 sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
                         + ArenaMessages.MSG_OPEN_SETUP_ONLY);
             } else {
                 sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
                         + ArenaMessages.MSG_MIN_TEAMS_REQUIRED);
-                // メンバーが0人のチームを表示
+                // メンバーが0のチームを表示
                 for (String team : session.getTeamNames()) {
-                    boolean hasMember = session.getTeamSize(team) > 0
-                            || (session.isMobTeam(team)
-                                && session.getTeamAreaConfig(team) != null
-                                && !session.getTeamAreaConfig(team).scanEntities().isEmpty());
-                    if (!hasMember) {
+                    boolean hasPlayer = session.getTeamSize(team) > 0;
+                    boolean hasMob = false;
+                    var areaConfig = session.getTeamAreaConfig(team);
+                    if (areaConfig != null) {
+                        hasMob = !areaConfig.scanEntities().isEmpty();
+                    }
+                    if (!hasPlayer && !hasMob) {
                         sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY
                                 + "  ✗ " + team + " (メンバーなし)");
                     }
