@@ -30,7 +30,6 @@ public class RegionSubCommand implements SubCommand {
 
     @Override
     public void execute(CommandSender sender, String[] args) {
-        // args: [teamName] または ["bet", teamName] (後方互換)
         Player player = CommandHelper.requirePlayer(sender);
         if (player == null) return;
         if (!CommandHelper.requireArgs(sender, args, 1, getUsage())) return;
@@ -45,13 +44,7 @@ public class RegionSubCommand implements SubCommand {
             return;
         }
 
-        // 後方互換: 「/arena region bet <チーム>」も受け付ける
-        String teamName;
-        if (args.length >= 2 && "bet".equalsIgnoreCase(args[0])) {
-            teamName = args[1];
-        } else {
-            teamName = args[0];
-        }
+        String teamName = args[0];
         if (!CommandHelper.requireTeamExists(sender, session, teamName)) return;
 
         ChatColor teamColor = session.getTeamColor(teamName);
