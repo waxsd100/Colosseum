@@ -59,7 +59,33 @@ public class ArenaTeamAreaListener implements Listener {
         String currentTeam = session.getPlayerTeam(playerId);
         if (currentTeam != null && !session.isMobTeam(currentTeam)) {
             session.removeTeamMember(currentTeam, playerId);
+            plugin.getArenaManager().removeFromScoreboardTeam(currentTeam, player);
         }
+    }
+
+    @EventHandler
+    public void onPlayerJoin(org.bukkit.event.player.PlayerJoinEvent event) {
+        // 1tick 遅延: ログイン直後は位置情報が確定していない場合がある
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            Player player = event.getPlayer();
+            if (!player.isOnline()) return;
+
+            ArenaSession session = getActiveSession();
+            if (session == null) return;
+            if (!isAutoJoinState(session)) return;
+
+            UUID playerId = player.getUniqueId();
+            if (session.isFighter(playerId)) return;
+
+            String area = findTeamArea(session, player.getLocation());
+            if (area != null) {
+                session.addTeamMember(area, playerId);
+                plugin.getArenaManager().addToScoreboardTeam(area, player);
+                ChatColor color = session.getTeamColor(area);
+                player.sendMessage(ArenaMessages.PREFIX + color + area
+                        + ChatColor.GRAY + " に参加しました！");
+            }
+        }, 1L);
     }
 
     // ── 内部ロジック ──
