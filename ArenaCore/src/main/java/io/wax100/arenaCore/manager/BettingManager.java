@@ -104,10 +104,17 @@ public class BettingManager {
 
         session.removePlacedChip(location);
 
+        // カーペットブロックを除去（ドロップ防止のため直接AIRに設定）
+        location.getBlock().setType(org.bukkit.Material.AIR);
+
         // 賭け金額の更新（減算）
         Bet bet = session.getBet(player.getUniqueId());
         if (bet != null) {
             bet.addAmount(-chipInfo.getChipValue());
+            // 金額が0以下になった場合は賭け自体を削除
+            if (bet.getAmount() <= 0) {
+                session.removeBet(player.getUniqueId());
+            }
         }
 
         // 視覚エフェクト: 回収演出
@@ -127,6 +134,10 @@ public class BettingManager {
      */
     public void broadcastOdds(ArenaSession session) {
         double houseEdge = plugin.getConfig().getDouble("house-edge", 0.1);
+        // house-edge が不正な範囲の場合はデフォルト値を使用
+        if (houseEdge < 0 || houseEdge >= 1.0) {
+            houseEdge = 0.1;
+        }
         PayoutStrategy strategy = plugin.getPayoutStrategy();
         long totalPool = session.getTotalPool();
 
@@ -156,6 +167,10 @@ public class BettingManager {
      */
     public void calculateAndDistributePayout(ArenaSession session, String winningTeam) {
         double houseEdge = plugin.getConfig().getDouble("house-edge", 0.1);
+        // house-edge が不正な範囲の場合はデフォルト値を使用
+        if (houseEdge < 0 || houseEdge >= 1.0) {
+            houseEdge = 0.1;
+        }
         PayoutStrategy strategy = plugin.getPayoutStrategy();
         Map<UUID, Long> payouts = strategy.calculatePayouts(session, winningTeam, houseEdge);
 
@@ -198,7 +213,9 @@ public class BettingManager {
                             + "チップ配布にエラーが発生しましたが、Vault経由で入金しました。");
                 }
 
-                long originalBet = session.getBet(playerId).getAmount();
+                Bet playerBet = session.getBet(playerId);
+                if (playerBet == null) continue;
+                long originalBet = playerBet.getAmount();
                 long profit = payout - originalBet;
 
                 player.sendMessage("");

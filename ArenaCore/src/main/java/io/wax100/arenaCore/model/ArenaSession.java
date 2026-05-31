@@ -6,7 +6,6 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 
 import java.util.*;
-import java.util.Objects;
 
 /**
  * 闘技場セッションのデータモデル。
@@ -234,6 +233,14 @@ public class ArenaSession {
     public Map<UUID, Bet> getBets() { return Collections.unmodifiableMap(bets); }
 
     public Bet getBet(UUID playerId) { return bets.get(playerId); }
+
+    /**
+     * 指定プレイヤーの賭けを削除する（金額が0以下になった場合等）。
+     *
+     * @param playerId プレイヤーの UUID
+     * @return 削除された賭け。存在しない場合 {@code null}
+     */
+    public Bet removeBet(UUID playerId) { return bets.remove(playerId); }
 
     /**
      * 賭けを追加または更新する。

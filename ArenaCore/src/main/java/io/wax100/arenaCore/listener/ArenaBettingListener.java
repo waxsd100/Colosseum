@@ -96,8 +96,12 @@ public class ArenaBettingListener implements Listener {
 
         // 賭け処理
         BettingManager bettingManager = plugin.getBettingManager();
-        bettingManager.placeBet(session, player, teamName, chipValue,
+        boolean success = bettingManager.placeBet(session, player, teamName, chipValue,
                 event.getBlock().getLocation(), event.getBlockReplacedState().getType());
+        // 賭け記録に失敗した場合はカーペット設置をキャンセル
+        if (!success) {
+            event.setCancelled(true);
+        }
     }
 
     /**
@@ -130,6 +134,8 @@ public class ArenaBettingListener implements Listener {
 
             BettingManager bettingManager = plugin.getBettingManager();
             bettingManager.cancelBet(session, player, block.getLocation());
+            // カーペットのドロップを防止（ブロック除去はcancelBet側のMaterial.AIR設定で実施）
+            event.setCancelled(true);
             return;
         }
 

@@ -127,10 +127,11 @@ public class TerrainManager {
     private void loadConfig() {
         var config = plugin.getConfig();
         enabled = config.getBoolean("terrain-restore.enabled", true);
-        duringMatchDelay = config.getInt("terrain-restore.during-match-delay", 300);
+        duringMatchDelay = Math.max(0,
+                config.getInt("terrain-restore.during-match-delay", 300));
         postMatchDelay = config.getInt("terrain-restore.post-match-delay", 60);
-        postMatchBlocksPerTick = config.getInt(
-                "terrain-restore.post-match-blocks-per-tick", 10);
+        postMatchBlocksPerTick = Math.max(1,
+                config.getInt("terrain-restore.post-match-blocks-per-tick", 10));
         effects = config.getBoolean("terrain-restore.effects", true);
     }
 
@@ -329,6 +330,9 @@ public class TerrainManager {
      * @param entry 復元エントリ
      */
     private void restoreSingleBlock(RestoreEntry entry) {
+        // ワールドがアンロードされている場合はスキップ
+        if (entry.location.getWorld() == null) return;
+
         Block block = entry.location.getBlock();
         if (!block.getBlockData().equals(entry.originalData)) {
             block.setBlockData(entry.originalData, false);

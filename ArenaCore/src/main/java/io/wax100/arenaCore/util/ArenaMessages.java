@@ -38,14 +38,6 @@ public final class ArenaMessages {
     /** セットアップ中のみ設定可能 */
     public static final String MSG_SETUP_ONLY = "セットアップ中のみ設定可能です。";
 
-    /** セットアップ中のみチーム編集可能 */
-    public static final String MSG_SETUP_ONLY_TEAM_EDIT = "セットアップ中のみチーム編集可能です。";
-
-    /** プレイヤーが見つからない（フォーマット用、チーム名の引数あり） */
-    public static final String MSG_PLAYER_NOT_FOUND_FMT = "プレイヤー「%s」が見つかりません。";
-
-    /** 追加失敗 */
-    public static final String MSG_ADD_FAILED = "追加に失敗しました。";
 
     /** 待機場未設定（フォーマット用） */
     public static final String MSG_AREA_NOT_SET_FMT = "先に %s で待機場を設定してください。";
@@ -68,11 +60,6 @@ public final class ArenaMessages {
     /** 試合中のみ勝者宣言可能 */
     public static final String MSG_WIN_ACTIVE_ONLY = "試合中のみ勝者を宣言できます。";
 
-    /** セットアップ中のみ使用可能 */
-    public static final String MSG_SETUP_ONLY_USE = "セットアップ中のみ使用できます。";
-
-    /** 選択範囲内にプレイヤーがいない */
-    public static final String MSG_NO_PLAYERS_IN_SELECTION = "選択範囲内にプレイヤーがいません。";
 
     /** セットアップ中 or 賭け受付中のみ設定可能 */
     public static final String MSG_SETUP_OR_BETTING_ONLY = "セットアップ中 or 賭け受付中のみ設定できます。";

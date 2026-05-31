@@ -34,26 +34,8 @@ public class ArenaFightListener implements Listener {
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerDeath(PlayerDeathEvent event) {
-        ArenaManager manager = plugin.getArenaManager();
-        if (!manager.hasActiveSession()) return;
-
-        ArenaSession session = manager.getActiveSession();
-        if (session.getState() != ArenaState.ACTIVE) return;
-
-        Player player = event.getEntity();
-        if (!session.isFighter(player.getUniqueId())) return;
-        if (manager.getEliminatedPlayers().contains(player.getUniqueId())) return;
-
-        String team = session.getPlayerTeam(player.getUniqueId());
-        if (team == null) return;
-
-        ChatColor teamColor = session.getTeamColor(team);
-
-        Bukkit.broadcastMessage(ArenaMessages.PREFIX + teamColor + player.getName()
-                + ChatColor.GRAY + " (" + teamColor + team + ChatColor.GRAY + ")"
-                + ChatColor.RED + " が倒されました！");
-
-        manager.onFighterDeath(player.getUniqueId());
+        handleFighterElimination(event.getEntity(),
+                ChatColor.RED + " が倒されました！");
     }
 
     /**
@@ -61,13 +43,26 @@ public class ArenaFightListener implements Listener {
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerQuit(PlayerQuitEvent event) {
+        handleFighterElimination(event.getPlayer(),
+                ChatColor.YELLOW + " がログアウトしました（死亡扱い）");
+    }
+
+    /**
+     * 戦闘員脱落の共通処理。
+     *
+     * <p>セッション状態・戦闘員チェックを行い、脱落メッセージを配信して
+     * {@link ArenaManager#onFighterDeath} をトリガーする。
+     *
+     * @param player 脱落したプレイヤー
+     * @param suffix ブロードキャストメッセージの末尾部分（色コード込み）
+     */
+    private void handleFighterElimination(Player player, String suffix) {
         ArenaManager manager = plugin.getArenaManager();
         if (!manager.hasActiveSession()) return;
 
         ArenaSession session = manager.getActiveSession();
         if (session.getState() != ArenaState.ACTIVE) return;
 
-        Player player = event.getPlayer();
         if (!session.isFighter(player.getUniqueId())) return;
         if (manager.getEliminatedPlayers().contains(player.getUniqueId())) return;
 
@@ -78,7 +73,7 @@ public class ArenaFightListener implements Listener {
 
         Bukkit.broadcastMessage(ArenaMessages.PREFIX + teamColor + player.getName()
                 + ChatColor.GRAY + " (" + teamColor + team + ChatColor.GRAY + ")"
-                + ChatColor.YELLOW + " がログアウトしました（死亡扱い）");
+                + suffix);
 
         manager.onFighterDeath(player.getUniqueId());
     }

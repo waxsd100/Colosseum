@@ -54,8 +54,7 @@ public class CreateSubCommand implements SubCommand {
         if (session == null) {
             if (plugin.getTerrainManager() != null
                     && plugin.getTerrainManager().isBlocking()) {
-                sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
-                        + "地形復元中のため、セッションを作成できません。");
+                sender.sendMessage(ArenaMessages.MSG_TERRAIN_BLOCKING);
             } else {
                 sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
                         + ArenaMessages.MSG_SESSION_CREATE_FAILED);

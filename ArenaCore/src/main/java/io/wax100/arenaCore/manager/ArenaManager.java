@@ -25,7 +25,6 @@ import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
 import java.util.*;
-import java.util.Objects;
 
 /**
  * 闘技場セッションのライフサイクルを管理するクラス。
@@ -174,13 +173,15 @@ public class ArenaManager {
         plugin.getLogger().info("賭け受付を開始しました: " + activeSession.getName());
 
         int interval = plugin.getConfig().getInt("odds-broadcast-interval", 30);
-        if (interval > 0) {
-            oddsBroadcastTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
-                if (activeSession != null && activeSession.getState() == ArenaState.BETTING) {
-                    bettingManager.broadcastOdds(activeSession);
-                }
-            }, interval * 20L, interval * 20L);
+        if (interval <= 0) {
+            plugin.getLogger().warning("odds-broadcast-interval が 0 以下のためデフォルト値 (200) を使用します。");
+            interval = 200;
         }
+        oddsBroadcastTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (activeSession != null && activeSession.getState() == ArenaState.BETTING) {
+                bettingManager.broadcastOdds(activeSession);
+            }
+        }, interval * 20L, interval * 20L);
 
         return true;
     }
@@ -246,9 +247,7 @@ public class ArenaManager {
                 for (UUID memberId : members) {
                     Player player = Bukkit.getPlayer(memberId);
                     if (player != null && player.isOnline()) {
-                        double offsetX = (Math.random() - 0.5) * 3;
-                        double offsetZ = (Math.random() - 0.5) * 3;
-                        player.teleport(dest.clone().add(offsetX, 0, offsetZ));
+                        player.teleport(applyTeleportOffset(dest));
                     }
                 }
 
@@ -289,9 +288,7 @@ public class ArenaManager {
 
             int count = 0;
             for (LivingEntity mob : mobs) {
-                double offsetX = (Math.random() - 0.5) * 3;
-                double offsetZ = (Math.random() - 0.5) * 3;
-                Location loc = dest.clone().add(offsetX, 0, offsetZ);
+                Location loc = applyTeleportOffset(dest);
                 mob.teleport(loc);
                 activeSession.trackMob(mob.getUniqueId(), team);
                 count++;
@@ -343,7 +340,7 @@ public class ArenaManager {
         } finally {
             // バニラ Scoreboard Team を解除
             unregisterScoreboardTeams();
-            removeTrackedMobs();
+            cleanupMobs();
             activeSession.clearAllData();
             activeSession = null;
             eliminatedPlayers.clear();
@@ -393,7 +390,7 @@ public class ArenaManager {
         } finally {
             // バニラ Scoreboard Team を解除
             unregisterScoreboardTeams();
-            removeTrackedMobs();
+            cleanupMobs();
             activeSession.setState(ArenaState.FINISHED);
             activeSession.clearAllData();
             activeSession = null;
@@ -497,6 +494,22 @@ public class ArenaManager {
 
     // ── 内部ユーティリティ ──
 
+    private static final double TP_SPREAD_RANGE = 0.5;
+    private static final int TP_SPREAD_MULTIPLIER = 3;
+
+    /**
+     * TP先座標にランダムオフセットを付与する。
+     *
+     * @param base 基準座標
+     * @return オフセットが適用された新しい座標
+     */
+    private Location applyTeleportOffset(Location base) {
+        return base.clone().add(
+                (Math.random() - TP_SPREAD_RANGE) * TP_SPREAD_MULTIPLIER,
+                0,
+                (Math.random() - TP_SPREAD_RANGE) * TP_SPREAD_MULTIPLIER);
+    }
+
     private void stopOddsBroadcast() {
         if (oddsBroadcastTask != null) {
             oddsBroadcastTask.cancel();
@@ -506,25 +519,11 @@ public class ArenaManager {
 
     /**
      * スポーン済みのトラッキングモンスターをワールドから削除する。
+     *
+     * <p>例外が発生した場合はログ出力のみ行い、呼び出し元へは伝搬しない。
+     * finally ブロックからも安全に呼び出すことができる。
      */
     private void cleanupMobs() {
-        if (activeSession == null) return;
-        for (World world : Bukkit.getWorlds()) {
-            for (Entity entity : world.getEntities()) {
-                if (activeSession.getMobTeam(entity.getUniqueId()) != null) {
-                    entity.remove();
-                }
-            }
-        }
-    }
-
-    /**
-     * トラッキング中のモンスターを安全に除去する（finally 用）。
-     *
-     * <p>cleanupMobs() が正常完了しなかった場合の安全策として、
-     * 残存エンティティの除去を試みる。個別の例外は握りつぶしてログ出力のみ行う。
-     */
-    private void removeTrackedMobs() {
         if (activeSession == null) return;
         try {
             for (World world : Bukkit.getWorlds()) {
@@ -547,6 +546,10 @@ public class ArenaManager {
      */
     private void registerScoreboardTeams() {
         if (activeSession == null) return;
+        if (Bukkit.getScoreboardManager() == null) {
+            plugin.getLogger().warning("ScoreboardManager が利用できません。チーム登録をスキップします。");
+            return;
+        }
         Scoreboard sb = Bukkit.getScoreboardManager().getMainScoreboard();
 
         List<String> teamNames = activeSession.getTeamNames();
@@ -588,6 +591,10 @@ public class ArenaManager {
      */
     private void unregisterScoreboardTeams() {
         if (activeSession == null) return;
+        if (Bukkit.getScoreboardManager() == null) {
+            plugin.getLogger().warning("ScoreboardManager が利用できません。チーム解除をスキップします。");
+            return;
+        }
         Scoreboard sb = Bukkit.getScoreboardManager().getMainScoreboard();
 
         for (String teamName : activeSession.getTeamNames()) {
