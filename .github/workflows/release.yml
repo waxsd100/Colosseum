@@ -40,14 +40,17 @@ jobs:
             casino)
               PROJECT="CasinoCore"
               GRADLE_MODULE=":CasinoCore"
+              VERSION_PROP="casinoCoreVersion"
               ;;
             arena)
               PROJECT="ArenaCore"
               GRADLE_MODULE=":ArenaCore"
+              VERSION_PROP="arenaCoreVersion"
               ;;
             chiplib)
               PROJECT="ChipLib"
               GRADLE_MODULE=":ChipLib"
+              VERSION_PROP="chipLibVersion"
               ;;
             *)
               echo "::error::Unknown module: ${MODULE}"
@@ -59,6 +62,7 @@ jobs:
           echo "module=${MODULE}" >> "$GITHUB_OUTPUT"
           echo "project=${PROJECT}" >> "$GITHUB_OUTPUT"
           echo "gradle_module=${GRADLE_MODULE}" >> "$GITHUB_OUTPUT"
+          echo "version_prop=${VERSION_PROP}" >> "$GITHUB_OUTPUT"
 
           echo "### Parsed Tag" >> "$GITHUB_STEP_SUMMARY"
           echo "| Key | Value |" >> "$GITHUB_STEP_SUMMARY"
@@ -70,7 +74,8 @@ jobs:
       - name: Build & Test
         run: |
           chmod +x gradlew
-          ./gradlew ${{ steps.tag.outputs.gradle_module }}:build
+          ./gradlew ${{ steps.tag.outputs.gradle_module }}:build \
+            -P${{ steps.tag.outputs.version_prop }}=${{ steps.tag.outputs.version }}
 
       - name: Prepare release assets
         id: assets
