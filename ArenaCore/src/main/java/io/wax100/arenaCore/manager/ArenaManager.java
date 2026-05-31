@@ -508,7 +508,9 @@ public class ArenaManager {
         unregisterScoreboardTeams();
         cleanupMobs();
         if (activeSession != null) {
-            activeSession.setState(ArenaState.FINISHED);
+            if (activeSession.getState() != ArenaState.FINISHED) {
+                activeSession.setState(ArenaState.FINISHED);
+            }
             activeSession.clearAllData();
             activeSession = null;
         }
