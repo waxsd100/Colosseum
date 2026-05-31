@@ -72,7 +72,6 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
     private void sendUsage(CommandSender sender) {
         sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "使い方:");
         sender.sendMessage(ChatColor.YELLOW + "  /arena create <名前> <チーム1> <チーム2> [...]");
-        sender.sendMessage(ChatColor.YELLOW + "  /arena team add <チーム名> <プレイヤー>");
         sender.sendMessage(ChatColor.YELLOW + "  /arena team list");
         sender.sendMessage(ChatColor.YELLOW + "  /arena team area <チーム名>" + ChatColor.GRAY + " <- WE選択範囲を待機場に");
         sender.sendMessage(ChatColor.YELLOW + "  /arena team dest <チーム名>" + ChatColor.GRAY + " <- 現在地をTP先に");
@@ -80,12 +79,11 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "  /arena mob <チーム名> dest" + ChatColor.GRAY + " <- 現在地をMobのTP先に");
         sender.sendMessage(ChatColor.YELLOW + "  /arena mob <チーム名> list" + ChatColor.GRAY + " <- 待機場Mob一覧");
         sender.sendMessage(ChatColor.YELLOW + "  /arena region bet <チーム名>" + ChatColor.GRAY + " <- WE選択範囲を賭けエリアに");
-        sender.sendMessage(ChatColor.YELLOW + "  /arena region team <チーム名>" + ChatColor.GRAY + " <- WE選択範囲内のプレイヤーをチームに");
         sender.sendMessage(ChatColor.YELLOW + "  /arena field set" + ChatColor.GRAY + " <- WE選択範囲を戦闘エリアに");
         sender.sendMessage(ChatColor.YELLOW + "  /arena field info" + ChatColor.GRAY + " <- 戦闘エリア情報");
         sender.sendMessage(ChatColor.YELLOW + "  /arena preset save/load/list/delete" + ChatColor.GRAY + " <- プリセット管理");
         sender.sendMessage(ChatColor.YELLOW + "  /arena open" + ChatColor.GRAY + " <- 賭け受付開始");
-        sender.sendMessage(ChatColor.YELLOW + "  /arena start" + ChatColor.GRAY + " <- 試合開始");
+        sender.sendMessage(ChatColor.YELLOW + "  /arena start" + ChatColor.GRAY + " <- 試合開始（待機場から自動登録）");
         sender.sendMessage(ChatColor.YELLOW + "  /arena win <チーム名>");
         sender.sendMessage(ChatColor.YELLOW + "  /arena cancel");
         sender.sendMessage(ChatColor.YELLOW + "  /arena status");

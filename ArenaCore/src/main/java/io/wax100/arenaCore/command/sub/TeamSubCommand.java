@@ -18,13 +18,14 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * {@code /arena team <add|list|area|dest>} を処理する。
+ * {@code /arena team <list|area|dest>} を処理する。
  *
- * <p>第2階層のサブコマンドとして add/list/area/dest を持つ。
+ * <p>第2階層のサブコマンドとして list/area/dest を持つ。
+ * チームメンバーの登録は待機場による自動登録（{@code /arena start} 時）に一本化されている。
  */
 public class TeamSubCommand implements SubCommand {
 
-    private static final List<String> SUB_COMMANDS = Arrays.asList("add", "list", "area", "dest");
+    private static final List<String> SUB_COMMANDS = Arrays.asList("list", "area", "dest");
 
     private final ArenaCore plugin;
 
@@ -38,7 +39,6 @@ public class TeamSubCommand implements SubCommand {
         if (!CommandHelper.requireArgs(sender, args, 1, getUsage())) return;
 
         switch (args[0].toLowerCase()) {
-            case "add" -> handleAdd(sender, args);
             case "list" -> handleList(sender);
             case "area" -> handleArea(sender, args);
             case "dest" -> handleDest(sender, args);
@@ -46,45 +46,6 @@ public class TeamSubCommand implements SubCommand {
         }
     }
 
-    // ── add ──
-
-    private void handleAdd(CommandSender sender, String[] args) {
-        if (!CommandHelper.requireArgs(sender, args, 3,
-                "/arena team add <チーム名> <プレイヤー>")) return;
-
-        ArenaManager manager = plugin.getArenaManager();
-        ArenaSession session = CommandHelper.requireSessionInState(
-                sender, manager, ArenaState.SETUP, ArenaMessages.MSG_SETUP_ONLY_TEAM_EDIT);
-        if (session == null) return;
-
-        String teamName = args[1];
-        if (!CommandHelper.requireTeamExists(sender, session, teamName)) return;
-
-        Player target = Bukkit.getPlayer(args[2]);
-        if (target == null) {
-            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
-                    + String.format(ArenaMessages.MSG_PLAYER_NOT_FOUND_FMT, args[2]));
-            return;
-        }
-
-        if (session.isFighter(target.getUniqueId())) {
-            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
-                    + target.getName() + " は既にチーム「"
-                    + session.getPlayerTeam(target.getUniqueId()) + "」に所属しています。");
-            return;
-        }
-
-        if (!manager.addTeamMember(teamName, target)) {
-            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + ArenaMessages.MSG_ADD_FAILED);
-            return;
-        }
-
-        int teamIndex = session.getTeamNames().indexOf(teamName);
-        ChatColor teamColor = ArenaMessages.getTeamColor(teamIndex);
-        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GREEN
-                + target.getName() + " が " + teamColor + ChatColor.BOLD + teamName
-                + ChatColor.RESET + ChatColor.GREEN + " に参加しました！");
-    }
 
     // ── list ──
 
@@ -222,19 +183,16 @@ public class TeamSubCommand implements SubCommand {
         }
         if (args.length == 2) {
             String sub = args[0].toLowerCase();
-            if ("add".equals(sub) || "area".equals(sub) || "dest".equals(sub)) {
+            if ("area".equals(sub) || "dest".equals(sub)) {
                 return CommandHelper.getTeamNameCandidates(plugin.getArenaManager(), args[1]);
             }
-        }
-        if (args.length == 3 && "add".equalsIgnoreCase(args[0])) {
-            return CommandHelper.getOnlinePlayerNames(args[2]);
         }
         return List.of();
     }
 
     @Override
     public String getUsage() {
-        return "/arena team <add|list|area|dest>";
+        return "/arena team <list|area|dest>";
     }
 
 

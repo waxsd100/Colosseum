@@ -21,6 +21,8 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.scoreboard.Team;
 
 import java.util.*;
 import java.util.Objects;
@@ -186,6 +188,10 @@ public class ArenaManager {
         scanAndTeleportPlayers();
         // モンスターチームのMobを待機場からスキャンしてTP
         scanAndTeleportMobs();
+
+        // バニラ Scoreboard Team と連携
+        registerScoreboardTeams();
+
         return true;
     }
 
@@ -314,6 +320,9 @@ public class ArenaManager {
         // カスタムイベント発火（情報通知）
         Bukkit.getPluginManager().callEvent(new ArenaWinnerDeclaredEvent(activeSession, winningTeam));
 
+        // バニラ Scoreboard Team を解除
+        unregisterScoreboardTeams();
+
         // 残存Mobをワールドから削除
         cleanupMobs();
 
@@ -361,6 +370,9 @@ public class ArenaManager {
 
         // スポーン済みモンスターを削除
         cleanupMobs();
+
+        // バニラ Scoreboard Team を解除
+        unregisterScoreboardTeams();
 
         activeSession.setState(ArenaState.FINISHED);
         activeSession.clearAllData();
@@ -482,6 +494,69 @@ public class ArenaManager {
             for (Entity entity : world.getEntities()) {
                 if (activeSession.getMobTeam(entity.getUniqueId()) != null) {
                     entity.remove();
+                }
+            }
+        }
+    }
+
+    /**
+     * バニラ Scoreboard Team にプレイヤーを登録する。
+     *
+     * <p>試合開始時に呼び出され、各チームに対応する Scoreboard Team を作成（または取得）し、
+     * プレイヤーを登録する。チームカラーが自動設定され、味方討ち（Friendly Fire）は無効になる。
+     */
+    private void registerScoreboardTeams() {
+        if (activeSession == null) return;
+        Scoreboard sb = Bukkit.getScoreboardManager().getMainScoreboard();
+
+        List<String> teamNames = activeSession.getTeamNames();
+        for (int i = 0; i < teamNames.size(); i++) {
+            String teamName = teamNames.get(i);
+            if (activeSession.isMobTeam(teamName)) continue;
+
+            // 既存チームがあれば取得、なければ新規作成
+            Team sbTeam = sb.getTeam(teamName);
+            if (sbTeam == null) {
+                sbTeam = sb.registerNewTeam(teamName);
+            }
+
+            // チームカラーの設定
+            ChatColor arenaColor = ArenaMessages.getTeamColor(i);
+            sbTeam.setColor(arenaColor);
+            sbTeam.setPrefix(arenaColor.toString());
+
+            // Friendly Fire を無効化
+            sbTeam.setAllowFriendlyFire(false);
+
+            // メンバーを登録
+            for (UUID memberId : activeSession.getTeamMembers(teamName)) {
+                Player player = Bukkit.getPlayer(memberId);
+                if (player != null && player.isOnline()) {
+                    sbTeam.addEntry(player.getName());
+                }
+            }
+
+            plugin.getLogger().info("Scoreboard Team 登録: " + teamName
+                    + " (" + activeSession.getTeamMembers(teamName).size() + "人)");
+        }
+    }
+
+    /**
+     * バニラ Scoreboard Team を解除する。
+     *
+     * <p>試合終了・キャンセル時に呼び出され、登録したチームを unregister する。
+     */
+    private void unregisterScoreboardTeams() {
+        if (activeSession == null) return;
+        Scoreboard sb = Bukkit.getScoreboardManager().getMainScoreboard();
+
+        for (String teamName : activeSession.getTeamNames()) {
+            Team sbTeam = sb.getTeam(teamName);
+            if (sbTeam != null) {
+                try {
+                    sbTeam.unregister();
+                } catch (IllegalStateException e) {
+                    plugin.getLogger().warning("Scoreboard Team 解除失敗: " + teamName);
                 }
             }
         }
