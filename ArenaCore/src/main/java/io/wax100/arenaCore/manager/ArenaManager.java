@@ -379,10 +379,10 @@ public class ArenaManager {
     /**
      * 戦闘員の死亡を処理し、勝利条件を判定する。
      */
-    public boolean onFighterDeath(UUID playerId) {
-        if (activeSession == null || activeSession.getState() != ArenaState.ACTIVE) return false;
+    public void onFighterDeath(UUID playerId) {
+        if (activeSession == null || activeSession.getState() != ArenaState.ACTIVE) return;
         String team = activeSession.getPlayerTeam(playerId);
-        if (team == null) return false;
+        if (team == null) return;
 
         eliminatedPlayers.add(playerId);
 
@@ -391,7 +391,7 @@ public class ArenaManager {
 
         if (winner != null) {
             declareWinner(winner);
-            return true;
+            return;
         }
 
         // チーム全滅通知
@@ -408,29 +408,24 @@ public class ArenaManager {
             Bukkit.broadcastMessage(ArenaMessages.PREFIX + teamColor + ChatColor.BOLD
                     + team + ChatColor.RESET + ChatColor.RED + " が全滅しました！");
         }
-
-        return false;
     }
 
     /**
      * モンスター死亡を処理し、チーム全滅判定を行う。
      *
      * @param entityId 死亡したエンティティの UUID
-     * @return 勝敗が確定した場合 true
      */
-    public boolean onMobDeath(UUID entityId) {
-        if (activeSession == null || activeSession.getState() != ArenaState.ACTIVE) return false;
+    public void onMobDeath(UUID entityId) {
+        if (activeSession == null || activeSession.getState() != ArenaState.ACTIVE) return;
 
         String team = activeSession.getMobTeam(entityId);
-        if (team == null) return false;
+        if (team == null) return;
 
         activeSession.removeMob(entityId);
 
         if (!activeSession.hasAliveMobs(team)) {
             // Mobチーム全滅 → 仮想メンバーを全員脱落扱いにする
-            for (UUID member : activeSession.getTeamMembers(team)) {
-                eliminatedPlayers.add(member);
-            }
+            eliminatedPlayers.addAll(activeSession.getTeamMembers(team));
             // Mobチームにプレイヤーメンバーがいない場合でも
             // チーム自体を全滅とマークする（sentinel UUID）
             activeSession.markTeamEliminated(team);
@@ -443,11 +438,8 @@ public class ArenaManager {
             String winner = winCondition.checkWinOnDeath(activeSession, entityId, eliminatedPlayers);
             if (winner != null) {
                 declareWinner(winner);
-                return true;
             }
         }
-
-        return false;
     }
 
     /**
@@ -523,8 +515,7 @@ public class ArenaManager {
         Scoreboard sb = Bukkit.getScoreboardManager().getMainScoreboard();
 
         List<String> teamNames = activeSession.getTeamNames();
-        for (int i = 0; i < teamNames.size(); i++) {
-            String teamName = teamNames.get(i);
+        for (String teamName : teamNames) {
             if (activeSession.isMobTeam(teamName)) continue;
 
             // 既存チームがあれば取得、なければ新規作成

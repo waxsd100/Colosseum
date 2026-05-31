@@ -156,27 +156,24 @@ public class ArenaSession {
     // ── チーム管理 ──
 
     /**
-     * チームを追加する。同名チームが存在する場合は false を返す。
+     * チームを追加する。同名チームが既に存在する場合は何もしない。
      *
      * @param teamName チーム名
-     * @return 追加成功時 true
      */
-    public boolean addTeam(String teamName) {
-        if (teams.containsKey(teamName)) return false;
+    public void addTeam(String teamName) {
+        if (teams.containsKey(teamName)) return;
         teamNames.add(teamName);
         teams.put(teamName, new ArrayList<>());
         scores.put(teamName, 0);
-        return true;
     }
 
     public boolean hasTeam(String teamName) { return teams.containsKey(teamName); }
 
-    public boolean addTeamMember(String teamName, UUID playerId) {
+    public void addTeamMember(String teamName, UUID playerId) {
         List<UUID> members = teams.get(teamName);
-        if (members == null) return false;
-        if (isFighter(playerId)) return false;
+        if (members == null) return;
+        if (isFighter(playerId)) return;
         members.add(playerId);
-        return true;
     }
 
     public List<UUID> getTeamMembers(String teamName) {
@@ -263,14 +260,12 @@ public class ArenaSession {
      *
      * @param playerId プレイヤーの UUID
      * @param teamName チーム名
-     * @return 削除された賭け。存在しない場合 {@code null}
      */
-    public Bet removeBet(UUID playerId, String teamName) {
+    public void removeBet(UUID playerId, String teamName) {
         Map<String, Bet> teamBets = bets.get(playerId);
-        if (teamBets == null) return null;
-        Bet removed = teamBets.remove(teamName);
+        if (teamBets == null) return;
+        teamBets.remove(teamName);
         if (teamBets.isEmpty()) bets.remove(playerId);
-        return removed;
     }
 
     /**
@@ -342,10 +337,9 @@ public class ArenaSession {
      * 設置チップを削除する（賭け取消時）。
      *
      * @param location 座標
-     * @return 削除された設置情報。存在しない場合 {@code null}
      */
-    public PlacedChipInfo removePlacedChip(Location location) {
-        return placedChips.remove(location);
+    public void removePlacedChip(Location location) {
+        placedChips.remove(location);
     }
 
     /**

@@ -93,14 +93,13 @@ public class BettingManager {
      * @param session  セッション
      * @param player   回収者
      * @param location 回収座標
-     * @return 取消に成功した場合 {@code true}
      */
-    public boolean cancelBet(ArenaSession session, Player player, Location location) {
+    public void cancelBet(ArenaSession session, Player player, Location location) {
         ArenaSession.PlacedChipInfo chipInfo = session.getPlacedChip(location);
-        if (chipInfo == null) return false;
+        if (chipInfo == null) return;
 
         // 自分の賭けのみ取消可能
-        if (!chipInfo.playerId().equals(player.getUniqueId())) return false;
+        if (!chipInfo.playerId().equals(player.getUniqueId())) return;
 
         session.removePlacedChip(location);
 
@@ -123,8 +122,6 @@ public class BettingManager {
         player.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
                 + "賭けを " + ChipManager.formatAmount(chipInfo.chipValue())
                 + " E 分取り消しました。");
-
-        return true;
     }
 
     /**

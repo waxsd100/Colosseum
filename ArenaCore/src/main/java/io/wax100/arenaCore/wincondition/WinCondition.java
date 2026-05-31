@@ -21,14 +21,4 @@ public interface WinCondition {
      * @return 勝利チーム名。未確定の場合 {@code null}
      */
     String checkWinOnDeath(ArenaSession session, UUID deadPlayerId, Set<UUID> eliminatedPlayers);
-
-    /**
-     * 手動で勝者を宣言できるかを返す。
-     * どのモードでもオーバーライドとして常に {@code true}。
-     *
-     * @return 手動宣言可能な場合 {@code true}
-     */
-    default boolean allowsManualWin() {
-        return true;
-    }
 }

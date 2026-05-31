@@ -229,13 +229,6 @@ class WinConditionTest {
             }
         }
 
-        // ── インターフェースデフォルト ──
-
-        @Test
-        @DisplayName("allowsManualWin はデフォルトで true を返す")
-        void allowsManualWin_defaultTrue() {
-            assertTrue(condition.allowsManualWin());
-        }
     }
 
     // ================================================================
@@ -446,15 +439,6 @@ class WinConditionTest {
             assertEquals("TeamB", winner);
             assertEquals(1, session.getScore("TeamB"));
         }
-
-        // ── インターフェースデフォルト ──
-
-        @Test
-        @DisplayName("allowsManualWin はデフォルトで true を返す")
-        void allowsManualWin_defaultTrue() {
-            ScoreCondition condition = new ScoreCondition(5);
-            assertTrue(condition.allowsManualWin());
-        }
     }
 
     // ================================================================
@@ -525,11 +509,7 @@ class WinConditionTest {
             assertNull(condition.checkWinOnDeath(session, NON_FIGHTER, eliminated));
         }
 
-        @Test
-        @DisplayName("allowsManualWin は true を返す")
-        void allowsManualWin_returnsTrue() {
-            assertTrue(condition.allowsManualWin());
-        }
+
 
         @Test
         @DisplayName("WinCondition インターフェースを実装している")

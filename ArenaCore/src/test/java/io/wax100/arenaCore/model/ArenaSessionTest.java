@@ -132,19 +132,19 @@ class ArenaSessionTest {
         @DisplayName("addTeamでチームを後から追加できる")
         void addTeam_addsTeamToSession() {
             ArenaSession session = new ArenaSession("Dynamic", List.of());
-            assertTrue(session.addTeam("Alpha"));
-            assertTrue(session.addTeam("Beta"));
+            session.addTeam("Alpha");
+            session.addTeam("Beta");
             assertEquals(2, session.getTeamNames().size());
             assertTrue(session.hasTeam("Alpha"));
             assertTrue(session.hasTeam("Beta"));
         }
 
         @Test
-        @DisplayName("addTeamで重複チームはfalseを返す")
-        void addTeam_duplicateReturnsFalse() {
+        @DisplayName("addTeamで重複チームは無視される")
+        void addTeam_duplicateIsIgnored() {
             ArenaSession session = new ArenaSession("Dynamic", List.of());
-            assertTrue(session.addTeam("Alpha"));
-            assertFalse(session.addTeam("Alpha"));
+            session.addTeam("Alpha");
+            session.addTeam("Alpha");
             assertEquals(1, session.getTeamNames().size());
         }
     }
@@ -183,10 +183,11 @@ class ArenaSessionTest {
     class AddTeamMemberTest {
 
         @Test
-        @DisplayName("存在するチームにメンバーを追加するとtrueを返す")
-        void validTeam_returnsTrue() {
+        @DisplayName("存在するチームにメンバーを追加できる")
+        void validTeam_addsMember() {
             UUID player = UUID.randomUUID();
-            assertTrue(session.addTeamMember(TEAM_RED, player));
+            session.addTeamMember(TEAM_RED, player);
+            assertTrue(session.getTeamMembers(TEAM_RED).contains(player));
         }
 
         @Test
@@ -198,26 +199,29 @@ class ArenaSessionTest {
         }
 
         @Test
-        @DisplayName("存在しないチームに追加するとfalseを返す")
-        void unknownTeam_returnsFalse() {
+        @DisplayName("存在しないチームへの追加は無視される")
+        void unknownTeam_isIgnored() {
             UUID player = UUID.randomUUID();
-            assertFalse(session.addTeamMember("Green", player));
+            session.addTeamMember("Green", player);
+            assertFalse(session.isFighter(player));
         }
 
         @Test
-        @DisplayName("既に別チームの戦闘員であるプレイヤーを追加するとfalseを返す")
-        void playerAlreadyInOtherTeam_returnsFalse() {
+        @DisplayName("既に別チームの戦闘員であるプレイヤーの追加は無視される")
+        void playerAlreadyInOtherTeam_isIgnored() {
             UUID player = UUID.randomUUID();
             session.addTeamMember(TEAM_RED, player);
-            assertFalse(session.addTeamMember(TEAM_BLUE, player));
+            session.addTeamMember(TEAM_BLUE, player);
+            assertFalse(session.getTeamMembers(TEAM_BLUE).contains(player));
         }
 
         @Test
-        @DisplayName("既に同じチームの戦闘員であるプレイヤーを追加するとfalseを返す")
-        void playerAlreadyInSameTeam_returnsFalse() {
+        @DisplayName("既に同じチームの戦闘員であるプレイヤーの追加は無視される")
+        void playerAlreadyInSameTeam_isIgnored() {
             UUID player = UUID.randomUUID();
             session.addTeamMember(TEAM_RED, player);
-            assertFalse(session.addTeamMember(TEAM_RED, player));
+            session.addTeamMember(TEAM_RED, player);
+            assertEquals(1, session.getTeamSize(TEAM_RED));
         }
 
         @Test
@@ -226,9 +230,9 @@ class ArenaSessionTest {
             UUID p1 = UUID.randomUUID();
             UUID p2 = UUID.randomUUID();
             UUID p3 = UUID.randomUUID();
-            assertTrue(session.addTeamMember(TEAM_RED, p1));
-            assertTrue(session.addTeamMember(TEAM_RED, p2));
-            assertTrue(session.addTeamMember(TEAM_RED, p3));
+            session.addTeamMember(TEAM_RED, p1);
+            session.addTeamMember(TEAM_RED, p2);
+            session.addTeamMember(TEAM_RED, p3);
             assertEquals(3, session.getTeamSize(TEAM_RED));
         }
     }
