@@ -1,6 +1,5 @@
 package io.wax100.arenaCore.model;
 
-import org.bukkit.Location;
 
 import java.util.Objects;
 
@@ -25,7 +24,7 @@ public record BettingRegion(
         String teamName, String worldName,
         int minX, int minY, int minZ,
         int maxX, int maxY, int maxZ
-) {
+) implements CuboidArea {
 
     /**
      * 正規化済みの値でレコードを生成する（コンパクトコンストラクタ）。
@@ -54,23 +53,6 @@ public record BettingRegion(
         return new BettingRegion(teamName, worldName,
                 Math.min(x1, x2), Math.min(y1, y2), Math.min(z1, z2),
                 Math.max(x1, x2), Math.max(y1, y2), Math.max(z1, z2));
-    }
-
-    /**
-     * 指定座標がこの賭けエリア内にあるかを判定する。
-     *
-     * @param loc 判定対象座標
-     * @return エリア内の場合 {@code true}
-     */
-    public boolean contains(Location loc) {
-        if (loc.getWorld() == null) return false;
-        if (!loc.getWorld().getName().equals(worldName)) return false;
-        int x = loc.getBlockX();
-        int y = loc.getBlockY();
-        int z = loc.getBlockZ();
-        return x >= minX && x <= maxX
-                && y >= minY && y <= maxY
-                && z >= minZ && z <= maxZ;
     }
 
     @Override

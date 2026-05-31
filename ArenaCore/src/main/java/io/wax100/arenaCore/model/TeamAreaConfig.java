@@ -18,7 +18,7 @@ import java.util.Objects;
  * 管理者が事前にプレイヤーやMobを待機エリアに配置し、
  * 試合開始時にTP先へ転送する。
  */
-public class TeamAreaConfig {
+public class TeamAreaConfig implements CuboidArea {
 
     private final String worldName;
     private final int minX, minY, minZ;
@@ -49,22 +49,6 @@ public class TeamAreaConfig {
         this.maxZ = Math.max(z1, z2);
     }
 
-    /**
-     * 指定座標がこの待機エリア内にあるかを判定する。
-     *
-     * @param loc 判定対象座標
-     * @return エリア内の場合 {@code true}
-     */
-    public boolean contains(Location loc) {
-        if (loc.getWorld() == null) return false;
-        if (!loc.getWorld().getName().equals(worldName)) return false;
-        int x = loc.getBlockX();
-        int y = loc.getBlockY();
-        int z = loc.getBlockZ();
-        return x >= minX && x <= maxX
-                && y >= minY && y <= maxY
-                && z >= minZ && z <= maxZ;
-    }
 
     /**
      * 待機エリア内の全 LivingEntity（Player を除く）を取得する。
