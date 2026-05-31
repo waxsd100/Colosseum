@@ -91,6 +91,13 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
                 break;
         }
 
+        // チップ購入はカジノモード or アリーナ賭け中のみ許可
+        if (!plugin.isAllowed(player.getUniqueId())) {
+            player.sendMessage(ChipMessages.PREFIX + ChatColor.RED
+                    + "現在チップを購入できません。カジノモードまたは賭け受付中に使用してください。");
+            return true;
+        }
+
         try {
             long firstArg = Long.parseLong(args[0]);
             if (args.length >= 2) {

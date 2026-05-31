@@ -6,6 +6,10 @@ import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
+
 /**
  * ChipLib プラグインのメインクラス。
  *
@@ -32,6 +36,11 @@ public final class ChipPlugin extends JavaPlugin {
      * チップ管理マネージャ
      */
     private ChipManager chipManager;
+
+    /**
+     * チップ使用を許可されたプレイヤーのセット
+     */
+    private final Set<UUID> allowedPlayers = new HashSet<>();
 
     /**
      * プラグイン有効化時の初期化処理。
@@ -106,5 +115,41 @@ public final class ChipPlugin extends JavaPlugin {
      */
     public ChipManager getChipManager() {
         return chipManager;
+    }
+
+    /**
+     * プレイヤーにチップ使用を許可する。
+     * CasinoCore や ArenaCore など外部プラグインから呼び出される。
+     *
+     * @param playerId プレイヤーの UUID
+     */
+    public void allowPlayer(UUID playerId) {
+        allowedPlayers.add(playerId);
+    }
+
+    /**
+     * プレイヤーのチップ使用許可を解除する。
+     *
+     * @param playerId プレイヤーの UUID
+     */
+    public void disallowPlayer(UUID playerId) {
+        allowedPlayers.remove(playerId);
+    }
+
+    /**
+     * プレイヤーがチップ使用を許可されているかを返す。
+     *
+     * @param playerId プレイヤーの UUID
+     * @return 許可されている場合 {@code true}
+     */
+    public boolean isAllowed(UUID playerId) {
+        return allowedPlayers.contains(playerId);
+    }
+
+    /**
+     * 全プレイヤーのチップ使用許可をクリアする。
+     */
+    public void clearAllAllowed() {
+        allowedPlayers.clear();
     }
 }

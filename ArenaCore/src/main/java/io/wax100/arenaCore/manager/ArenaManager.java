@@ -12,6 +12,7 @@ import io.wax100.arenaCore.model.BettingRegion;
 import io.wax100.arenaCore.util.ArenaMessages;
 import io.wax100.arenaCore.wincondition.WinCondition;
 import io.wax100.chipLib.ChipManager;
+import io.wax100.chipLib.ChipPlugin;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -156,6 +157,14 @@ public class ArenaManager {
 
         activeSession.setState(ArenaState.BETTING);
         plugin.getLogger().info("賭け受付を開始しました: " + activeSession.getName());
+
+        // 全オンラインプレイヤーにチップ使用を許可
+        ChipPlugin chipPlugin = getChipPlugin();
+        if (chipPlugin != null) {
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                chipPlugin.allowPlayer(p.getUniqueId());
+            }
+        }
 
         int interval = plugin.getConfig().getInt("odds-broadcast-interval", 30);
         if (interval <= 0) {
@@ -499,6 +508,9 @@ public class ArenaManager {
     private void cleanupSession() {
         unregisterScoreboardTeams();
         cleanupMobs();
+        // チップ使用許可を全解除
+        ChipPlugin chipPlugin = getChipPlugin();
+        if (chipPlugin != null) chipPlugin.clearAllAllowed();
         if (activeSession != null) {
             if (activeSession.getState() != ArenaState.FINISHED) {
                 activeSession.setState(ArenaState.FINISHED);
@@ -637,5 +649,15 @@ public class ArenaManager {
         stopOddsBroadcast();
         terrainManager.cancelAndClear();
         if (activeSession != null) cancelArena();
+    }
+
+    /**
+     * ChipLib プラグインインスタンスを取得するヘルパー。
+     *
+     * @return ChipPlugin インスタンス。未ロードの場合は null
+     */
+    private ChipPlugin getChipPlugin() {
+        org.bukkit.plugin.Plugin p = Bukkit.getPluginManager().getPlugin("ChipLib");
+        return (p instanceof ChipPlugin) ? (ChipPlugin) p : null;
     }
 }

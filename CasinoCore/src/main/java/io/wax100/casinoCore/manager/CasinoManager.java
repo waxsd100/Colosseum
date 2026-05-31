@@ -4,6 +4,7 @@ import io.wax100.bindingCurseLib.BindingCurseManager;
 import io.wax100.casinoCore.CasinoCore;
 import io.wax100.chipLib.Chip;
 import io.wax100.chipLib.ChipManager;
+import io.wax100.chipLib.ChipPlugin;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
@@ -193,6 +194,9 @@ public class CasinoManager {
         casinoPlayers.add(player.getUniqueId());
         getOrCreateStats(player.getUniqueId()).recordSessionJoin(player.getName());
         applyAdventureModeToPlayer(player);
+        // ChipLib にチップ使用を許可
+        ChipPlugin chipPlugin = getChipPlugin();
+        if (chipPlugin != null) chipPlugin.allowPlayer(player.getUniqueId());
         saveData();
     }
 
@@ -209,6 +213,9 @@ public class CasinoManager {
         cashoutPlayer(player, plugin.getChipManager(), plugin.getEconomy());
         restorePlayerState(player);
         casinoPlayers.remove(player.getUniqueId());
+        // ChipLib のチップ使用許可を解除
+        ChipPlugin chipPlugin = getChipPlugin();
+        if (chipPlugin != null) chipPlugin.disallowPlayer(player.getUniqueId());
         restoreKeepInventoryIfEmpty();
         saveData();
     }
@@ -225,6 +232,8 @@ public class CasinoManager {
     public void handlePlayerDisconnect(Player player) {
         restorePlayerState(player);
         casinoPlayers.remove(player.getUniqueId());
+        ChipPlugin chipPlugin = getChipPlugin();
+        if (chipPlugin != null) chipPlugin.disallowPlayer(player.getUniqueId());
         restoreKeepInventoryIfEmpty();
         saveData();
     }
@@ -576,5 +585,19 @@ public class CasinoManager {
     public synchronized void saveData(boolean async) {
         dataStore.save(async, casinoPlayers, sessionPurchases, savedKeepInventory,
                 savedWorldName, savedGameModes, ranking, playerStats);
+    }
+
+    /**
+     * ChipLib プラグインインスタンスを取得するヘルパー。
+     *
+     * @return ChipPlugin インスタンス。未ロードの場合は null
+     */
+    private ChipPlugin getChipPlugin() {
+        try {
+            org.bukkit.plugin.Plugin p = Bukkit.getPluginManager().getPlugin("ChipLib");
+            return (p instanceof ChipPlugin) ? (ChipPlugin) p : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

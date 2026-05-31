@@ -1,12 +1,12 @@
 package io.wax100.casinoCore;
 
-import io.wax100.bindingCurseLib.BindingCurseManager;
-import io.wax100.casinoCore.command.ChipCommand;
-import io.wax100.casinoCore.manager.CasinoManager;
 import io.wax100.chipLib.Chip;
 import io.wax100.chipLib.ChipManager;
+import io.wax100.chipLib.ChipPlugin;
+import io.wax100.chipLib.command.ChipCommand;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
+import org.bukkit.GameMode;
 import org.bukkit.command.Command;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -26,7 +26,6 @@ import java.util.HashMap;
 import java.util.UUID;
 import java.util.logging.Logger;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -40,7 +39,7 @@ class CasinoFlowIT {
 
     private final UUID playerId = UUID.randomUUID();
     @Mock
-    private CasinoCore plugin;
+    private ChipPlugin chipPlugin;
     @Mock
     private Economy economy;
     @Mock
@@ -49,24 +48,24 @@ class CasinoFlowIT {
     private PlayerInventory inventory;
     @Mock
     private Command command;
-    @Mock
-    private BindingCurseManager bindingCurseManager;
     private ChipManager chipManager;
-    private CasinoManager casinoManager;
     private ChipCommand chipCommand;
 
     @BeforeEach
     void setUp() {
-        // Plugin モック設定
-        when(plugin.getName()).thenReturn("CasinoCore");
-        when(plugin.getEconomy()).thenReturn(economy);
-        when(plugin.getConfig()).thenReturn(mock(org.bukkit.configuration.file.FileConfiguration.class));
-        when(plugin.getConfig().getLong("max-buy", 1000000)).thenReturn(1000000L);
-        when(plugin.getDataFolder()).thenReturn(new File(System.getProperty("java.io.tmpdir"), "CasinoCore_test"));
-        when(plugin.getLogger()).thenReturn(Logger.getLogger("CasinoCore"));
+        // ChipPlugin モック設定
+        when(chipPlugin.getName()).thenReturn("ChipLib");
+        when(chipPlugin.getEconomy()).thenReturn(economy);
+        when(chipPlugin.getConfig()).thenReturn(mock(org.bukkit.configuration.file.FileConfiguration.class));
+        when(chipPlugin.getConfig().getLong("max-buy", 1000000)).thenReturn(1000000L);
+        when(chipPlugin.getDataFolder()).thenReturn(new File(System.getProperty("java.io.tmpdir"), "ChipLib_test"));
+        when(chipPlugin.getLogger()).thenReturn(Logger.getLogger("ChipLib"));
+
+        // チップ使用を許可
+        when(chipPlugin.isAllowed(playerId)).thenReturn(true);
 
         // ChipManager をスパイ化して createChipItem のモックアイテムを返す
-        chipManager = spy(new ChipManager(plugin));
+        chipManager = spy(new ChipManager(chipPlugin));
         doAnswer(invocation -> {
             Chip chip = invocation.getArgument(0);
             int amount = invocation.getArgument(1);
@@ -76,19 +75,16 @@ class CasinoFlowIT {
             return mockItem;
         }).when(chipManager).createChipItem(any(Chip.class), anyInt());
 
-        casinoManager = spy(new CasinoManager(plugin, bindingCurseManager));
-        // サーバー不在時 ItemStack/NBT操作が動作しないためシザース配布をスキップ
-        doNothing().when(casinoManager).applyAdventureModeToPlayer(any());
-        when(plugin.getChipManager()).thenReturn(chipManager);
-        when(plugin.getCasinoManager()).thenReturn(casinoManager);
+        when(chipPlugin.getChipManager()).thenReturn(chipManager);
 
-        chipCommand = new ChipCommand(plugin);
+        chipCommand = new ChipCommand(chipPlugin);
 
         // Player モック設定
         when(player.getUniqueId()).thenReturn(playerId);
         when(player.getInventory()).thenReturn(inventory);
         when(player.getName()).thenReturn("TestPlayer");
         when(player.isOnline()).thenReturn(true);
+        when(player.getGameMode()).thenReturn(GameMode.ADVENTURE);
         org.bukkit.World mockWorld = mock(org.bukkit.World.class);
         when(mockWorld.getName()).thenReturn("world");
         when(mockWorld.getGameRuleValue(org.bukkit.GameRule.KEEP_INVENTORY)).thenReturn(false);
@@ -102,9 +98,6 @@ class CasinoFlowIT {
         when(economy.withdrawPlayer(any(org.bukkit.OfflinePlayer.class), anyDouble()))
                 .thenReturn(new EconomyResponse(0, 0, EconomyResponse.ResponseType.SUCCESS, null));
         when(economy.getBalance(any(org.bukkit.OfflinePlayer.class))).thenReturn(1000000.0);
-
-        // プレイヤーをカジノモードに登録
-        casinoManager.addPlayerToCasino(player);
     }
 
     // ── チップ購入（額面指定） ──
@@ -197,13 +190,13 @@ class CasinoFlowIT {
     @DisplayName("バリデーション")
     class ValidationTest {
         @Test
-        @DisplayName("カジノOFF時でもチップ購入可能")
-        void canPurchaseEvenWhenCasinoIsOff() {
-            casinoManager.removePlayerFromCasino(player);
+        @DisplayName("許可されていないプレイヤーはチップ購入不可")
+        void cannotPurchaseWhenNotAllowed() {
+            when(chipPlugin.isAllowed(playerId)).thenReturn(false);
 
             chipCommand.onCommand(player, command, "chip", new String[]{"100", "1"});
 
-            verify(economy).withdrawPlayer(any(org.bukkit.OfflinePlayer.class), eq(100.0));
+            verify(economy, never()).withdrawPlayer(any(org.bukkit.OfflinePlayer.class), anyDouble());
         }
 
         @Test
@@ -267,7 +260,6 @@ class CasinoFlowIT {
         @Test
         @DisplayName("インベントリ満杯で購入不可")
         void inventoryFull() {
-            // 全スロットが埋まっている状態
             ItemStack[] fullContents = new ItemStack[36];
             for (int i = 0; i < fullContents.length; i++) {
                 fullContents[i] = mock(ItemStack.class);
@@ -278,29 +270,6 @@ class CasinoFlowIT {
             chipCommand.onCommand(player, command, "chip", new String[]{"100", "1"});
 
             verify(economy, never()).withdrawPlayer(any(org.bukkit.OfflinePlayer.class), anyDouble());
-        }
-    }
-
-    // ── 購入記録 ──
-
-    @Nested
-    @DisplayName("購入記録")
-    class PurchaseRecordTest {
-        @Test
-        @DisplayName("購入額が CasinoManager に記録される")
-        void purchaseIsRecorded() {
-            chipCommand.onCommand(player, command, "chip", new String[]{"5000", "2"});
-
-            assertEquals(10000, casinoManager.getSessionPurchases(playerId));
-        }
-
-        @Test
-        @DisplayName("複数回の購入が累計される")
-        void multiplePurchasesAccumulate() {
-            chipCommand.onCommand(player, command, "chip", new String[]{"100", "5"});
-            chipCommand.onCommand(player, command, "chip", new String[]{"1000", "3"});
-
-            assertEquals(500 + 3000, casinoManager.getSessionPurchases(playerId));
         }
     }
 
@@ -328,10 +297,8 @@ class CasinoFlowIT {
         }
 
         @Test
-        @DisplayName("/chip cashout → カジノOFF時はエラー")
-        void cashoutFailsWhenCasinoIsOff() {
-            casinoManager.removePlayerFromCasino(player);
-
+        @DisplayName("/chip cashout → チップなしで換金エラー")
+        void cashoutFailsWhenNoChips() {
             chipCommand.onCommand(player, command, "chip", new String[]{"cashout"});
 
             verify(economy, never()).depositPlayer(any(org.bukkit.OfflinePlayer.class), anyDouble());
