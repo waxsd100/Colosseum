@@ -43,7 +43,7 @@ public class FieldSubCommand implements SubCommand {
         if (!CommandHelper.requireArgs(sender, args, 1, getUsage())) return;
 
         switch (args[0].toLowerCase()) {
-            case "set"    -> handleSet(sender);
+            case "set"    -> handleSet(sender, args);
             case "info"   -> handleInfo(sender);
             case "save"   -> handleSave(sender, args);
             case "load"   -> handleLoad(sender, args);
@@ -55,7 +55,7 @@ public class FieldSubCommand implements SubCommand {
 
     // ── set ──
 
-    private void handleSet(CommandSender sender) {
+    private void handleSet(CommandSender sender, String[] args) {
         Player player = CommandHelper.requirePlayer(sender);
         if (player == null) return;
 
@@ -64,6 +64,39 @@ public class FieldSubCommand implements SubCommand {
                 sender, manager, ArenaState.SETUP, ArenaMessages.MSG_SETUP_ONLY);
         if (session == null) return;
 
+        // 保存済みフィールド名が指定された場合はそれを使う
+        if (args.length >= 2) {
+            String fieldName = args[1];
+            FieldStore store = plugin.getFieldStore();
+            ArenaFieldConfig fieldConfig = store.load(fieldName);
+            if (fieldConfig == null) {
+                sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                        + "戦闘エリア「" + fieldName + "」が見つかりません。");
+                return;
+            }
+            session.setFieldConfig(fieldConfig);
+
+            // Schematic ファイルをコピー: fields/<名前>.schem → arenas/<セッション名>.schem
+            File srcSchem = store.getFieldFile(fieldName);
+            File dstSchem = new File(plugin.getDataFolder(), "arenas/" + session.getName() + ".schem");
+            if (srcSchem.exists()) {
+                try {
+                    dstSchem.getParentFile().mkdirs();
+                    Files.copy(srcSchem.toPath(), dstSchem.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                } catch (IOException e) {
+                    sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                            + "Schematic コピー失敗: " + e.getMessage());
+                    return;
+                }
+            }
+
+            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GREEN
+                    + "保存済み戦闘エリア「" + ChatColor.YELLOW + fieldName
+                    + ChatColor.GREEN + "」を設定しました。");
+            return;
+        }
+
+        // WE 選択範囲から設定
         if (!plugin.getRegionManager().isWorldEditAvailable()) {
             sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + ArenaMessages.MSG_WE_REQUIRED);
             return;
@@ -130,7 +163,8 @@ public class FieldSubCommand implements SubCommand {
         }
         if (args.length == 2) {
             String sub = args[0].toLowerCase();
-            if ("load".equals(sub) || "delete".equals(sub) || "save".equals(sub)) {
+            if ("set".equals(sub) || "load".equals(sub)
+                    || "delete".equals(sub) || "save".equals(sub)) {
                 // 保存済み戦闘エリア名の補完
                 return CommandHelper.filterStartsWith(
                         plugin.getFieldStore().list(), args[1]);
@@ -273,6 +307,6 @@ public class FieldSubCommand implements SubCommand {
 
     @Override
     public String getUsage() {
-        return "/arena field <set|info|save|load|list|delete>";
+        return "/arena field <set [名前]|info|save|load|list|delete>";
     }
 }
