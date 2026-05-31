@@ -66,8 +66,8 @@ public class RegionManager {
             String worldName = player.getWorld().getName();
 
             BettingRegion bettingRegion = new BettingRegion(teamName, worldName,
-                    min.x(), min.y(), min.z(),
-                    max.x(), max.y(), max.z());
+                    min.getX(), min.getY(), min.getZ(),
+                    max.getX(), max.getY(), max.getZ());
 
             bettingRegions.put(teamName, bettingRegion);
             return true;
@@ -137,9 +137,9 @@ public class RegionManager {
                 int x = loc.getBlockX();
                 int y = loc.getBlockY();
                 int z = loc.getBlockZ();
-                if (x >= min.x() && x <= max.x()
-                        && y >= min.y() && y <= max.y()
-                        && z >= min.z() && z <= max.z()) {
+                if (x >= min.getX() && x <= max.getX()
+                        && y >= min.getY() && y <= max.getY()
+                        && z >= min.getZ() && z <= max.getZ()) {
                     players.add(p.getUniqueId());
                 }
             }
