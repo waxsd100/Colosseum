@@ -254,7 +254,7 @@ class CasinoDataStoreTest {
             // ランタイム状態
             var runtime = newStore.getDataConfig().getConfigurationSection("runtime");
             assertNotNull(runtime);
-            assertEquals(true, runtime.getBoolean("saved-keep-inventory"));
+            assertTrue(runtime.getBoolean("saved-keep-inventory"));
             assertEquals("casino_world", runtime.getString("saved-world-name"));
 
             // ランキング
