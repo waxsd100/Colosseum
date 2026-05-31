@@ -62,8 +62,8 @@ public class RegionManager {
             String worldName = player.getWorld().getName();
 
             BettingRegion bettingRegion = BettingRegion.of(teamName, worldName,
-                    min.getX(), min.getY(), min.getZ(),
-                    max.getX(), max.getY(), max.getZ());
+                    min.x(), min.y(), min.z(),
+                    max.x(), max.y(), max.z());
 
             bettingRegions.put(teamName, bettingRegion);
             return true;
