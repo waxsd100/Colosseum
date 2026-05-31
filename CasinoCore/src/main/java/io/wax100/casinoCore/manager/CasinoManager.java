@@ -77,11 +77,11 @@ public class CasinoManager {
     /**
      * プレイヤーごとの累計統計データ (UUID -> PlayerStats)
      */
-    private final Map<UUID, PlayerStats> playerStats = new HashMap<>();
+    private final Map<UUID, PlayerStats> playerStats = new ConcurrentHashMap<>();
     /**
      * カジノ開始前のゲームモード保存 (UUID -> GameMode)
      */
-    private final Map<UUID, GameMode> savedGameModes = new HashMap<>();
+    private final Map<UUID, GameMode> savedGameModes = new ConcurrentHashMap<>();
 
     /**
      * カジノモードに参加中のプレイヤー UUID セット
@@ -417,6 +417,7 @@ public class CasinoManager {
             savedGameModes.put(p.getUniqueId(), p.getGameMode());
             p.setGameMode(GameMode.ADVENTURE);
             shearsHelper.giveCasinoShears(p);
+            getOrCreateStats(p.getUniqueId()).recordSessionJoin(p.getName());
         }
     }
 
@@ -526,6 +527,7 @@ public class CasinoManager {
         }
 
         long netResult = totalValue - purchased;
+        // 管理者コマンドで無料付与されたチップは購入記録がないためランキング対象外
         if (purchased > 0) {
             updateRanking(player.getUniqueId(), netResult);
         }
@@ -548,11 +550,14 @@ public class CasinoManager {
     private void loadData() {
         FileConfiguration dataConfig = dataStore.getDataConfig();
 
-        // ランタイム状態の読み込み（runtime セクション優先、後方互換でルートも確認）
+        // ランタイム状態の読み込み
         ConfigurationSection runtime = dataConfig.getConfigurationSection("runtime");
-        ConfigurationSection source = runtime != null ? runtime : dataConfig;
+        if (runtime == null) {
+            plugin.getLogger().info("ランタイムデータが存在しません。初期状態で起動します。");
+            return;
+        }
 
-        List<String> playerUuids = source.getStringList("casino-players");
+        List<String> playerUuids = runtime.getStringList("casino-players");
         for (String uuidStr : playerUuids) {
             try {
                 casinoPlayers.add(UUID.fromString(uuidStr));
@@ -560,13 +565,10 @@ public class CasinoManager {
                 plugin.getLogger().warning("無効なUUID (casino-players): " + uuidStr);
             }
         }
-        dataStore.loadUuidLongMap(source, "session-purchases", sessionPurchases);
-        savedKeepInventory = source.getBoolean("saved-keep-inventory", false);
-        savedWorldName = source.getString("saved-world-name", null);
-        dataStore.loadGameModes(source, savedGameModes);
-
-        // ランキングの読み込み（RankingManager に移行済み。旧データの互換読み込み）
-        migrateOldRankingData(dataConfig);
+        dataStore.loadUuidLongMap(runtime, "session-purchases", sessionPurchases);
+        savedKeepInventory = runtime.getBoolean("saved-keep-inventory", false);
+        savedWorldName = runtime.getString("saved-world-name", null);
+        dataStore.loadGameModes(runtime, savedGameModes);
 
         // プレイヤー統計の読み込み
         dataStore.loadPlayerStats(playerStats);
@@ -617,38 +619,4 @@ public class CasinoManager {
         return chipPlugin != null ? chipPlugin.getRankingManager() : null;
     }
 
-    /**
-     * 旧 data.yml のランキングデータを RankingManager に移行する。
-     *
-     * <p>旧形式で保存されたランキングデータが存在する場合、
-     * RankingManager に一括登録して旧データを削除する。
-     *
-     * @param dataConfig データ設定ファイル
-     */
-    private void migrateOldRankingData(FileConfiguration dataConfig) {
-        ConfigurationSection rankingSection = dataConfig.getConfigurationSection("ranking");
-        if (rankingSection == null) return;
-
-        RankingManager rm = getRankingManager();
-        if (rm == null) return;
-
-        // 旧データが空でない場合のみ移行
-        boolean hasMigrated = false;
-        for (String key : rankingSection.getKeys(false)) {
-            try {
-                UUID uuid = UUID.fromString(key);
-                long value = rankingSection.getLong(key);
-                // RankingManager に既存データがなければ移行
-                if (rm.getRankingData("casino").getOrDefault(uuid, 0L) == 0L && value != 0) {
-                    rm.updateRanking("casino", uuid, value);
-                    hasMigrated = true;
-                }
-            } catch (IllegalArgumentException e) {
-                plugin.getLogger().warning("無効なUUID (ranking migration): " + key);
-            }
-        }
-        if (hasMigrated) {
-            plugin.getLogger().info("旧ランキングデータを RankingManager に移行しました。");
-        }
-    }
 }

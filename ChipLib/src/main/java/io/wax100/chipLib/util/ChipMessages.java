@@ -49,10 +49,7 @@ public final class ChipMessages {
     /** インベントリ空き不足 */
     public static final String INVENTORY_FULL = PREFIX + ChatColor.RED + "インベントリに空きがありません。";
 
-    // ── アドベンチャーモード強制 ──
 
-    /** チップ購入時のアドベンチャーモード強制変更メッセージ */
-    public static final String ADVENTURE_MODE_FORCED = PREFIX + ChatColor.YELLOW + "不正防止のためアドベンチャーモードに変更しました。";
 
     /**
      * インスタンス化禁止用のプライベートコンストラクタ

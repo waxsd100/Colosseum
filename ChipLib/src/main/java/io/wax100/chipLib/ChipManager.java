@@ -302,6 +302,20 @@ public class ChipManager {
     }
 
     /**
+     * チップセットの合計金額を計算する。
+     *
+     * @param chips チップ内訳 (額面 → 枚数)
+     * @return 合計金額
+     */
+    public static long calcTotal(Map<Chip, Integer> chips) {
+        long total = 0;
+        for (Map.Entry<Chip, Integer> e : chips.entrySet()) {
+            total += e.getKey().getValue() * e.getValue();
+        }
+        return total;
+    }
+
+    /**
      * チップセットに必要なインベントリスロット数を計算する。
      *
      * <p>1スロットあたり最大 {@value #MAX_STACK_SIZE} アイテムとして計算する。

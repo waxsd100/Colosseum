@@ -10,7 +10,6 @@ commands:
   casino:
     description: カジノモードの管理コマンド
     usage: /casino <on|off|status|ranking|stats>
-    permission: casino.admin
 
 
 permissions:

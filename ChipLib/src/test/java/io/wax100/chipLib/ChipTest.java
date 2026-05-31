@@ -5,6 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -134,32 +135,32 @@ class ChipTest {
     // ========================================================================
 
     @Nested
-    @DisplayName("denominationsDescending - 降順配列")
+    @DisplayName("denominationsDescending - 降順リスト")
     class DenominationsDescendingTest {
 
         @Test
-        @DisplayName("配列が降順に並んでいる")
+        @DisplayName("リストが降順に並んでいる")
         void array_isInDescendingOrder() {
-            Chip[] desc = Chip.denominationsDescending();
-            for (int i = 0; i < desc.length - 1; i++) {
-                assertTrue(desc[i].getValue() > desc[i + 1].getValue(),
-                        desc[i].name() + " (" + desc[i].getValue() + ") should be > "
-                                + desc[i + 1].name() + " (" + desc[i + 1].getValue() + ")");
+            List<Chip> desc = Chip.denominationsDescending();
+            for (int i = 0; i < desc.size() - 1; i++) {
+                assertTrue(desc.get(i).getValue() > desc.get(i + 1).getValue(),
+                        desc.get(i).name() + " (" + desc.get(i).getValue() + ") should be > "
+                                + desc.get(i + 1).name() + " (" + desc.get(i + 1).getValue() + ")");
             }
         }
 
         @Test
         @DisplayName("全Chip定義が含まれている")
         void array_containsAllChips() {
-            assertEquals(Chip.values().length, Chip.denominationsDescending().length);
+            assertEquals(Chip.values().length, Chip.denominationsDescending().size());
         }
 
         @Test
         @DisplayName("先頭が最大額面、末尾が最小額面")
         void firstIsMax_lastIsMin() {
-            Chip[] desc = Chip.denominationsDescending();
-            assertEquals(Chip.CHIP_1000000, desc[0]);
-            assertEquals(Chip.CHIP_1, desc[desc.length - 1]);
+            List<Chip> desc = Chip.denominationsDescending();
+            assertEquals(Chip.CHIP_1000000, desc.get(0));
+            assertEquals(Chip.CHIP_1, desc.get(desc.size() - 1));
         }
     }
 

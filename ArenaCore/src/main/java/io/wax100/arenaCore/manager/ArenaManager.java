@@ -168,8 +168,8 @@ public class ArenaManager {
 
         int interval = plugin.getConfig().getInt("odds-broadcast-interval", 30);
         if (interval <= 0) {
-            plugin.getLogger().warning("odds-broadcast-interval が 0 以下のためデフォルト値 (200) を使用します。");
-            interval = 200;
+            plugin.getLogger().warning("odds-broadcast-interval が 0 以下のためデフォルト値 (30) を使用します。");
+            interval = 30;
         }
         oddsBroadcastTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             if (activeSession != null && activeSession.getState() == ArenaState.BETTING) {
@@ -344,6 +344,8 @@ public class ArenaManager {
 
             // 地形復元開始
             terrainManager.finishAndFlush();
+
+            activeSession.setState(ArenaState.FINISHED);
 
             long entryFee = plugin.getConfig().getLong("entry-fee", 0);
             if (entryFee > 0) {

@@ -17,7 +17,6 @@ import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,11 +44,6 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
      * プラグインインスタンス
      */
     private final ChipPlugin plugin;
-
-    /**
-     * チップ購入前の元のゲームモードを保持するマップ
-     */
-    private final Map<UUID, GameMode> previousGameModes = new HashMap<>();
 
     /**
      * コンストラクタ。
@@ -140,8 +134,10 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        long totalCost = denomination * count;
-        if (totalCost < 0) {
+        long totalCost;
+        try {
+            totalCost = Math.multiplyExact(denomination, count);
+        } catch (ArithmeticException e) {
             // long オーバーフロー検出
             player.sendMessage(ChipMessages.AMOUNT_OVERFLOW);
             return;
@@ -182,7 +178,7 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
         }
 
         Map<Chip, Integer> breakdown = plugin.getChipManager().breakdownAmount(amount);
-        long actualTotal = calcTotal(breakdown);
+        long actualTotal = ChipManager.calcTotal(breakdown);
         if (actualTotal == 0) {
             player.sendMessage(ChipMessages.CANNOT_CONVERT);
             return;
@@ -246,26 +242,14 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
 
         // チップ購入成功後、アドベンチャーモードを強制（元のモードを保存）
         if (player.getGameMode() != GameMode.ADVENTURE) {
-            previousGameModes.putIfAbsent(player.getUniqueId(), player.getGameMode());
+            plugin.getPreviousGameModes().putIfAbsent(player.getUniqueId(), player.getGameMode());
             player.setGameMode(GameMode.ADVENTURE);
         }
 
         return true;
     }
 
-    /**
-     * チップセットの合計金額を計算する。
-     *
-     * @param chips チップ内訳 (額面 → 枚数)
-     * @return 合計金額
-     */
-    private long calcTotal(Map<Chip, Integer> chips) {
-        long total = 0;
-        for (Map.Entry<Chip, Integer> e : chips.entrySet()) {
-            total += e.getKey().getValue() * e.getValue();
-        }
-        return total;
-    }
+
 
 
     /**
@@ -347,7 +331,7 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
         economy.depositPlayer(player, totalValue);
 
         // 元のゲームモードに復元
-        GameMode previous = previousGameModes.remove(player.getUniqueId());
+        GameMode previous = plugin.getPreviousGameModes().remove(player.getUniqueId());
         if (previous != null && player.getGameMode() == GameMode.ADVENTURE) {
             player.setGameMode(previous);
         }
@@ -400,7 +384,12 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
         } else if (args.length == 2) {
             try {
                 Long.parseLong(args[0]);
-                result.addAll(Arrays.asList("1", "5", "10", "20", "50", "64"));
+                String input = args[1].toLowerCase();
+                for (String s : Arrays.asList("1", "5", "10", "20", "50", "64")) {
+                    if (s.startsWith(input)) {
+                        result.add(s);
+                    }
+                }
             } catch (NumberFormatException ignored) {
             }
         }

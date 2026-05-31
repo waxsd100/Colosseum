@@ -3,10 +3,12 @@ package io.wax100.chipLib;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -52,8 +54,8 @@ public enum Chip {
     private static final Map<Material, Chip> MATERIAL_MAP;
     /** チップに使用される全マテリアルの不変セット */
     private static final Set<Material> CHIP_MATERIALS;
-    /** 額面の大きい順（貪欲法用）の不変配列 */
-    private static final Chip[] DENOMINATIONS_DESC;
+    /** 額面の大きい順（貪欲法用）の不変リスト */
+    private static final List<Chip> DENOMINATIONS_DESC;
 
     static {
         Chip[] values = values();
@@ -72,11 +74,12 @@ public enum Chip {
         // 改善: EnumSet は HashSet より省メモリかつ高速
         CHIP_MATERIALS = Collections.unmodifiableSet(materials);
 
-        // 降順配列の構築
-        DENOMINATIONS_DESC = new Chip[values.length];
-        for (int i = 0; i < values.length; i++) {
-            DENOMINATIONS_DESC[i] = values[values.length - 1 - i];
+        // 降順リストの構築
+        List<Chip> descList = new ArrayList<>(values.length);
+        for (int i = values.length - 1; i >= 0; i--) {
+            descList.add(values[i]);
         }
+        DENOMINATIONS_DESC = Collections.unmodifiableList(descList);
     }
 
     /** カーペットのマテリアル */
@@ -143,15 +146,14 @@ public enum Chip {
     }
 
     /**
-     * 額面の大きい順に並んだ配列を取得する（貪欲法用）。
+     * 額面の大きい順に並んだ不変リストを取得する（貪欲法用）。
      *
-     * <p>防御的コピーを返すため、呼び出し元が配列を変更しても
-     * 内部状態には影響しない。
+     * <p>不変リストを返すため、呼び出し元からの変更は不可。
      *
-     * @return 額面降順の Chip 配列（防御的コピー）
+     * @return 額面降順の Chip 不変リスト
      */
-    public static Chip[] denominationsDescending() {
-        return DENOMINATIONS_DESC.clone();
+    public static List<Chip> denominationsDescending() {
+        return DENOMINATIONS_DESC;
     }
 
     // ── インスタンスメソッド ──

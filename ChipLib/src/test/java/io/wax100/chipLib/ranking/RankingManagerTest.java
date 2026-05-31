@@ -214,6 +214,7 @@ class RankingManagerTest {
             UUID p2 = UUID.randomUUID();
             rankingManager.updateRanking("casino", p1, 5000);
             rankingManager.updateRanking("arena", p2, -3000);
+            rankingManager.saveData(); // ダーティフラグ方式のため明示的に保存
 
             // 新しい RankingManager で再読み込み
             RankingManager newManager = new RankingManager(plugin);
@@ -233,6 +234,7 @@ class RankingManagerTest {
         @DisplayName("ranking_data.yml が作成される")
         void dataFileIsCreated() {
             rankingManager.updateRanking("casino", UUID.randomUUID(), 1000);
+            rankingManager.saveData(); // ダーティフラグ方式のため明示的に保存
 
             File dataFile = new File(tempDir, "ranking_data.yml");
             assertTrue(dataFile.exists());

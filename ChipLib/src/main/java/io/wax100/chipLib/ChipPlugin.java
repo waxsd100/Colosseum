@@ -4,12 +4,18 @@ import io.wax100.chipLib.command.ChipCommand;
 import io.wax100.chipLib.command.RankingCommand;
 import io.wax100.chipLib.ranking.RankingManager;
 import net.milkbowl.vault.economy.Economy;
+import org.bukkit.GameMode;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -28,7 +34,7 @@ import java.util.UUID;
  * @see ChipManager
  * @see ChipCommand
  */
-public final class ChipPlugin extends JavaPlugin {
+public final class ChipPlugin extends JavaPlugin implements Listener {
 
     /**
      * Vault 経済プラグインのインスタンス
@@ -49,6 +55,11 @@ public final class ChipPlugin extends JavaPlugin {
      * チップ使用を許可されたプレイヤーのセット
      */
     private final Set<UUID> allowedPlayers = new HashSet<>();
+
+    /**
+     * チップ購入前の元のゲームモードを保持するマップ
+     */
+    private final Map<UUID, GameMode> previousGameModes = new HashMap<>();
 
     /**
      * プラグイン有効化時の初期化処理。
@@ -92,6 +103,12 @@ public final class ChipPlugin extends JavaPlugin {
             getLogger().warning("コマンド 'ranking' がplugin.ymlに定義されていません。");
         }
 
+        // イベントリスナー登録（PlayerQuitEvent でメモリリーク防止）
+        getServer().getPluginManager().registerEvents(this, this);
+
+        // ランキング自動保存タイマーの開始
+        rankingManager.startAutoSave(this);
+
         getLogger().info("ChipLib が有効化されました！");
     }
 
@@ -101,9 +118,20 @@ public final class ChipPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         if (rankingManager != null) {
+            rankingManager.stopAutoSave();
             rankingManager.saveData();
         }
         getLogger().info("ChipLib が無効化されました。");
+    }
+
+    /**
+     * プレイヤー退出時に previousGameModes エントリを削除してメモリリークを防止する。
+     *
+     * @param event プレイヤー退出イベント
+     */
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        previousGameModes.remove(event.getPlayer().getUniqueId());
     }
 
     /**
@@ -217,6 +245,22 @@ public final class ChipPlugin extends JavaPlugin {
         if (totalValue == 0) return 0;
         chipManager.removeAllChips(player);
         economy.depositPlayer(player, totalValue);
+
+        // 元のゲームモードに復元
+        GameMode previous = previousGameModes.remove(player.getUniqueId());
+        if (previous != null && player.getGameMode() == GameMode.ADVENTURE) {
+            player.setGameMode(previous);
+        }
+
         return totalValue;
+    }
+
+    /**
+     * チップ購入前の元のゲームモードを保持するマップを取得する。
+     *
+     * @return previousGameModes マップ
+     */
+    public Map<UUID, GameMode> getPreviousGameModes() {
+        return previousGameModes;
     }
 }

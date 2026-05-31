@@ -3,6 +3,7 @@ package io.wax100.chipLib.ranking;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
 import java.io.IOException;
@@ -48,6 +49,16 @@ public class RankingManager {
     private final Object fileLock = new Object();
 
     /**
+     * データが変更されたがまだ保存されていないことを示すダーティフラグ
+     */
+    private volatile boolean dirty = false;
+
+    /**
+     * 自動保存タスク
+     */
+    private BukkitTask autoSaveTask;
+
+    /**
      * コンストラクタ。
      *
      * <p>データファイルの初期化と読み込みを行う。
@@ -64,7 +75,7 @@ public class RankingManager {
      * カテゴリ別の損益を更新する。
      *
      * <p>指定カテゴリにおけるプレイヤーの累計損益に {@code netResult} を加算する。
-     * 更新後、データファイルに自動保存する。
+     * 更新後、ダーティフラグを立て、次回の自動保存タイマーで永続化する。
      *
      * @param category カテゴリ名（例: "casino", "arena"）
      * @param playerId プレイヤーの UUID
@@ -73,7 +84,41 @@ public class RankingManager {
     public void updateRanking(String category, UUID playerId, long netResult) {
         rankings.computeIfAbsent(category, k -> new LinkedHashMap<>())
                 .merge(playerId, netResult, Long::sum);
-        saveData();
+        dirty = true;
+    }
+
+    /**
+     * 自動保存タイマーを開始する（5秒間隔）。
+     *
+     * <p>ダーティフラグが立っている場合のみ {@link #saveData()} を呼び出す。
+     *
+     * @param plugin プラグインインスタンス
+     */
+    public void startAutoSave(JavaPlugin plugin) {
+        // 5秒 = 100 tick
+        autoSaveTask = plugin.getServer().getScheduler()
+                .runTaskTimer(plugin, () -> {
+                    if (dirty) {
+                        dirty = false;
+                        saveData();
+                    }
+                }, 100L, 100L);
+    }
+
+    /**
+     * 自動保存タイマーを停止する。
+     *
+     * <p>ダーティフラグが立っている場合は最終保存を行う。
+     */
+    public void stopAutoSave() {
+        if (autoSaveTask != null) {
+            autoSaveTask.cancel();
+            autoSaveTask = null;
+        }
+        if (dirty) {
+            dirty = false;
+            saveData();
+        }
     }
 
     /**

@@ -68,11 +68,13 @@ public final class CommandHelper {
     }
 
     /**
-     * チーム名がセッションに存在することを検証する。
+     * チーム名がセッションに存在しない場合にエラーメッセージを送信し、中断を指示する。
      *
-     * @return チームが存在すれば true、そうでなければ false（エラーメッセージ送信済み）
+     * <p>呼び出し側では {@code if (abortIfTeamNotFound(...)) return;} のパターンで使用する。
+     *
+     * @return チームが存在しなければ true（中断すべき）、存在すれば false
      */
-    public static boolean requireTeamExists(CommandSender sender, ArenaSession session, String teamName) {
+    public static boolean abortIfTeamNotFound(CommandSender sender, ArenaSession session, String teamName) {
         if (session.hasTeam(teamName)) return false;
         sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
                 + "チーム「" + teamName + "」は存在しません。");

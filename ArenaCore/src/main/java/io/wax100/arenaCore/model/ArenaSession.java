@@ -29,6 +29,11 @@ public class ArenaSession {
     /** チーム別スコア（キル数） */
     private final Map<String, Integer> scores;
 
+    /** チーム別賭け金キャッシュ */
+    private final Map<String, Long> teamPools = new HashMap<>();
+    /** 全賭け金合計キャッシュ */
+    private long totalPool;
+
     private ArenaState state;
     private String winningTeam;
     private long entryFeePool;
@@ -276,7 +281,12 @@ public class ArenaSession {
     public void removeBet(UUID playerId, String teamName) {
         Map<String, Bet> teamBets = bets.get(playerId);
         if (teamBets == null) return;
-        teamBets.remove(teamName);
+        Bet removed = teamBets.remove(teamName);
+        if (removed != null) {
+            long amt = removed.amount();
+            teamPools.merge(teamName, -amt, Long::sum);
+            totalPool = Math.addExact(totalPool, -amt);
+        }
         if (teamBets.isEmpty()) bets.remove(playerId);
     }
 
@@ -298,26 +308,18 @@ public class ArenaSession {
         } else {
             teamBets.put(teamName, new Bet(playerId, teamName, amount));
         }
+        teamPools.merge(teamName, amount, Math::addExact);
+        totalPool = Math.addExact(totalPool, amount);
     }
 
-    /** チーム別の賭け金合計 */
+    /** チーム別の賭け金合計（キャッシュ済み O(1)） */
     public long getTeamPool(String teamName) {
-        long total = 0;
-        for (Bet bet : getAllBets()) {
-            if (bet.teamName().equals(teamName)) {
-                total = Math.addExact(total, bet.amount());
-            }
-        }
-        return total;
+        return teamPools.getOrDefault(teamName, 0L);
     }
 
-    /** 全賭け金合計 */
+    /** 全賭け金合計（キャッシュ済み O(1)） */
     public long getTotalPool() {
-        long total = 0;
-        for (Bet bet : getAllBets()) {
-            total = Math.addExact(total, bet.amount());
-        }
-        return total;
+        return totalPool;
     }
 
     // ── 設置チップ管理 ──
@@ -396,6 +398,8 @@ public class ArenaSession {
         scores.clear();
         teamAreaConfigs.clear();
         mobTeams.clear();
+        teamPools.clear();
+        totalPool = 0;
         entryFeePool = 0;
         winningTeam = null;
         teamColors.clear();

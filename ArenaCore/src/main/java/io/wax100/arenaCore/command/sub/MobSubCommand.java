@@ -54,7 +54,7 @@ public class MobSubCommand implements SubCommand {
         ArenaSession session = CommandHelper.requireSessionInState(
                 sender, manager, ArenaState.SETUP, ArenaMessages.MSG_SETUP_ONLY);
         if (session == null) return;
-        if (CommandHelper.requireTeamExists(sender, session, teamName)) return;
+        if (CommandHelper.abortIfTeamNotFound(sender, session, teamName)) return;
 
         TeamAreaConfig newConfig;
 
@@ -115,7 +115,7 @@ public class MobSubCommand implements SubCommand {
         ArenaSession session = CommandHelper.requireSessionInState(
                 sender, manager, ArenaState.SETUP, ArenaMessages.MSG_SETUP_ONLY);
         if (session == null) return;
-        if (CommandHelper.requireTeamExists(sender, session, teamName)) return;
+        if (CommandHelper.abortIfTeamNotFound(sender, session, teamName)) return;
 
         TeamAreaConfig config = session.getTeamAreaConfig(teamName);
         if (config == null) {
@@ -141,7 +141,7 @@ public class MobSubCommand implements SubCommand {
         ArenaManager manager = plugin.getArenaManager();
         ArenaSession session = CommandHelper.requireActiveSession(sender, manager);
         if (session == null) return;
-        if (CommandHelper.requireTeamExists(sender, session, teamName)) return;
+        if (CommandHelper.abortIfTeamNotFound(sender, session, teamName)) return;
 
         ChatColor teamColor = session.getTeamColor(teamName);
 

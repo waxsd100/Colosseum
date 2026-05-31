@@ -57,8 +57,8 @@ public final class ArenaCore extends JavaPlugin {
         saveDefaultConfig();
 
         // CasinoCore 取得
-        CasinoCore casinoCore = (CasinoCore) getServer().getPluginManager().getPlugin("CasinoCore");
-        if (casinoCore == null) {
+        org.bukkit.plugin.Plugin casinoCorePlugin = getServer().getPluginManager().getPlugin("CasinoCore");
+        if (!(casinoCorePlugin instanceof CasinoCore casinoCore)) {
             getLogger().severe("CasinoCore が見つかりません！無効化します。");
             getServer().getPluginManager().disablePlugin(this);
             return;

@@ -42,7 +42,7 @@ public class RegionSubCommand implements SubCommand {
         }
 
         String teamName = args[0];
-        if (CommandHelper.requireTeamExists(sender, session, teamName)) return;
+        if (CommandHelper.abortIfTeamNotFound(sender, session, teamName)) return;
 
         ChatColor teamColor = session.getTeamColor(teamName);
 
