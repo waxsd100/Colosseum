@@ -11,6 +11,7 @@ import io.wax100.arenaCore.model.ArenaFieldConfig;
 import io.wax100.arenaCore.model.BettingRegion;
 import io.wax100.arenaCore.util.ArenaMessages;
 import io.wax100.arenaCore.wincondition.WinCondition;
+import io.wax100.casinoCore.manager.CasinoManager;
 import io.wax100.chipLib.ChipManager;
 import io.wax100.chipLib.ChipPlugin;
 import net.milkbowl.vault.economy.Economy;
@@ -318,6 +319,9 @@ public class ArenaManager {
 
             // カスタムイベント発火（情報通知）
             Bukkit.getPluginManager().callEvent(new ArenaWinnerDeclaredEvent(activeSession, winningTeam));
+
+            // 全プレイヤーのチップを換金しランキングに登録
+            cashoutAllPlayers();
 
             // 残存Mobをワールドから削除
             cleanupMobs();
@@ -649,6 +653,29 @@ public class ArenaManager {
         stopOddsBroadcast();
         terrainManager.cancelAndClear();
         if (activeSession != null) cancelArena();
+    }
+
+    /**
+     * 全オンラインプレイヤーのチップを換金し、CasinoManager のランキングに記録する。
+     *
+     * <p>アリーナ終了時に呼び出される。ChipPlugin でチップを換金し、
+     * CasinoManager の cashoutSinglePlayer で損益計算・ランキング更新を行う。
+     */
+    private void cashoutAllPlayers() {
+        try {
+            org.bukkit.plugin.Plugin casinoPlugin = Bukkit.getPluginManager().getPlugin("CasinoCore");
+            if (casinoPlugin instanceof io.wax100.casinoCore.CasinoCore casinoCore) {
+                CasinoManager casinoManager = casinoCore.getCasinoManager();
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    long chipValue = plugin.getChipManager().calculateTotalValue(p);
+                    if (chipValue > 0) {
+                        casinoManager.cashoutSinglePlayer(p);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("チップ換金中にエラーが発生: " + e.getMessage());
+        }
     }
 
     /**

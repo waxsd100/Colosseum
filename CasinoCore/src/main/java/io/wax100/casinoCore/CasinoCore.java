@@ -78,6 +78,13 @@ public final class CasinoCore extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new CasinoListener(this), this);
         getServer().getPluginManager().registerEvents(new BindingCurseListener(this, bindingCurseManager), this);
 
+        // ChipLib に購入リスナーを登録（ランキング記録用）
+        org.bukkit.plugin.Plugin chipLibPlugin = getServer().getPluginManager().getPlugin("ChipLib");
+        if (chipLibPlugin instanceof io.wax100.chipLib.ChipPlugin chipPlugin) {
+            chipPlugin.setPurchaseListener((playerId, totalCost) ->
+                    casinoManager.recordPurchase(playerId, totalCost));
+        }
+
         getLogger().info("CasinoCore が有効化されました！");
     }
 

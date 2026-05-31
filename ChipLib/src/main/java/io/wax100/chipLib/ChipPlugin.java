@@ -3,6 +3,7 @@ package io.wax100.chipLib;
 import io.wax100.chipLib.command.ChipCommand;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -151,5 +152,42 @@ public final class ChipPlugin extends JavaPlugin {
      */
     public void clearAllAllowed() {
         allowedPlayers.clear();
+    }
+
+    // ── 購入リスナー ──
+
+    private ChipPurchaseListener purchaseListener;
+
+    /**
+     * チップ購入時に呼び出されるリスナーを設定する。
+     *
+     * @param listener 購入リスナー（null で解除）
+     */
+    public void setPurchaseListener(ChipPurchaseListener listener) {
+        this.purchaseListener = listener;
+    }
+
+    /**
+     * 購入リスナーを取得する。
+     *
+     * @return 登録されたリスナー、未登録の場合は null
+     */
+    public ChipPurchaseListener getPurchaseListener() {
+        return purchaseListener;
+    }
+
+    /**
+     * プレイヤーのチップを全て換金し、Economy に入金する。
+     * 外部プラグインから呼び出すための公開メソッド。
+     *
+     * @param player 対象プレイヤー
+     * @return 換金された合計額。チップがなければ 0
+     */
+    public long cashoutPlayer(Player player) {
+        long totalValue = chipManager.calculateTotalValue(player);
+        if (totalValue == 0) return 0;
+        chipManager.removeAllChips(player);
+        economy.depositPlayer(player, totalValue);
+        return totalValue;
     }
 }

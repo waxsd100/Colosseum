@@ -3,6 +3,7 @@ package io.wax100.chipLib.command;
 import io.wax100.chipLib.Chip;
 import io.wax100.chipLib.ChipManager;
 import io.wax100.chipLib.ChipPlugin;
+import io.wax100.chipLib.ChipPurchaseListener;
 import io.wax100.chipLib.util.ChipMessages;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
@@ -236,6 +237,12 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
         }
 
         cm.giveChips(player, chips);
+
+        // 購入リスナーに通知（CasinoCore のランキング記録等）
+        ChipPurchaseListener listener = plugin.getPurchaseListener();
+        if (listener != null) {
+            listener.onPurchase(player.getUniqueId(), totalCost);
+        }
 
         // チップ購入成功後、アドベンチャーモードを強制（元のモードを保存）
         if (player.getGameMode() != GameMode.ADVENTURE) {
