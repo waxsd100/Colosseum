@@ -70,9 +70,7 @@ public class OpenSubCommand implements SubCommand {
             ChatColor color = session.getTeamColor(team);
             boolean hasRegion = plugin.getRegionManager().hasBettingRegion(team);
 
-            String label = session.isMobTeam(team)
-                    ? "[MOB] " + session.getEffectiveTeamSize(team) + "体"
-                    : session.getTeamSize(team) + "人";
+            String label = ArenaMessages.formatTeamLabel(session, team);
 
             Bukkit.broadcastMessage(ArenaMessages.PREFIX + "  " + color + "■ " + team
                     + ChatColor.GRAY + " (" + label + ")"

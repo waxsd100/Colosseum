@@ -1,6 +1,7 @@
 package io.wax100.arenaCore.manager;
 
 import io.wax100.arenaCore.model.ArenaFieldConfig;
+import io.wax100.arenaCore.util.YamlHelper;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
@@ -78,14 +79,7 @@ public class FieldStore {
 
         YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
 
-        String worldName = yaml.getString("world");
-        List<Integer> min = yaml.getIntegerList("min");
-        List<Integer> max = yaml.getIntegerList("max");
-        if (worldName == null || min.size() != 3 || max.size() != 3) return null;
-
-        return ArenaFieldConfig.of(worldName,
-                min.get(0), min.get(1), min.get(2),
-                max.get(0), max.get(1), max.get(2));
+        return ArenaFieldConfig.fromYaml(yaml);
     }
 
     // ══════════════════════════════════════
@@ -116,16 +110,7 @@ public class FieldStore {
      * @return 戦闘エリア名リスト（拡張子除去済み）
      */
     public List<String> list() {
-        File[] files = fieldsDir.listFiles((dir, name) -> name.endsWith(".yml"));
-        if (files == null || files.length == 0) return List.of();
-
-        List<String> names = new ArrayList<>();
-        for (File file : files) {
-            String fileName = file.getName();
-            names.add(fileName.substring(0, fileName.length() - 4));
-        }
-        Collections.sort(names);
-        return names;
+        return YamlHelper.listYmlNames(fieldsDir);
     }
 
     // ══════════════════════════════════════

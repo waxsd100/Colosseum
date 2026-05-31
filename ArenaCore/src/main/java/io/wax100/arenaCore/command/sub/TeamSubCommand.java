@@ -93,9 +93,7 @@ public class TeamSubCommand implements SubCommand {
             ChatColor color = session.getTeamColor(team);
             List<UUID> members = session.getTeamMembers(team);
 
-            String label = session.isMobTeam(team)
-                    ? "[MOB] " + session.getEffectiveTeamSize(team) + "体"
-                    : members.size() + "人";
+            String label = ArenaMessages.formatTeamLabel(session, team);
             sender.sendMessage("  " + color + ChatColor.BOLD + "■ " + team
                     + ChatColor.RESET + ChatColor.GRAY + " (" + label + ")");
 

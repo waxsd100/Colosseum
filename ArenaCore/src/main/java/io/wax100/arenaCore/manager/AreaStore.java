@@ -1,6 +1,7 @@
 package io.wax100.arenaCore.manager;
 
 import io.wax100.arenaCore.model.TeamAreaConfig;
+import io.wax100.arenaCore.util.YamlHelper;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -50,20 +51,7 @@ public class AreaStore {
 
         YamlConfiguration yaml = new YamlConfiguration();
         yaml.set("name", name);
-        yaml.set("world", config.worldName());
-        yaml.set("min", List.of(config.minX(), config.minY(), config.minZ()));
-        yaml.set("max", List.of(config.maxX(), config.maxY(), config.maxZ()));
-
-        // destination (nullable)
-        Location dest = config.getDestination();
-        if (dest != null && dest.getWorld() != null) {
-            yaml.set("destination.world", dest.getWorld().getName());
-            yaml.set("destination.x", dest.getX());
-            yaml.set("destination.y", dest.getY());
-            yaml.set("destination.z", dest.getZ());
-            yaml.set("destination.yaw", (double) dest.getYaw());
-            yaml.set("destination.pitch", (double) dest.getPitch());
-        }
+        config.toYaml(yaml, "");
 
         File file = new File(areasDir, name + ".yml");
         try {
@@ -90,34 +78,7 @@ public class AreaStore {
         if (!file.exists()) return null;
 
         YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
-
-        String worldName = yaml.getString("world");
-        List<Integer> min = yaml.getIntegerList("min");
-        List<Integer> max = yaml.getIntegerList("max");
-        if (worldName == null || min.size() != 3 || max.size() != 3) return null;
-
-        TeamAreaConfig config = new TeamAreaConfig(worldName,
-                min.get(0), min.get(1), min.get(2),
-                max.get(0), max.get(1), max.get(2));
-
-        // destination (nullable)
-        ConfigurationSection destSec = yaml.getConfigurationSection("destination");
-        if (destSec != null) {
-            String destWorld = destSec.getString("world");
-            if (destWorld != null) {
-                World world = Bukkit.getWorld(destWorld);
-                if (world != null) {
-                    double x = destSec.getDouble("x");
-                    double y = destSec.getDouble("y");
-                    double z = destSec.getDouble("z");
-                    float yaw = (float) destSec.getDouble("yaw", 0.0);
-                    float pitch = (float) destSec.getDouble("pitch", 0.0);
-                    config.setDestination(new Location(world, x, y, z, yaw, pitch));
-                }
-            }
-        }
-
-        return config;
+        return TeamAreaConfig.fromYaml(yaml);
     }
 
     // ══════════════════════════════════════
@@ -145,16 +106,7 @@ public class AreaStore {
      * @return 待機場名リスト（拡張子除去済み）
      */
     public List<String> list() {
-        File[] files = areasDir.listFiles((dir, name) -> name.endsWith(".yml"));
-        if (files == null || files.length == 0) return List.of();
-
-        List<String> names = new ArrayList<>();
-        for (File file : files) {
-            String fileName = file.getName();
-            names.add(fileName.substring(0, fileName.length() - 4));
-        }
-        Collections.sort(names);
-        return names;
+        return YamlHelper.listYmlNames(areasDir);
     }
 
     // ══════════════════════════════════════

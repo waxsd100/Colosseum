@@ -48,9 +48,7 @@ public class StatusSubCommand implements SubCommand {
             String team = teamNames.get(i);
             ChatColor color = session.getTeamColor(team);
 
-            String label = session.isMobTeam(team)
-                    ? "[MOB] " + session.getEffectiveTeamSize(team) + "体"
-                    : session.getTeamSize(team) + "人";
+            String label = ArenaMessages.formatTeamLabel(session, team);
 
             sender.sendMessage(ArenaMessages.PREFIX + "  " + color + "■ " + team
                     + ChatColor.GRAY + " (" + label + ")"

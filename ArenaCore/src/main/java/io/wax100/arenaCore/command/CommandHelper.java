@@ -135,8 +135,6 @@ public final class CommandHelper {
             String worldName = player.getWorld().getName();
             return new io.wax100.arenaCore.model.ArenaFieldConfig(worldName,
                     min.getX(), min.getY(), min.getZ(), max.getX(), max.getY(), max.getZ());
-        } catch (com.sk89q.worldedit.IncompleteRegionException e) {
-            return null;
         } catch (NoClassDefFoundError | Exception e) {
             return null;
         }

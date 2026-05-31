@@ -132,4 +132,17 @@ public final class ArenaMessages {
     public static ChatColor getTeamColor(int index) {
         return TEAM_COLORS[index % TEAM_COLORS.length];
     }
+
+    /**
+     * チーム情報ラベルを生成する（例: "3人" / "[MOB] 5体"）。
+     *
+     * @param session セッション
+     * @param team    チーム名
+     * @return フォーマット済みラベル
+     */
+    public static String formatTeamLabel(io.wax100.arenaCore.model.ArenaSession session, String team) {
+        return session.isMobTeam(team)
+                ? "[MOB] " + session.getEffectiveTeamSize(team) + "体"
+                : session.getTeamSize(team) + "人";
+    }
 }

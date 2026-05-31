@@ -3,6 +3,8 @@ package io.wax100.arenaCore.model;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -85,6 +87,71 @@ public class TeamAreaConfig implements CuboidArea {
             }
         }
         return result;
+    }
+
+    /**
+     * YAML セクションから {@link TeamAreaConfig} を復元する。
+     *
+     * <p>セクションには {@code world}, {@code min}, {@code max} キーが必要。
+     * {@code destination} セクションは任意。
+     *
+     * @param section YAML セクション（null不可）
+     * @return 復元した設定。データ不正の場合は {@code null}
+     */
+    public static TeamAreaConfig fromYaml(ConfigurationSection section) {
+        Objects.requireNonNull(section, "section must not be null");
+        String worldName = section.getString("world");
+        List<Integer> min = section.getIntegerList("min");
+        List<Integer> max = section.getIntegerList("max");
+        if (worldName == null || min.size() != 3 || max.size() != 3) return null;
+
+        TeamAreaConfig config = new TeamAreaConfig(worldName,
+                min.get(0), min.get(1), min.get(2),
+                max.get(0), max.get(1), max.get(2));
+
+        // destination (nullable)
+        ConfigurationSection destSec = section.getConfigurationSection("destination");
+        if (destSec != null) {
+            String destWorld = destSec.getString("world");
+            if (destWorld != null) {
+                World world = Bukkit.getWorld(destWorld);
+                if (world != null) {
+                    double x = destSec.getDouble("x");
+                    double y = destSec.getDouble("y");
+                    double z = destSec.getDouble("z");
+                    float yaw = (float) destSec.getDouble("yaw", 0.0);
+                    float pitch = (float) destSec.getDouble("pitch", 0.0);
+                    config.setDestination(new Location(world, x, y, z, yaw, pitch));
+                }
+            }
+        }
+
+        return config;
+    }
+
+    /**
+     * この設定を YAML に書き出す。
+     *
+     * @param yaml     書き出し先の YamlConfiguration（null不可）
+     * @param basePath キーの接頭辞（例: {@code "team-areas.red"}）
+     */
+    public void toYaml(YamlConfiguration yaml, String basePath) {
+        Objects.requireNonNull(yaml, "yaml must not be null");
+        Objects.requireNonNull(basePath, "basePath must not be null");
+        String prefix = basePath.isEmpty() ? "" : basePath + ".";
+        yaml.set(prefix + "world", worldName);
+        yaml.set(prefix + "min", List.of(minX, minY, minZ));
+        yaml.set(prefix + "max", List.of(maxX, maxY, maxZ));
+
+        Location dest = getDestination();
+        if (dest != null && dest.getWorld() != null) {
+            yaml.set(prefix + "destination.world", dest.getWorld().getName());
+            yaml.set(prefix + "destination.x", dest.getX());
+            yaml.set(prefix + "destination.y", dest.getY());
+            yaml.set(prefix + "destination.z", dest.getZ());
+            yaml.set(prefix + "destination.yaw", (double) dest.getYaw());
+            yaml.set(prefix + "destination.pitch", (double) dest.getPitch());
+        }
     }
 
     /**

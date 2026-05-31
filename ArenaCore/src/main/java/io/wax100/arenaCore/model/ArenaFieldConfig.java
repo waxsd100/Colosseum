@@ -5,7 +5,10 @@ import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.regions.CuboidRegion;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -55,6 +58,40 @@ public record ArenaFieldConfig(
         return new ArenaFieldConfig(worldName,
                 Math.min(x1, x2), Math.min(y1, y2), Math.min(z1, z2),
                 Math.max(x1, x2), Math.max(y1, y2), Math.max(z1, z2));
+    }
+
+    /**
+     * YAML セクションから {@link ArenaFieldConfig} を復元する。
+     *
+     * <p>セクションには {@code world}, {@code min}, {@code max} キーが必要。
+     *
+     * @param section YAML セクション（null不可）
+     * @return 復元した設定。データ不正の場合は {@code null}
+     */
+    public static ArenaFieldConfig fromYaml(ConfigurationSection section) {
+        Objects.requireNonNull(section, "section must not be null");
+        String worldName = section.getString("world");
+        List<Integer> min = section.getIntegerList("min");
+        List<Integer> max = section.getIntegerList("max");
+        if (worldName == null || min.size() != 3 || max.size() != 3) return null;
+        return ArenaFieldConfig.of(worldName,
+                min.get(0), min.get(1), min.get(2),
+                max.get(0), max.get(1), max.get(2));
+    }
+
+    /**
+     * この設定を YAML に書き出す。
+     *
+     * @param yaml     書き出し先の YamlConfiguration（null不可）
+     * @param basePath キーの接頭辞（例: {@code "field"}）
+     */
+    public void toYaml(YamlConfiguration yaml, String basePath) {
+        Objects.requireNonNull(yaml, "yaml must not be null");
+        Objects.requireNonNull(basePath, "basePath must not be null");
+        String prefix = basePath.isEmpty() ? "" : basePath + ".";
+        yaml.set(prefix + "world", worldName);
+        yaml.set(prefix + "min", List.of(minX, minY, minZ));
+        yaml.set(prefix + "max", List.of(maxX, maxY, maxZ));
     }
 
     /**

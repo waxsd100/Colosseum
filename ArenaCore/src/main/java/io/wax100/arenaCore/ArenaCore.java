@@ -192,4 +192,14 @@ public final class ArenaCore extends JavaPlugin {
     public ArenaPresetStore getPresetStore() { return presetStore; }
     public AreaStore getAreaStore() { return areaStore; }
     public FieldStore getFieldStore() { return fieldStore; }
+
+    /**
+     * config.yml の house-edge 値を取得し、有効範囲 [0, 0.99] にクランプする。
+     *
+     * @return クランプ済みの house-edge 値（デフォルト 0.1）
+     */
+    public double getHouseEdge() {
+        double value = getConfig().getDouble("house-edge", 0.1);
+        return Math.max(0, Math.min(value, 0.99));
+    }
 }

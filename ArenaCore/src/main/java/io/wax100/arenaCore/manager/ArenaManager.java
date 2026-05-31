@@ -311,13 +311,7 @@ public class ArenaManager {
             // 残存Mobをワールドから削除
             cleanupMobs();
         } finally {
-            // バニラ Scoreboard Team を解除
-            unregisterScoreboardTeams();
-            cleanupMobs();
-            activeSession.clearAllData();
-            activeSession = null;
-            eliminatedPlayers.clear();
-            regionManager.clearRegions();
+            cleanupSession();
         }
 
         return true;
@@ -361,14 +355,7 @@ public class ArenaManager {
             // スポーン済みモンスターを削除
             cleanupMobs();
         } finally {
-            // バニラ Scoreboard Team を解除
-            unregisterScoreboardTeams();
-            cleanupMobs();
-            activeSession.setState(ArenaState.FINISHED);
-            activeSession.clearAllData();
-            activeSession = null;
-            eliminatedPlayers.clear();
-            regionManager.clearRegions();
+            cleanupSession();
         }
 
         return true;
@@ -498,6 +485,25 @@ public class ArenaManager {
         } catch (Exception e) {
             plugin.getLogger().warning("トラッキングMob除去中にエラーが発生しました: " + e.getMessage());
         }
+    }
+
+    /**
+     * セッション終了時の共通クリーンアップ処理。
+     *
+     * <p>バニラ Scoreboard Team の解除、トラッキングMobの除去、
+     * セッションデータのクリアを行う。{@code declareWinner} および
+     * {@code cancelArena} の finally ブロックから呼び出される。
+     */
+    private void cleanupSession() {
+        unregisterScoreboardTeams();
+        cleanupMobs();
+        if (activeSession != null) {
+            activeSession.setState(ArenaState.FINISHED);
+            activeSession.clearAllData();
+            activeSession = null;
+        }
+        eliminatedPlayers.clear();
+        regionManager.clearRegions();
     }
 
     /**
