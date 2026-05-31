@@ -226,7 +226,6 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
         // チップ購入成功後、アドベンチャーモードを強制
         if (player.getGameMode() != GameMode.ADVENTURE) {
             player.setGameMode(GameMode.ADVENTURE);
-            player.sendMessage(ChipMessages.ADVENTURE_MODE_FORCED);
         }
 
         return true;
