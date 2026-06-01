@@ -75,19 +75,17 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "  /arena create <名前>");
         sender.sendMessage(ChatColor.YELLOW + "  /arena team add <チーム名>" + ChatColor.GRAY + " <- チーム追加");
         sender.sendMessage(ChatColor.YELLOW + "  /arena team list");
-        sender.sendMessage(ChatColor.YELLOW + "  /arena team area <チーム> [待機場名]" + ChatColor.GRAY + " <- 待機場設定/リンク");
+        sender.sendMessage(ChatColor.YELLOW + "  /arena team area <チーム>" + ChatColor.GRAY + " <- WE選択範囲を待機場に");
         sender.sendMessage(ChatColor.YELLOW + "  /arena team dest <チーム名>" + ChatColor.GRAY + " <- 現在地をTP先に");
-        sender.sendMessage(ChatColor.YELLOW + "  /arena team color <チーム名> <色>" + ChatColor.GRAY + " <- チームカラー設定");
-        sender.sendMessage(ChatColor.YELLOW + "  /arena area save/list/delete/info" + ChatColor.GRAY + " <- 待機場管理");
+        sender.sendMessage(ChatColor.YELLOW + "  /arena team color <チーム名> <色>");
         sender.sendMessage(ChatColor.YELLOW + "  /arena region <チーム名>" + ChatColor.GRAY + " <- WE選択範囲を賭けエリアに");
-        sender.sendMessage(ChatColor.YELLOW + "  /arena field set [名前]" + ChatColor.GRAY + " <- 戦闘エリア設定");
-        sender.sendMessage(ChatColor.YELLOW + "  /arena field save/list/delete" + ChatColor.GRAY + " <- 戦闘エリア管理");
-        sender.sendMessage(ChatColor.YELLOW + "  /arena preset save/load/list/delete" + ChatColor.GRAY + " <- プリセット管理");
+        sender.sendMessage(ChatColor.YELLOW + "  /arena field set" + ChatColor.GRAY + " <- WE選択範囲を戦闘エリアに");
+        sender.sendMessage(ChatColor.YELLOW + "  /arena preset save/load/list/delete" + ChatColor.GRAY + " <- 全設定の保存・復元");
         sender.sendMessage(ChatColor.YELLOW + "  /arena open" + ChatColor.GRAY + " <- 賭け受付開始");
-        sender.sendMessage(ChatColor.YELLOW + "  /arena close" + ChatColor.GRAY + " <- 賭け締切（試合は開始しない）");
+        sender.sendMessage(ChatColor.YELLOW + "  /arena close" + ChatColor.GRAY + " <- 賭け締切");
         sender.sendMessage(ChatColor.YELLOW + "  /arena start" + ChatColor.GRAY + " <- 試合開始");
         sender.sendMessage(ChatColor.YELLOW + "  /arena win <チーム名>");
-        sender.sendMessage(ChatColor.YELLOW + "  /arena cancel" + ChatColor.GRAY + " <- セッション中止（試合中なら引き分け）");
+        sender.sendMessage(ChatColor.YELLOW + "  /arena cancel" + ChatColor.GRAY + " <- 中止（試合中なら引き分け）");
         sender.sendMessage(ChatColor.YELLOW + "  /arena status");
     }
 }
