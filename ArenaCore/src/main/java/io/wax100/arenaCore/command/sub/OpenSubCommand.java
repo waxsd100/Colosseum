@@ -110,12 +110,14 @@ public class OpenSubCommand implements SubCommand {
         }
 
         Bukkit.broadcastMessage("");
+        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                + "/bet <チーム名> <金額>" + ChatColor.DARK_GRAY + " でコマンドから賭ける");
         Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
                 + "/chip <額面> <枚数>" + ChatColor.DARK_GRAY + " または "
-                + ChatColor.GRAY + "/chip <金額>" + ChatColor.DARK_GRAY + " でチップを購入");
+                + ChatColor.GRAY + "/chip <金額>" + ChatColor.DARK_GRAY + " でチップを購入して設置");
         Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
-                + "/chip info" + ChatColor.DARK_GRAY + " でチップ一覧  "
-                + ChatColor.GRAY + "/chip balance" + ChatColor.DARK_GRAY + " で残高確認");
+                + "/bet odds" + ChatColor.DARK_GRAY + " オッズ確認  "
+                + ChatColor.GRAY + "/bet info" + ChatColor.DARK_GRAY + " 自分の賭け確認");
         Bukkit.broadcastMessage("");
 
         List<String> teamNames = session.getTeamNames();
