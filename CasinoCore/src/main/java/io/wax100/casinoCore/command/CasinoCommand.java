@@ -153,9 +153,15 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
                 + ChatColor.YELLOW + ChatColor.BOLD + "ON "
                 + ChatColor.RESET + ChatColor.GREEN + "になりました！");
         Bukkit.broadcastMessage(Messages.PREFIX + ChatColor.GRAY
-                + "/chip <額面> <枚数> または /chip <金額> でチップを購入できます。");
+                + "/chip <額面> <枚数>" + ChatColor.DARK_GRAY + " または "
+                + ChatColor.GRAY + "/chip <金額>" + ChatColor.DARK_GRAY
+                + " でチップを購入");
         Bukkit.broadcastMessage(Messages.PREFIX + ChatColor.GRAY
-                + "/chip info でチップ一覧を確認できます。");
+                + "/chip info" + ChatColor.DARK_GRAY + " チップ一覧  "
+                + ChatColor.GRAY + "/chip balance" + ChatColor.DARK_GRAY + " 残高確認");
+        Bukkit.broadcastMessage(Messages.PREFIX + ChatColor.GRAY
+                + "/bet <チーム名> <金額>" + ChatColor.DARK_GRAY + " コマンドで賭ける  "
+                + ChatColor.GRAY + "/bet odds" + ChatColor.DARK_GRAY + " オッズ確認");
         Bukkit.broadcastMessage(Messages.SEPARATOR);
     }
 
