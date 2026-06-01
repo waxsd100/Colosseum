@@ -4,6 +4,8 @@ import io.wax100.arenaCore.ArenaCore;
 import io.wax100.arenaCore.command.CommandHelper;
 import io.wax100.arenaCore.command.SubCommand;
 import io.wax100.arenaCore.manager.ArenaManager;
+import io.wax100.arenaCore.model.ArenaSession;
+import io.wax100.arenaCore.model.ArenaState;
 import io.wax100.arenaCore.util.ArenaMessages;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -25,10 +27,20 @@ public class CancelSubCommand implements SubCommand {
         ArenaManager manager = plugin.getArenaManager();
         if (CommandHelper.requireActiveSession(sender, manager) == null) return;
 
+        ArenaSession session = manager.getActiveSession();
+        ArenaState prevState = session.getState();
+
         if (manager.cancelArena()) {
             Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
-            Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED
-                    + "闘技場がキャンセルされました。賭け金・参加費は返金されます。");
+            if (prevState == ArenaState.ACTIVE) {
+                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW + ChatColor.BOLD
+                        + "⚖ 引き分け！");
+                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
+                        + "試合が強制終了されました。全賭け金・参加費を返金します。");
+            } else {
+                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED
+                        + "闘技場がキャンセルされました。賭け金・参加費は返金されます。");
+            }
             Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
         } else {
             sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED

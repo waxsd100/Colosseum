@@ -31,7 +31,6 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
         subCommands.put("open", new OpenSubCommand(plugin));
         subCommands.put("close", new CloseSubCommand(plugin));
         subCommands.put("start", new StartSubCommand(plugin));
-        subCommands.put("end", new EndSubCommand(plugin));
         subCommands.put("win", new WinSubCommand(plugin));
         subCommands.put("cancel", new CancelSubCommand(plugin));
         subCommands.put("status", new StatusSubCommand(plugin));
@@ -87,9 +86,8 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "  /arena open" + ChatColor.GRAY + " <- 賭け受付開始");
         sender.sendMessage(ChatColor.YELLOW + "  /arena close" + ChatColor.GRAY + " <- 賭け締切（試合は開始しない）");
         sender.sendMessage(ChatColor.YELLOW + "  /arena start" + ChatColor.GRAY + " <- 試合開始");
-        sender.sendMessage(ChatColor.YELLOW + "  /arena end" + ChatColor.GRAY + " <- 強制終了（引き分け・全額返金）");
         sender.sendMessage(ChatColor.YELLOW + "  /arena win <チーム名>");
-        sender.sendMessage(ChatColor.YELLOW + "  /arena cancel");
+        sender.sendMessage(ChatColor.YELLOW + "  /arena cancel" + ChatColor.GRAY + " <- セッション中止（試合中なら引き分け）");
         sender.sendMessage(ChatColor.YELLOW + "  /arena status");
     }
 }

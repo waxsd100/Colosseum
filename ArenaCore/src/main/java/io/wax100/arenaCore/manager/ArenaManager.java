@@ -369,9 +369,12 @@ public class ArenaManager {
 
     /**
      * セッションをキャンセルし、全額返金する。
+     *
+     * <p>任意の状態から実行可能。ACTIVE 状態の場合は全プレイヤーのチップも換金する。
      */
     public boolean cancelArena() {
         if (activeSession == null) return false;
+        boolean wasActive = activeSession.getState() == ArenaState.ACTIVE;
         plugin.getLogger().warning("闘技場セッションがキャンセルされました: " + activeSession.getName());
         stopOddsBroadcast();
 
@@ -383,58 +386,6 @@ public class ArenaManager {
 
             activeSession.setState(ArenaState.FINISHED);
 
-            long entryFee = plugin.getConfig().getLong("entry-fee", 0);
-            if (entryFee > 0) {
-                Economy economy = plugin.getEconomy();
-                if (economy != null) {
-                    for (String team : activeSession.getTeamNames()) {
-                        if (activeSession.isMobTeam(team)) continue; // Mobチームは参加費不要
-                        for (UUID playerId : activeSession.getTeamMembers(team)) {
-                            // オフラインプレイヤーにも返金するため OfflinePlayer を使用
-                            org.bukkit.OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerId);
-                            economy.depositPlayer(offlinePlayer, entryFee);
-
-                            Player onlinePlayer = Bukkit.getPlayer(playerId);
-                            if (onlinePlayer != null && onlinePlayer.isOnline()) {
-                                onlinePlayer.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
-                                        + "参加費 " + ChipManager.formatAmount(entryFee) + " E を返金しました。");
-                            }
-                        }
-                    }
-                }
-            }
-
-            // スポーン済みモンスターを削除
-            cleanupMobs();
-        } finally {
-            cleanupSession();
-        }
-
-        return true;
-    }
-
-    /**
-     * 試合を強制終了し、引き分けとして処理する。
-     *
-     * <p>全賭け金を返金し、セッションを終了する。
-     * ACTIVE 状態でのみ実行可能。
-     *
-     * @return 成功した場合 {@code true}
-     */
-    public boolean drawMatch() {
-        if (activeSession == null || activeSession.getState() != ArenaState.ACTIVE) return false;
-        plugin.getLogger().info("試合が引き分けで終了しました: " + activeSession.getName());
-        stopOddsBroadcast();
-
-        try {
-            bettingManager.refundAll(activeSession);
-
-            // 地形復元開始
-            terrainManager.finishAndFlush();
-
-            activeSession.setState(ArenaState.FINISHED);
-
-            // 参加費返金
             long entryFee = plugin.getConfig().getLong("entry-fee", 0);
             if (entryFee > 0) {
                 Economy economy = plugin.getEconomy();
@@ -455,11 +406,13 @@ public class ArenaManager {
                 }
             }
 
-            // 残存Mobを削除
+            // スポーン済みモンスターを削除
             cleanupMobs();
 
-            // 全プレイヤーのチップを換金
-            cashoutAllPlayers();
+            // 試合中だった場合は全プレイヤーのチップを換金
+            if (wasActive) {
+                cashoutAllPlayers();
+            }
         } finally {
             cleanupSession();
         }
