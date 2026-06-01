@@ -461,6 +461,9 @@ public class CasinoManager {
         savedGameModes.put(player.getUniqueId(), player.getGameMode());
         player.setGameMode(GameMode.ADVENTURE);
         shearsHelper.giveCasinoShears(player);
+        // ChipLib にチップ使用を許可
+        ChipPlugin chipPlugin = getChipPlugin();
+        if (chipPlugin != null) chipPlugin.allowPlayer(player.getUniqueId());
     }
 
     // ──────────────────────────────────────────────────────
