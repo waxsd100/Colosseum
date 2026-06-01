@@ -12,6 +12,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 
@@ -101,6 +102,22 @@ public class CasinoListener implements Listener {
      */
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
+        Player player = event.getPlayer();
+        if (!plugin.getCasinoManager().isPlayerInCasino(player.getUniqueId())) return;
+
+        plugin.getCasinoManager().handlePlayerDisconnect(player);
+    }
+
+    /**
+     * カジノ参加中のプレイヤーがキックされた際の後処理。
+     *
+     * <p>PlayerKickEvent は一部の実装で PlayerQuitEvent が発火しない
+     * ケースがあるため、同一の切断処理を明示的に呼び出す。
+     *
+     * @param event プレイヤーキックイベント
+     */
+    @EventHandler
+    public void onPlayerKick(PlayerKickEvent event) {
         Player player = event.getPlayer();
         if (!plugin.getCasinoManager().isPlayerInCasino(player.getUniqueId())) return;
 

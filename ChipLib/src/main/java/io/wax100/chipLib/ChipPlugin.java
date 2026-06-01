@@ -10,6 +10,7 @@ import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -157,6 +158,28 @@ public final class ChipPlugin extends JavaPlugin implements Listener {
         }
 
         // allowedPlayers からも削除
+        allowedPlayers.remove(playerId);
+    }
+
+    /**
+     * プレイヤーキック時のクリーンアップ処理。
+     *
+     * <p>PlayerKickEvent は一部の実装で PlayerQuitEvent が発火しない
+     * ケースがあるため、同一の処理を明示的に呼び出す。
+     *
+     * @param event プレイヤーキックイベント
+     */
+    @EventHandler
+    public void onPlayerKick(PlayerKickEvent event) {
+        Player player = event.getPlayer();
+        UUID playerId = player.getUniqueId();
+
+        long totalValue = cashoutPlayer(player);
+        if (totalValue > 0) {
+            getLogger().info("キック時自動換金: " + player.getName()
+                    + " / " + ChipManager.formatAmount(totalValue) + " E");
+        }
+
         allowedPlayers.remove(playerId);
     }
 

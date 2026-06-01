@@ -228,10 +228,21 @@ public class CasinoManager {
      * @param player 切断したプレイヤー
      */
     public void handlePlayerDisconnect(Player player) {
+        UUID playerId = player.getUniqueId();
+
+        // sessionPurchases を消化（残すと再ログイン時に不整合）
+        // チップ換金は ChipLib の onPlayerQuit が行うため、ここでは購入記録だけ処理
+        Long purchasedObj = sessionPurchases.remove(playerId);
+        long purchased = purchasedObj != null ? purchasedObj : 0L;
+        if (purchased > 0) {
+            // 換金額は ChipLib 側で処理されるため、ここでは購入記録のクリアのみ
+            getOrCreateStats(playerId).recordCashout(0, purchased);
+        }
+
         restorePlayerState(player);
-        casinoPlayers.remove(player.getUniqueId());
+        casinoPlayers.remove(playerId);
         ChipPlugin chipPlugin = getChipPlugin();
-        if (chipPlugin != null) chipPlugin.disallowPlayer(player.getUniqueId());
+        if (chipPlugin != null) chipPlugin.disallowPlayer(playerId);
         restoreKeepInventoryIfEmpty();
         saveData();
     }

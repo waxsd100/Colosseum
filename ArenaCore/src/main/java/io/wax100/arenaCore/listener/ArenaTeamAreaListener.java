@@ -12,6 +12,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 
@@ -54,11 +55,19 @@ public class ArenaTeamAreaListener implements Listener {
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
+        handlePlayerLeave(event.getPlayer());
+    }
+
+    @EventHandler
+    public void onPlayerKick(PlayerKickEvent event) {
+        handlePlayerLeave(event.getPlayer());
+    }
+
+    private void handlePlayerLeave(Player player) {
         ArenaSession session = getActiveSession();
         if (session == null) return;
         if (!isAutoJoinState(session)) return;
 
-        Player player = event.getPlayer();
         UUID playerId = player.getUniqueId();
         String currentTeam = session.getPlayerTeam(playerId);
         if (currentTeam != null && !session.isMobTeam(currentTeam)) {
