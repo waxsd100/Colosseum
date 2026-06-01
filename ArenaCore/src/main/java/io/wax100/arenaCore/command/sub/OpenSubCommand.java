@@ -109,6 +109,15 @@ public class OpenSubCommand implements SubCommand {
                     + "⏱ 制限時間: " + timerSeconds + "秒");
         }
 
+        Bukkit.broadcastMessage("");
+        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
+                + "/chip <額面> <枚数>" + ChatColor.DARK_GRAY + " または "
+                + ChatColor.GRAY + "/chip <金額>" + ChatColor.DARK_GRAY + " でチップを購入");
+        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
+                + "/chip info" + ChatColor.DARK_GRAY + " でチップ一覧  "
+                + ChatColor.GRAY + "/chip balance" + ChatColor.DARK_GRAY + " で残高確認");
+        Bukkit.broadcastMessage("");
+
         List<String> teamNames = session.getTeamNames();
         for (int i = 0; i < teamNames.size(); i++) {
             String team = teamNames.get(i);
