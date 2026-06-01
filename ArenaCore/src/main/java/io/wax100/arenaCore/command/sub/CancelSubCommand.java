@@ -25,9 +25,9 @@ public class CancelSubCommand implements SubCommand {
     @Override
     public void execute(CommandSender sender, String[] args) {
         ArenaManager manager = plugin.getArenaManager();
-        if (CommandHelper.requireActiveSession(sender, manager) == null) return;
+        ArenaSession session = CommandHelper.requireActiveSession(sender, manager);
+        if (session == null) return;
 
-        ArenaSession session = manager.getActiveSession();
         ArenaState prevState = session.getState();
 
         if (manager.cancelArena()) {
@@ -36,10 +36,10 @@ public class CancelSubCommand implements SubCommand {
                 Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW + ChatColor.BOLD
                         + "⚖ 引き分け！");
                 Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
-                        + "試合が強制終了されました。全賭け金・参加費を返金します。");
+                        + "試合が強制終了されました。全ベット額・参加費を返金します。");
             } else {
                 Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED
-                        + "闘技場がキャンセルされました。賭け金・参加費は返金されます。");
+                        + "闘技場がキャンセルされました。ベット額・参加費は返金されます。");
             }
             Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
         } else {

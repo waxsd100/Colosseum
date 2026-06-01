@@ -7,7 +7,7 @@ import org.bukkit.event.HandlerList;
 import java.util.Objects;
 
 /**
- * 賭け受付が締め切られ、試合が開始されるときに発火するイベント。
+ * ベット受付が締め切られ、試合が開始されるときに発火するイベント。
  *
  * <p>キャンセル不可。試合開始は不可逆操作である。
  */

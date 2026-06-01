@@ -15,7 +15,7 @@ import org.bukkit.entity.Player;
 import java.util.List;
 
 /**
- * {@code /arena region <チーム名>} を処理する。賭けエリアをWE選択範囲で設定する。
+ * {@code /arena region <チーム名>} を処理する。ベットエリアをWE選択範囲で設定する。
  */
 public class RegionSubCommand implements SubCommand {
 
@@ -51,7 +51,9 @@ public class RegionSubCommand implements SubCommand {
 
     private void handleSetRegion(CommandSender sender, Player player, ArenaSession session,
                                  RegionManager regionManager, String teamName, ChatColor teamColor) {
-        if (session.getState() != ArenaState.SETUP && session.getState() != ArenaState.BETTING) {
+        if (session.getState() != ArenaState.SETUP
+                && session.getState() != ArenaState.RECRUITING
+                && session.getState() != ArenaState.BETTING) {
             sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
                     + ArenaMessages.MSG_SETUP_OR_BETTING_ONLY);
             return;
@@ -59,12 +61,11 @@ public class RegionSubCommand implements SubCommand {
         if (regionManager.setBettingRegion(player, teamName)) {
             sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GREEN
                     + teamColor + ChatColor.BOLD + teamName
-                    + ChatColor.RESET + ChatColor.GREEN + " の賭けエリアを設定しました。");
+                    + ChatColor.RESET + ChatColor.GREEN + " のベットエリアを設定しました。");
         } else {
             sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + ArenaMessages.MSG_WE_SELECT_FIRST);
         }
     }
-
 
     // ── Tab 補完 ──
 

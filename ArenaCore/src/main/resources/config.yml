@@ -2,14 +2,8 @@
 # ArenaCore 設定ファイル
 # ============================================================
 
-# 配当方式: pari-mutuel / fixed-odds / simple
-payout-method: pari-mutuel
-
 # 勝利条件: last-team-standing / manual / score
 win-condition: last-team-standing
-
-# 運営手数料率 (0.0 〜 1.0, 推奨: 0.05 〜 0.15)
-house-edge: 0.10
 
 # 戦闘員の参加費（0 = 無料, Vault経済から徴収）
 entry-fee: 0
@@ -17,8 +11,36 @@ entry-fee: 0
 # スコア制の場合の勝利キル数（0 = /arena end で手動集計）
 score-target: 0
 
-# 賭け受付中にオッズを定期表示する間隔（秒, 0 = 無効, 推奨: 15〜60）
+# ベット受付中にオッズを定期表示する間隔（秒, 0 = 無効, 推奨: 15〜60）
 odds-broadcast-interval: 30
+
+# ── 天引き分配率（ベッタープールに対する %） ──
+distribution:
+  loser-fighter-share: 0.01     # 敗者闘技者への還元率 (1%)
+  winner-fighter-share: 0.10    # 勝者闘技者への還元率 (10%)
+  house-fee: 0.05               # 運営手数料 → ジャックポット積立 (5%)
+  # 残り (84%) が観客配当
+
+# ── ジャックポット ──
+jackpot:
+  enabled: true
+  trigger-threshold: 0.10       # 勝利チームのベット比率がこれ未満で発動
+
+# ── 闘技者の最低保証金（ノーマルマッチ） ──
+fighter-guarantee: 100          # 勝敗に関係なく全闘技者に支払う固定給
+
+# ── ブラインドフェーズ ──
+blind:
+  enabled: true                   # ベット終了前にオッズ非公開期間を設ける
+  seconds-before-close: 30        # 締切何秒前にブラインドに移行するか
+
+# ── デスマッチ ──
+deathmatch:
+  max-proposals: 2                # 1セッション中の最大DM提案回数
+  house-fee-enabled: false        # DMプールにも運営手数料をかけるか
+
+# ── ベットタイマー ──
+default-betting-duration: 0       # /arena lock 時のデフォルトベット制限時間（秒, 0 = 無制限）
 
 # ── 地形復元 ──
 terrain-restore:

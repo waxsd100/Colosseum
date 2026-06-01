@@ -2,7 +2,6 @@ package io.wax100.arenaCore.wincondition;
 
 import io.wax100.arenaCore.model.ArenaSession;
 
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -13,7 +12,7 @@ import java.util.UUID;
  * 目標スコアに到達したチームが勝利する。
  * 目標スコアが 0 の場合は自動判定しない（{@code /arena win <チーム名>} で手動宣言）。
  */
-public class ScoreCondition implements WinCondition {
+public final class ScoreCondition implements WinCondition {
 
     private final int targetScore;
 

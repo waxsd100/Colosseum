@@ -22,12 +22,13 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.Plugin;
 
 /**
- * カーペット設置・破壊による賭けイベントリスナー。
+ * カーペット設置・破壊によるベットイベントリスナー。
  *
- * <p>賭け受付中に、チームの賭けエリア内にカーペット（チップ）を設置すると
- * 自動的に賭けとして記録される。回収すると賭け取消。
+ * <p>ベット受付中に、チームのベットエリア内にカーペット（チップ）を設置すると
+ * 自動的にベットとして記録される。回収するとベット取消。
  */
 public class ArenaBettingListener implements Listener {
 
@@ -44,7 +45,7 @@ public class ArenaBettingListener implements Listener {
      * <ol>
      *   <li>闘技場セッションが BETTING 状態</li>
      *   <li>設置アイテムがカジノチップ</li>
-     *   <li>設置座標がチームの賭けエリア内</li>
+     *   <li>設置座標がチームのベットエリア内</li>
      *   <li>プレイヤーが戦闘員でない</li>
      * </ol>
      */
@@ -54,7 +55,7 @@ public class ArenaBettingListener implements Listener {
         if (!arenaManager.hasActiveSession()) return;
 
         ArenaSession session = arenaManager.getActiveSession();
-        if (session.getState() != ArenaState.BETTING) return;
+        if (session.getState() != ArenaState.BETTING && session.getState() != ArenaState.BLIND) return;
 
         Player player = event.getPlayer();
         ItemStack item = event.getItemInHand();
@@ -62,42 +63,29 @@ public class ArenaBettingListener implements Listener {
         // チップかどうか判定
         ChipManager chipManager = plugin.getChipManager();
         if (!chipManager.isChip(item)) {
-            // カーペット素材だがチップでないアイテムの場合のみログ出力
-            if (io.wax100.chipLib.Chip.isChipMaterial(item.getType())) {
-                org.bukkit.inventory.meta.ItemMeta debugMeta = item.getItemMeta();
-                String pdcInfo = debugMeta != null
-                        ? debugMeta.getPersistentDataContainer().getKeys().toString()
-                        : "meta=null";
-                boolean hasDisplayName = debugMeta != null && debugMeta.hasDisplayName();
-                plugin.getLogger().warning("[BET-DEBUG] カーペット設置だがチップ判定 false: "
-                        + item.getType() + " player=" + player.getName()
-                        + " PDC=" + pdcInfo
-                        + " displayName=" + hasDisplayName
-                        + " amount=" + item.getAmount());
-            }
             return;
         }
 
         // 戦闘員チェック
         if (session.isFighter(player.getUniqueId())) {
             event.setCancelled(true);
-            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "戦闘員は賭けに参加できません。");
+            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "戦闘員はベットに参加できません。");
             return;
         }
 
-        // 賭けエリアの判定
+        // ベットエリアの判定
         RegionManager regionManager = plugin.getRegionManager();
         String teamName = regionManager.getTeamForLocation(event.getBlock().getLocation());
 
         if (teamName == null) {
-            // 賭けエリア外 → 設置をキャンセルしてプレイヤーに通知
+            // ベットエリア外 → 設置をキャンセルしてプレイヤーに通知
             event.setCancelled(true);
             if (regionManager.hasAnyRegion()) {
                 player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
-                        TextComponent.fromLegacyText(ChatColor.RED + "賭けエリア外です！"));
+                        TextComponent.fromLegacyText(ChatColor.RED + "ベットエリア外です！"));
             } else {
                 player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
-                        + "賭けエリアが設定されていません。" + ChatColor.GRAY + " → /arena region <チーム名>");
+                        + "ベットエリアが設定されていません。" + ChatColor.GRAY + " → /arena region <チーム名>");
             }
             return;
         }
@@ -113,20 +101,20 @@ public class ArenaBettingListener implements Listener {
 
         long chipValue = chipManager.getChipValue(item);
 
-        // 賭け処理
+        // ベット処理
         BettingManager bettingManager = plugin.getBettingManager();
         boolean success = bettingManager.placeBet(session, player, teamName, chipValue,
                 event.getBlock().getLocation(), event.getBlockReplacedState().getType());
-        // 賭け記録に失敗した場合はカーペット設置をキャンセル
+        // ベット記録に失敗した場合はカーペット設置をキャンセル
         if (!success) {
             event.setCancelled(true);
         }
     }
 
     /**
-     * カーペット破壊時の処理（賭け取消）。
+     * カーペット破壊時の処理（ベット取消）。
      *
-     * <p>賭け受付中のみ、自分が置いたカーペットを回収可能。
+     * <p>ベット受付中のみ、自分が置いたカーペットを回収可能。
      * 試合開始後は回収不可。
      */
     @EventHandler(priority = EventPriority.HIGH)
@@ -137,17 +125,17 @@ public class ArenaBettingListener implements Listener {
         ArenaSession session = arenaManager.getActiveSession();
         Block block = event.getBlock();
 
-        // この座標に賭けチップがあるか
+        // この座標にベットチップがあるか
         ArenaSession.PlacedChipInfo chipInfo = session.getPlacedChip(block.getLocation());
         if (chipInfo == null) return;
 
         Player player = event.getPlayer();
 
-        // 賭け受付中: 自分のチップのみ回収可能
-        if (session.getState() == ArenaState.BETTING) {
+        // ベット受付中（BETTING/BLIND）: 自分のチップのみ回収可能
+        if (session.getState() == ArenaState.BETTING || session.getState() == ArenaState.BLIND) {
             if (!chipInfo.playerId().equals(player.getUniqueId())) {
                 event.setCancelled(true);
-                player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "他人の賭けカーペットは回収できません。");
+                player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "他人のベットカーペットは回収できません。");
                 return;
             }
 
@@ -158,19 +146,19 @@ public class ArenaBettingListener implements Listener {
             return;
         }
 
-        // BETTING 以外の状態（CLOSED, ACTIVE, SETUP, FINISHED）では回収不可
+        // BETTING/BLIND 以外の状態（CLOSED, ACTIVE, SETUP, FINISHED等）では回収不可
         event.setCancelled(true);
         if (session.getState() == ArenaState.ACTIVE) {
-            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "試合中は賭けカーペットを回収できません。");
+            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "試合中はベットカーペットを回収できません。");
         } else {
-            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "現在、賭けカーペットの操作はできません。");
+            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "現在、ベットカーペットの操作はできません。");
         }
     }
 
     /**
      * 途中参加プレイヤーへのチップ使用許可。
      *
-     * <p>賭け受付中にサーバーへ参加したプレイヤーに対して、
+     * <p>ベット受付中にサーバーへ参加したプレイヤーに対して、
      * チップ購入コマンドの使用を自動的に許可する。
      */
     @EventHandler
@@ -180,9 +168,9 @@ public class ArenaBettingListener implements Listener {
 
         ArenaSession session = arenaManager.getActiveSession();
         ArenaState state = session.getState();
-        if (state != ArenaState.BETTING && state != ArenaState.CLOSED) return;
+        if (state != ArenaState.BETTING && state != ArenaState.BLIND && state != ArenaState.CLOSED) return;
 
-        org.bukkit.plugin.Plugin chipLibPlugin = Bukkit.getPluginManager().getPlugin("ChipLib");
+        Plugin chipLibPlugin = Bukkit.getPluginManager().getPlugin("ChipLib");
         if (chipLibPlugin instanceof ChipPlugin chipPlugin) {
             chipPlugin.allowPlayer(event.getPlayer().getUniqueId());
         }

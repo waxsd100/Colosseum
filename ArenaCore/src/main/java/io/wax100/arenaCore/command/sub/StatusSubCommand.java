@@ -5,12 +5,18 @@ import io.wax100.arenaCore.command.CommandHelper;
 import io.wax100.arenaCore.command.SubCommand;
 import io.wax100.arenaCore.manager.ArenaManager;
 import io.wax100.arenaCore.model.ArenaSession;
+import io.wax100.arenaCore.model.TeamAreaConfig;
 import io.wax100.arenaCore.util.ArenaMessages;
 import io.wax100.chipLib.ChipManager;
 import org.bukkit.ChatColor;
+import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Player;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * {@code /arena status} — セッション状態表示を処理する。
@@ -37,7 +43,7 @@ public class StatusSubCommand implements SubCommand {
         sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "状態: "
                 + ChatColor.YELLOW + session.getState().getDisplayName());
         sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "配当方式: "
-                + ChatColor.YELLOW + plugin.getConfig().getString("payout-method", "pari-mutuel"));
+                + ChatColor.YELLOW + "パリミュチュエル（天引き分配）");
         sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "勝利条件: "
                 + ChatColor.YELLOW + plugin.getConfig().getString("win-condition", "last-team-standing"));
         sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "総プール: "
@@ -51,22 +57,22 @@ public class StatusSubCommand implements SubCommand {
 
             sender.sendMessage(ArenaMessages.PREFIX + "  " + color + "■ " + team
                     + ChatColor.GRAY + " (" + label + ")"
-                    + " | 賭け: " + ChatColor.WHITE + ChipManager.formatAmount(session.getTeamPool(team)) + " E"
+                    + " | ベット: " + ChatColor.WHITE + ChipManager.formatAmount(session.getTeamPool(team)) + " E"
                     + " | スコア: " + ChatColor.WHITE + session.getScore(team));
 
             // 待機場情報
-            io.wax100.arenaCore.model.TeamAreaConfig areaConfig = session.getTeamAreaConfig(team);
+            TeamAreaConfig areaConfig = session.getTeamAreaConfig(team);
             if (areaConfig != null) {
                 StringBuilder areaInfo = new StringBuilder();
                 areaInfo.append(ChatColor.GRAY).append("    待機場: ");
 
                 if (session.isMobTeam(team)) {
-                    List<org.bukkit.entity.LivingEntity> mobs = areaConfig.scanEntities();
+                    List<LivingEntity> mobs = areaConfig.scanEntities();
                     areaInfo.append(ChatColor.WHITE).append(mobs.size()).append("体");
                     if (!mobs.isEmpty()) {
                         areaInfo.append(ChatColor.GRAY).append(" (");
-                        java.util.Map<String, Integer> typeCounts = new java.util.LinkedHashMap<>();
-                        for (org.bukkit.entity.LivingEntity mob : mobs) {
+                        Map<String, Integer> typeCounts = new LinkedHashMap<>();
+                        for (LivingEntity mob : mobs) {
                             typeCounts.merge(mob.getName(), 1, Integer::sum);
                         }
                         boolean first = true;
@@ -81,7 +87,7 @@ public class StatusSubCommand implements SubCommand {
                 }
 
                 // プレイヤー情報（全チーム共通）
-                List<org.bukkit.entity.Player> players = areaConfig.scanPlayers();
+                List<Player> players = areaConfig.scanPlayers();
                 if (!players.isEmpty()) {
                     if (session.isMobTeam(team)) {
                         areaInfo.append(ChatColor.GRAY).append(" + ");
@@ -98,7 +104,7 @@ public class StatusSubCommand implements SubCommand {
                 }
 
                 // TP先
-                org.bukkit.Location dest = areaConfig.getDestination();
+                Location dest = areaConfig.getDestination();
                 if (dest != null) {
                     areaInfo.append(ChatColor.GREEN).append(" TP✔");
                 } else {

@@ -13,10 +13,8 @@ import io.wax100.arenaCore.manager.ArenaPresetStore;
 import io.wax100.arenaCore.manager.BettingManager;
 import io.wax100.arenaCore.manager.RegionManager;
 import io.wax100.arenaCore.manager.TerrainManager;
-import io.wax100.arenaCore.payout.FixedOddsPayout;
-import io.wax100.arenaCore.payout.PariMutuelPayout;
-import io.wax100.arenaCore.payout.PayoutStrategy;
-import io.wax100.arenaCore.payout.SimpleRedistributionPayout;
+import io.wax100.arenaCore.manager.JackpotManager;
+import io.wax100.arenaCore.payout.PayoutDistributor;
 import io.wax100.arenaCore.wincondition.LastTeamStandingCondition;
 import io.wax100.arenaCore.wincondition.ManualDeclarationCondition;
 import io.wax100.arenaCore.wincondition.ScoreCondition;
@@ -24,7 +22,10 @@ import io.wax100.arenaCore.wincondition.WinCondition;
 import io.wax100.casinoCore.CasinoCore;
 import io.wax100.chipLib.ChipManager;
 import net.milkbowl.vault.economy.Economy;
+import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.command.TabCompleter;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -32,7 +33,7 @@ import org.bukkit.plugin.java.JavaPlugin;
  * ArenaCore プラグインのメインクラス。
  *
  * <p>CasinoCore のチップシステムを利用した闘技場ベッティングプラグイン。
- * 物理カーペット設置による賭け、WorldEdit エリア指定、
+ * 物理カーペット設置によるベット、WorldEdit エリア指定、
  * 設定可能な勝利条件と配当方式を提供する。
  *
  * @author wax100
@@ -47,15 +48,22 @@ public final class ArenaCore extends JavaPlugin {
     private TerrainManager terrainManager;
     private ArenaPresetStore presetStore;
     private AreaStore areaStore;
-    private PayoutStrategy payoutStrategy;
+    private PayoutDistributor payoutDistributor;
+    private JackpotManager jackpotManager;
     private WinCondition winCondition;
+
+    // ── 分配デフォルト定数 ──
+    private static final double DEFAULT_LOSER_SHARE = 0.01;
+    private static final double DEFAULT_WINNER_SHARE = 0.10;
+    private static final double DEFAULT_HOUSE_FEE = 0.05;
+    private static final double DEFAULT_JACKPOT_THRESHOLD = 0.10;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
 
         // CasinoCore 取得
-        org.bukkit.plugin.Plugin casinoCorePlugin = getServer().getPluginManager().getPlugin("CasinoCore");
+        Plugin casinoCorePlugin = getServer().getPluginManager().getPlugin("CasinoCore");
         if (!(casinoCorePlugin instanceof CasinoCore casinoCore)) {
             getLogger().severe("CasinoCore が見つかりません！無効化します。");
             getServer().getPluginManager().disablePlugin(this);
@@ -70,8 +78,10 @@ public final class ArenaCore extends JavaPlugin {
             return;
         }
 
-        // Strategy 初期化
-        initPayoutStrategy();
+        // 配当・ジャックポット初期化
+        payoutDistributor = new PayoutDistributor();
+        jackpotManager = new JackpotManager(getDataFolder(), getLogger());
+        validateDistributionConfig();
         initWinCondition();
 
         // WorldEdit チェック
@@ -102,9 +112,7 @@ public final class ArenaCore extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new ArenaTeamAreaListener(this), this);
 
         // クラッシュ復旧チェック（全ワールドロード完了後に実行）
-        getServer().getScheduler().runTaskLater(this, () -> {
-            terrainManager.checkCrashRecovery();
-        }, 1L);
+        getServer().getScheduler().runTaskLater(this, terrainManager::checkCrashRecovery, 1L);
 
         getLogger().info("ArenaCore が有効化されました！");
     }
@@ -116,24 +124,35 @@ public final class ArenaCore extends JavaPlugin {
     }
 
     /**
-     * config.yml の payout-method に基づいて配当方式を選択する。
+     * 分配率の設定値をバリデーションする。
+     *
+     * <p>合計が 1.0 を超える場合はデフォルト値にフォールバックする。
      */
-    private void initPayoutStrategy() {
-        String method = getConfig().getString("payout-method", "pari-mutuel");
-        switch (method) {
-            case "fixed-odds":
-                payoutStrategy = new FixedOddsPayout();
-                getLogger().info("配当方式: 固定オッズ");
-                break;
-            case "simple":
-                payoutStrategy = new SimpleRedistributionPayout();
-                getLogger().info("配当方式: 単純再分配");
-                break;
-            default:
-                payoutStrategy = new PariMutuelPayout();
-                getLogger().info("配当方式: パリミュチュエル");
-                break;
+    private void validateDistributionConfig() {
+        double loser = getConfig().getDouble("distribution.loser-fighter-share", DEFAULT_LOSER_SHARE);
+        double winner = getConfig().getDouble("distribution.winner-fighter-share", DEFAULT_WINNER_SHARE);
+        double house = getConfig().getDouble("distribution.house-fee", DEFAULT_HOUSE_FEE);
+        double total = loser + winner + house;
+
+        if (loser < 0 || winner < 0 || house < 0 || total > 1.0) {
+            getLogger().warning("分配率の設定が不正です (合計: " + total + ")。デフォルト値を使用します。");
+            getConfig().set("distribution.loser-fighter-share", DEFAULT_LOSER_SHARE);
+            getConfig().set("distribution.winner-fighter-share", DEFAULT_WINNER_SHARE);
+            getConfig().set("distribution.house-fee", DEFAULT_HOUSE_FEE);
+            saveConfig();
         }
+
+        // ジャックポット閾値のバリデーション
+        double threshold = getConfig().getDouble("jackpot.trigger-threshold", DEFAULT_JACKPOT_THRESHOLD);
+        if (threshold < 0.0 || threshold > 1.0) {
+            getLogger().warning("jackpot.trigger-threshold が不正です (" + threshold + ")。デフォルト値 " + DEFAULT_JACKPOT_THRESHOLD + " を使用します。");
+            getConfig().set("jackpot.trigger-threshold", DEFAULT_JACKPOT_THRESHOLD);
+        }
+
+        getLogger().info("配当方式: パリミュチュエル（天引き分配）");
+        getLogger().info("  敗者還元: " + getConfig().getDouble("distribution.loser-fighter-share", DEFAULT_LOSER_SHARE)
+                + " / 勝者還元: " + getConfig().getDouble("distribution.winner-fighter-share", DEFAULT_WINNER_SHARE)
+                + " / 手数料: " + getConfig().getDouble("distribution.house-fee", DEFAULT_HOUSE_FEE));
     }
 
     /**
@@ -164,10 +183,10 @@ public final class ArenaCore extends JavaPlugin {
                 getServer().getServicesManager().getRegistration(Economy.class);
         if (rsp == null) return false;
         economy = rsp.getProvider();
-        return economy != null;
+        return true;
     }
 
-    private <T extends org.bukkit.command.CommandExecutor & org.bukkit.command.TabCompleter>
+    private <T extends CommandExecutor & TabCompleter>
     void registerCommand(String name, T handler) {
         PluginCommand cmd = getCommand(name);
         if (cmd == null) {
@@ -185,19 +204,10 @@ public final class ArenaCore extends JavaPlugin {
     public ArenaManager getArenaManager() { return arenaManager; }
     public BettingManager getBettingManager() { return bettingManager; }
     public RegionManager getRegionManager() { return regionManager; }
-    public PayoutStrategy getPayoutStrategy() { return payoutStrategy; }
+    public PayoutDistributor getPayoutDistributor() { return payoutDistributor; }
+    public JackpotManager getJackpotManager() { return jackpotManager; }
     public WinCondition getWinCondition() { return winCondition; }
     public TerrainManager getTerrainManager() { return terrainManager; }
     public ArenaPresetStore getPresetStore() { return presetStore; }
     public AreaStore getAreaStore() { return areaStore; }
-
-    /**
-     * config.yml の house-edge 値を取得し、有効範囲 [0, 0.99] にクランプする。
-     *
-     * @return クランプ済みの house-edge 値（デフォルト 0.1）
-     */
-    public double getHouseEdge() {
-        double value = getConfig().getDouble("house-edge", 0.1);
-        return Math.max(0, Math.min(value, 0.99));
-    }
 }

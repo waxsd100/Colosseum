@@ -12,10 +12,10 @@ import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 
 /**
- * {@code /arena close} — 賭け受付を締め切る（試合は開始しない）。
+ * {@code /arena close} — ベット受付を締め切る（試合は開始しない）。
  *
  * <p>{@code /arena open} と対になるコマンド。BETTING 状態でのみ実行可能。
- * 賭けを締め切った後、{@code /arena start} で試合を開始する。
+ * ベットを締め切った後、{@code /arena start} で試合を開始する。
  */
 public class CloseSubCommand implements SubCommand {
 
@@ -28,26 +28,26 @@ public class CloseSubCommand implements SubCommand {
     @Override
     public void execute(CommandSender sender, String[] args) {
         ArenaManager manager = plugin.getArenaManager();
-        if (CommandHelper.requireActiveSession(sender, manager) == null) return;
+        ArenaSession session = CommandHelper.requireActiveSession(sender, manager);
+        if (session == null) return;
 
-        ArenaSession session = manager.getActiveSession();
-        if (session.getState() != ArenaState.BETTING) {
+        if (session.getState() != ArenaState.BETTING && session.getState() != ArenaState.BLIND) {
             sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
-                    + "賭け受付中でなければ締め切れません。");
+                    + "ベット受付中でなければ締め切れません。");
             return;
         }
 
         if (!manager.closeBetting()) {
             sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
-                    + "賭け締切に失敗しました。");
+                    + "ベット締切に失敗しました。");
             return;
         }
 
         Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
         Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED + ChatColor.BOLD
-                + "賭け締め切り！");
+                + "ベット締め切り！");
         Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
-                + "これ以上賭けることはできません。");
+                + "これ以上ベットすることはできません。");
         Bukkit.broadcastMessage("");
         plugin.getBettingManager().broadcastOdds(session);
         Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY

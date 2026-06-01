@@ -12,7 +12,6 @@ import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -23,7 +22,7 @@ import java.util.List;
  */
 public class FieldSubCommand implements SubCommand {
 
-    private static final List<String> SUB_COMMANDS = Arrays.asList("set", "info");
+    private static final List<String> SUB_COMMANDS = List.of("set", "info");
     private static final int FIELD_SIZE_WARNING = 500_000;
 
     private final ArenaCore plugin;

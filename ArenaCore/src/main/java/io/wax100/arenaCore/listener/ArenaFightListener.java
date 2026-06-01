@@ -86,7 +86,7 @@ public class ArenaFightListener implements Listener {
                 + suffix);
 
         // Scoreboard Team からも削除（タブリスト表示をクリーンに保つ）
-        plugin.getArenaManager().removeFromScoreboardTeam(team, player);
+        manager.removeFromScoreboardTeam(team, player);
 
         manager.onFighterDeath(player.getUniqueId());
     }

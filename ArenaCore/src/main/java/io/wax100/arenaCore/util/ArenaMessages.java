@@ -1,5 +1,6 @@
 package io.wax100.arenaCore.util;
 
+import io.wax100.arenaCore.model.ArenaSession;
 import org.bukkit.ChatColor;
 
 /**
@@ -42,27 +43,27 @@ public final class ArenaMessages {
     /** 待機場未設定（フォーマット用） */
     public static final String MSG_AREA_NOT_SET_FMT = "先に %s で待機場を設定してください。";
 
-    /** 賭け未開始 */
-    public static final String MSG_BETTING_NOT_STARTED = "賭けが開始されていません。";
+    /** ベット未開始 */
+    public static final String MSG_BETTING_NOT_STARTED = "ベットが開始されていません。";
 
-    /** まだ賭けていない */
-    public static final String MSG_NO_BET = "まだ賭けていません。";
+    /** まだベットしていない */
+    public static final String MSG_NO_BET = "まだベットしていません。";
 
-    /** セットアップ中のみ賭け受付開始可能 */
-    public static final String MSG_OPEN_SETUP_ONLY = "セットアップ中のみ賭け受付を開始できます。";
+    /** セットアップ中のみベット受付開始可能 */
+    public static final String MSG_OPEN_SETUP_ONLY = "セットアップ中のみベット受付を開始できます。";
 
     /** 最低2チームにメンバーが必要 */
     public static final String MSG_MIN_TEAMS_REQUIRED = "最低2チームにメンバーが必要です。";
 
-    /** 賭け受付中のみ試合開始可能 */
-    public static final String MSG_START_BETTING_ONLY = "賭け受付中のみ試合を開始できます。";
+    /** ベット受付中のみ試合開始可能 */
+    public static final String MSG_START_BETTING_ONLY = "ベット受付中のみ試合を開始できます。";
 
     /** 試合中のみ勝者宣言可能 */
     public static final String MSG_WIN_ACTIVE_ONLY = "試合中のみ勝者を宣言できます。";
 
 
-    /** セットアップ中 or 賭け受付中のみ設定可能 */
-    public static final String MSG_SETUP_OR_BETTING_ONLY = "セットアップ中 or 賭け受付中のみ設定できます。";
+    /** セットアップ中 or ベット受付中のみ設定可能 */
+    public static final String MSG_SETUP_OR_BETTING_ONLY = "セットアップ中 or ベット受付中のみ設定できます。";
 
     // ── 地形復元 ──
 
@@ -140,7 +141,7 @@ public final class ArenaMessages {
      * @param team    チーム名
      * @return フォーマット済みラベル
      */
-    public static String formatTeamLabel(io.wax100.arenaCore.model.ArenaSession session, String team) {
+    public static String formatTeamLabel(ArenaSession session, String team) {
         return session.isMobTeam(team)
                 ? "[MOB] " + session.getEffectiveTeamSize(team) + "体"
                 : session.getTeamSize(team) + "人";

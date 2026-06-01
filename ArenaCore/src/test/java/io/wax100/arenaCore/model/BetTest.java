@@ -49,11 +49,8 @@ class BetTest {
             assertEquals(100L, bet.amount());
         }
 
-        @Test
-        @DisplayName("固定オッズの初期値は0.0である")
-        void lockedOdds_initiallyZero() {
-            assertEquals(0.0, bet.lockedOdds(), 0.0001);
-        }
+
+
 
         @Test
         @DisplayName("金額0でBetを生成できる")
@@ -136,58 +133,6 @@ class BetTest {
         }
     }
 
-    // ========================================================================
-    // lockedOdds
-    // ========================================================================
-
-    @Nested
-    @DisplayName("lockedOdds - 固定オッズ")
-    class LockedOddsTest {
-
-        @Test
-        @DisplayName("オッズを設定して取得できる")
-        void setAndGet() {
-            bet.setLockedOdds(2.5);
-            assertEquals(2.5, bet.lockedOdds(), 0.0001);
-        }
-
-        @Test
-        @DisplayName("オッズを上書きできる")
-        void canOverwrite() {
-            bet.setLockedOdds(1.5);
-            bet.setLockedOdds(3.0);
-            assertEquals(3.0, bet.lockedOdds(), 0.0001);
-        }
-
-        @Test
-        @DisplayName("オッズに1.0を設定できる")
-        void evenOdds() {
-            bet.setLockedOdds(1.0);
-            assertEquals(1.0, bet.lockedOdds(), 0.0001);
-        }
-
-        @Test
-        @DisplayName("オッズに0.0を設定して初期状態に戻せる")
-        void resetToZero() {
-            bet.setLockedOdds(5.0);
-            bet.setLockedOdds(0.0);
-            assertEquals(0.0, bet.lockedOdds(), 0.0001);
-        }
-
-        @Test
-        @DisplayName("非常に小さいオッズ値を正しく保持する")
-        void verySmallOdds() {
-            bet.setLockedOdds(0.001);
-            assertEquals(0.001, bet.lockedOdds(), 0.00001);
-        }
-
-        @Test
-        @DisplayName("非常に大きいオッズ値を正しく保持する")
-        void veryLargeOdds() {
-            bet.setLockedOdds(9999.99);
-            assertEquals(9999.99, bet.lockedOdds(), 0.001);
-        }
-    }
 
     // ========================================================================
     // 不変性
@@ -221,18 +166,6 @@ class BetTest {
             bet.addAmount(999L);
 
             assertEquals(originalId, bet.playerId());
-            assertEquals(originalTeam, bet.teamName());
-        }
-
-        @Test
-        @DisplayName("setLockedOddsで金額やチーム名は変わらない")
-        void setOdds_doesNotAffectOtherFields() {
-            long originalAmount = bet.amount();
-            String originalTeam = bet.teamName();
-
-            bet.setLockedOdds(5.0);
-
-            assertEquals(originalAmount, bet.amount());
             assertEquals(originalTeam, bet.teamName());
         }
     }

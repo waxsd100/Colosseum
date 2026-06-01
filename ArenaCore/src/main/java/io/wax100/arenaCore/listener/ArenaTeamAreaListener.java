@@ -11,17 +11,19 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 
+import java.util.Objects;
 import java.util.UUID;
 
 /**
  * 待機エリアへの入退場を監視し、チームメンバーの自動追加/削除を行うリスナー。
  *
- * <p>セッション状態が {@link ArenaState#SETUP} または {@link ArenaState#BETTING} の間のみ動作する。
+ * <p>セッション状態が {@link ArenaState#SETUP} または {@link ArenaState#RECRUITING} の間のみ動作する。
  * プレイヤーが待機エリアに入ると自動的にチームに追加され、退場すると削除される。
  * モンスターチームのエリアには追加しない。
  */
@@ -77,7 +79,7 @@ public class ArenaTeamAreaListener implements Listener {
     }
 
     @EventHandler
-    public void onPlayerJoin(org.bukkit.event.player.PlayerJoinEvent event) {
+    public void onPlayerJoin(PlayerJoinEvent event) {
         // 1tick 遅延: ログイン直後は位置情報が確定していない場合がある
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             Player player = event.getPlayer();
@@ -116,7 +118,7 @@ public class ArenaTeamAreaListener implements Listener {
         String toArea = findTeamArea(session, to);
 
         // 同じエリア内 → 何もしない
-        if (java.util.Objects.equals(fromArea, toArea)) return;
+        if (Objects.equals(fromArea, toArea)) return;
 
         // エリアから退場
         if (currentTeam != null && !currentTeam.equals(toArea)) {
@@ -156,6 +158,6 @@ public class ArenaTeamAreaListener implements Listener {
 
     private boolean isAutoJoinState(ArenaSession session) {
         ArenaState state = session.getState();
-        return state == ArenaState.SETUP || state == ArenaState.BETTING || state == ArenaState.CLOSED;
+        return state == ArenaState.SETUP || state == ArenaState.RECRUITING;
     }
 }

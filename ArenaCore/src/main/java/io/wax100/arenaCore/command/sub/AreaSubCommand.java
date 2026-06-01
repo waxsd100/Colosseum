@@ -5,7 +5,6 @@ import io.wax100.arenaCore.command.CommandHelper;
 import io.wax100.arenaCore.command.SubCommand;
 import io.wax100.arenaCore.manager.ArenaManager;
 import io.wax100.arenaCore.model.ArenaSession;
-import io.wax100.arenaCore.model.ArenaState;
 import io.wax100.arenaCore.model.TeamAreaConfig;
 import io.wax100.arenaCore.util.ArenaMessages;
 import org.bukkit.ChatColor;

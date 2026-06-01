@@ -5,7 +5,7 @@ package io.wax100.arenaCore.model;
 import java.util.Objects;
 
 /**
- * チームの賭けエリア（直方体）を表すレコード。
+ * チームのベットエリア（直方体）を表すレコード。
  *
  * <p>WorldEdit で選択した範囲の2点を保持し、
  * カーペット設置時に座標が範囲内かを判定する。

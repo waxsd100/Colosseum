@@ -667,16 +667,18 @@ class ArenaSessionTest {
         }
 
         @Test
-        @DisplayName("SETUP→BETTINGに遷移できる")
-        void canTransitionToBetting() {
-            session.setState(ArenaState.BETTING);
-            assertEquals(ArenaState.BETTING, session.getState());
+        @DisplayName("SETUP→RECRUITINGに遷移できる")
+        void canTransitionToRecruiting() {
+            session.setState(ArenaState.RECRUITING);
+            assertEquals(ArenaState.RECRUITING, session.getState());
         }
 
         @Test
-        @DisplayName("SETUP→BETTING→ACTIVEに遷移できる")
+        @DisplayName("SETUP→RECRUITING→BETTING→CLOSED→ACTIVEに遷移できる")
         void canTransitionToActive() {
+            session.setState(ArenaState.RECRUITING);
             session.setState(ArenaState.BETTING);
+            session.setState(ArenaState.CLOSED);
             session.setState(ArenaState.ACTIVE);
             assertEquals(ArenaState.ACTIVE, session.getState());
         }
@@ -709,8 +711,17 @@ class ArenaSessionTest {
         void fullLifecycleTransition() {
             assertEquals(ArenaState.SETUP, session.getState());
 
+            session.setState(ArenaState.RECRUITING);
+            assertEquals(ArenaState.RECRUITING, session.getState());
+
             session.setState(ArenaState.BETTING);
             assertEquals(ArenaState.BETTING, session.getState());
+
+            session.setState(ArenaState.BLIND);
+            assertEquals(ArenaState.BLIND, session.getState());
+
+            session.setState(ArenaState.CLOSED);
+            assertEquals(ArenaState.CLOSED, session.getState());
 
             session.setState(ArenaState.ACTIVE);
             assertEquals(ArenaState.ACTIVE, session.getState());
@@ -848,6 +859,7 @@ class ArenaSessionTest {
             session.addEntryFee(100L);
 
             // Transition to betting
+            session.setState(ArenaState.RECRUITING);
             session.setState(ArenaState.BETTING);
             UUID spectator1 = UUID.randomUUID();
             UUID spectator2 = UUID.randomUUID();
@@ -855,6 +867,7 @@ class ArenaSessionTest {
             session.addOrUpdateBet(spectator2, TEAM_BLUE, 300L);
 
             // Transition to active
+            session.setState(ArenaState.CLOSED);
             session.setState(ArenaState.ACTIVE);
             session.addScore(TEAM_RED, 2);
             session.addScore(TEAM_BLUE, 1);

@@ -113,7 +113,9 @@ class PresetLifecycleIT {
             // ── STEP 3: セッション破棄 ──
             // cancelArena は Bukkit.broadcastMessage を呼ぶので、直接 null 化
             // arenaManager 内部状態をリセット
+            original.setState(ArenaState.RECRUITING);
             original.setState(ArenaState.BETTING);
+            original.setState(ArenaState.CLOSED);
             original.setState(ArenaState.ACTIVE);
             original.setState(ArenaState.FINISHED);
             original.clearAllData();
@@ -307,7 +309,9 @@ class PresetLifecycleIT {
                 // 前のセッションをクリア
                 if (arenaManager.hasActiveSession()) {
                     ArenaSession current = arenaManager.getActiveSession();
+                    current.setState(ArenaState.RECRUITING);
                     current.setState(ArenaState.BETTING);
+                    current.setState(ArenaState.CLOSED);
                     current.setState(ArenaState.ACTIVE);
                     current.setState(ArenaState.FINISHED);
                     current.clearAllData();

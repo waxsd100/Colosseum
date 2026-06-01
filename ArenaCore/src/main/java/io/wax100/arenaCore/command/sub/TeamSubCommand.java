@@ -26,7 +26,7 @@ import java.util.UUID;
  */
 public class TeamSubCommand implements SubCommand {
 
-    private static final List<String> SUB_COMMANDS = Arrays.asList("add", "list", "area", "dest", "color");
+    private static final List<String> SUB_COMMANDS = List.of("add", "list", "area", "dest", "color");
 
     private final ArenaCore plugin;
 
@@ -48,7 +48,6 @@ public class TeamSubCommand implements SubCommand {
             default -> sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "使い方: " + getUsage());
         }
     }
-
 
     // ── add (チーム追加) ──
 
@@ -323,6 +322,5 @@ public class TeamSubCommand implements SubCommand {
     public String getUsage() {
         return "/arena team <add|list|area|dest|color>";
     }
-
 
 }

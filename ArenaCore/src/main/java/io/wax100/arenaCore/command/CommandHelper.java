@@ -1,6 +1,7 @@
 package io.wax100.arenaCore.command;
 
 import io.wax100.arenaCore.manager.ArenaManager;
+import io.wax100.arenaCore.model.ArenaFieldConfig;
 import io.wax100.arenaCore.model.ArenaSession;
 import io.wax100.arenaCore.model.ArenaState;
 import io.wax100.arenaCore.model.TeamAreaConfig;
@@ -126,7 +127,7 @@ public final class CommandHelper {
      *
      * @return 生成した ArenaFieldConfig。選択範囲がない場合 null
      */
-    public static io.wax100.arenaCore.model.ArenaFieldConfig createFieldConfigFromSelection(Player player) {
+    public static ArenaFieldConfig createFieldConfigFromSelection(Player player) {
         try {
             com.sk89q.worldedit.entity.Player wePlayer =
                     com.sk89q.worldedit.bukkit.BukkitAdapter.adapt(player);
@@ -136,7 +137,7 @@ public final class CommandHelper {
             com.sk89q.worldedit.math.BlockVector3 min = region.getMinimumPoint();
             com.sk89q.worldedit.math.BlockVector3 max = region.getMaximumPoint();
             String worldName = player.getWorld().getName();
-            io.wax100.arenaCore.model.ArenaFieldConfig result = io.wax100.arenaCore.model.ArenaFieldConfig.of(worldName,
+            ArenaFieldConfig result = ArenaFieldConfig.of(worldName,
                     min.getX(), min.getY(), min.getZ(), max.getX(), max.getY(), max.getZ());
             return result;
         } catch (NoClassDefFoundError | Exception e) {

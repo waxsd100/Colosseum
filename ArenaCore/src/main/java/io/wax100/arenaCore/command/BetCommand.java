@@ -2,7 +2,6 @@ package io.wax100.arenaCore.command;
 
 import io.wax100.arenaCore.ArenaCore;
 import io.wax100.arenaCore.manager.ArenaManager;
-import io.wax100.arenaCore.manager.BettingManager;
 import io.wax100.arenaCore.model.ArenaSession;
 import io.wax100.arenaCore.model.ArenaState;
 import io.wax100.arenaCore.model.Bet;
@@ -19,7 +18,6 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -28,14 +26,14 @@ import java.util.Map;
  *
  * <p>サブコマンド:
  * <ul>
- *   <li>{@code /bet <チーム> <金額>} — コマンドで賭ける</li>
+ *   <li>{@code /bet <チーム> <金額>} — コマンドでベットする</li>
  *   <li>{@code /bet odds} — 現在のオッズ表示</li>
- *   <li>{@code /bet info} — 自分の賭け情報表示</li>
+ *   <li>{@code /bet info} — 自分のベット情報表示</li>
  * </ul>
  */
 public class BetCommand implements CommandExecutor, TabCompleter {
 
-    private static final List<String> SUB_COMMANDS = Arrays.asList("odds", "info");
+    private static final List<String> SUB_COMMANDS = List.of("odds", "info");
 
     private final ArenaCore plugin;
 
@@ -75,8 +73,8 @@ public class BetCommand implements CommandExecutor, TabCompleter {
         ArenaSession session = CommandHelper.requireActiveSession(player, manager);
         if (session == null) return;
 
-        if (session.getState() != ArenaState.BETTING) {
-            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "賭け受付中ではありません。");
+        if (session.getState() != ArenaState.BETTING && session.getState() != ArenaState.BLIND) {
+            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "ベット受付中ではありません。");
             return;
         }
 
@@ -96,7 +94,7 @@ public class BetCommand implements CommandExecutor, TabCompleter {
 
         // 戦闘員チェック
         if (session.isFighter(player.getUniqueId())) {
-            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "戦闘員は賭けに参加できません。");
+            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "戦闘員はベットに参加できません。");
             return;
         }
 
@@ -127,7 +125,7 @@ public class BetCommand implements CommandExecutor, TabCompleter {
 
         economy.withdrawPlayer(player, amount);
 
-        // 賭け記録
+        // ベット記録
         try {
             session.addOrUpdateBet(player.getUniqueId(), teamName, amount);
         } catch (IllegalStateException e) {
@@ -137,17 +135,6 @@ public class BetCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        // 固定オッズ方式の場合、オッズをロック
-        String payoutMethod = plugin.getConfig().getString("payout-method", "pari-mutuel");
-        if ("fixed-odds".equals(payoutMethod)) {
-            double houseEdge = plugin.getHouseEdge();
-            Bet bet = session.getBet(player.getUniqueId(), teamName);
-            if (bet != null) {
-                double currentOdds = plugin.getPayoutStrategy().calculateOdds(session, teamName, houseEdge);
-                bet.setLockedOdds(currentOdds);
-            }
-        }
-
         ChatColor teamColor = session.getTeamColor(teamName);
         Bet bet = session.getBet(player.getUniqueId(), teamName);
         long total = bet != null ? bet.amount() : amount;
@@ -155,7 +142,7 @@ public class BetCommand implements CommandExecutor, TabCompleter {
         String msg = ChatColor.GREEN + "✔ " + teamColor + ChatColor.BOLD + teamName
                 + ChatColor.RESET + ChatColor.GREEN + " に "
                 + ChatColor.YELLOW + ChipManager.formatAmount(amount) + " E"
-                + ChatColor.GREEN + " 賭け"
+                + ChatColor.GREEN + " ベット"
                 + ChatColor.GRAY + " (合計: "
                 + ChipManager.formatAmount(total) + " E)";
         player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText(msg));
@@ -168,7 +155,9 @@ public class BetCommand implements CommandExecutor, TabCompleter {
         ArenaSession session = CommandHelper.requireActiveSession(player, manager);
         if (session == null) return;
 
-        if (session.getState() != ArenaState.BETTING && session.getState() != ArenaState.ACTIVE) {
+        if (session.getState() != ArenaState.BETTING
+                && session.getState() != ArenaState.BLIND
+                && session.getState() != ArenaState.ACTIVE) {
             player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + ArenaMessages.MSG_BETTING_NOT_STARTED);
             return;
         }
@@ -189,16 +178,14 @@ public class BetCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        double houseEdge = plugin.getConfig().getDouble("house-edge", 0.1);
-
-        player.sendMessage(ChatColor.DARK_RED.toString() + ChatColor.BOLD + "═══ あなたの賭け情報 ═══");
+        player.sendMessage(ChatColor.DARK_RED.toString() + ChatColor.BOLD + "═══ あなたのベット情報 ═══");
         for (Bet bet : playerBets.values()) {
             ChatColor teamColor = session.getTeamColor(bet.teamName());
-            double odds = plugin.getPayoutStrategy().calculateOdds(session, bet.teamName(), houseEdge);
+            double odds = plugin.getBettingManager().calculateOdds(session, bet.teamName());
 
-            player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "賭け先: "
+            player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "ベット先: "
                     + teamColor + ChatColor.BOLD + bet.teamName()
-                    + ChatColor.RESET + ChatColor.GRAY + " / 賭け金: "
+                    + ChatColor.RESET + ChatColor.GRAY + " / ベット額: "
                     + ChatColor.YELLOW + ChipManager.formatAmount(bet.amount()) + " E");
 
             if (odds > 0) {
@@ -220,13 +207,13 @@ public class BetCommand implements CommandExecutor, TabCompleter {
     private void sendUsage(Player player) {
         player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "使い方:");
         player.sendMessage(ChatColor.YELLOW + "  /bet <チーム名> <金額>"
-                + ChatColor.GRAY + " - 所持金から直接賭ける");
+                + ChatColor.GRAY + " - 所持金から直接ベットする");
         player.sendMessage(ChatColor.YELLOW + "  /bet odds"
                 + ChatColor.GRAY + " - 現在のオッズ表示");
         player.sendMessage(ChatColor.YELLOW + "  /bet info"
-                + ChatColor.GRAY + " - 自分の賭け情報表示");
+                + ChatColor.GRAY + " - 自分のベット情報表示");
         player.sendMessage("");
-        player.sendMessage(ChatColor.GRAY + "※ 賭けエリアにチップを置いて賭けることもできます。");
+        player.sendMessage(ChatColor.GRAY + "※ ベットエリアにチップを置いてベットすることもできます。");
     }
 
     // ── Tab 補完 ──

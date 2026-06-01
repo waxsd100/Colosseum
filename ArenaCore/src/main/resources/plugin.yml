@@ -13,7 +13,7 @@ commands:
     usage: /arena <create|team|area|region|field|preset|open|close|start|win|cancel|status>
     permission: arena.admin
   bet:
-    description: 賭け情報コマンド
+    description: ベット情報コマンド
     usage: /bet <odds|info>
     permission: arena.bet
 
@@ -22,5 +22,5 @@ permissions:
     description: 闘技場の管理権限
     default: op
   arena.bet:
-    description: 賭け情報の閲覧権限
+    description: ベット情報の閲覧権限
     default: true

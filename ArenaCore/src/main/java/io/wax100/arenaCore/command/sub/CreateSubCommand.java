@@ -11,7 +11,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 
-import java.util.Collections;
+import java.util.List;
 
 /**
  * {@code /arena create <名前>} を処理する。
@@ -37,7 +37,7 @@ public class CreateSubCommand implements SubCommand {
 
         String name = args[0];
 
-        ArenaSession session = manager.createArena(name, Collections.emptyList());
+        ArenaSession session = manager.createArena(name, List.of());
         if (session == null) {
             if (plugin.getTerrainManager() != null
                     && plugin.getTerrainManager().isBlocking()) {

@@ -12,7 +12,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 
 /**
- * {@code /arena start} — 試合開始（賭け締切）を処理する。
+ * {@code /arena start} — 試合開始（ベット締切）を処理する。
  */
 public class StartSubCommand implements SubCommand {
 
@@ -25,29 +25,22 @@ public class StartSubCommand implements SubCommand {
     @Override
     public void execute(CommandSender sender, String[] args) {
         ArenaManager manager = plugin.getArenaManager();
-        if (CommandHelper.requireActiveSession(sender, manager) == null) return;
+        ArenaSession session = CommandHelper.requireActiveSession(sender, manager);
+        if (session == null) return;
 
         if (!manager.startMatch()) {
-            ArenaSession session = manager.getActiveSession();
-            if (session == null) {
+            ArenaState state = session.getState();
+            if (state != ArenaState.CLOSED) {
                 sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
-                        + ArenaMessages.MSG_START_BETTING_ONLY);
-            } else {
-                ArenaState state = session.getState();
-                if (state != ArenaState.BETTING && state != ArenaState.CLOSED) {
-                    sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
-                            + "賭け受付中または賭け締切後でなければ試合を開始できません。");
-                }
+                        + "ベット締切後でなければ試合を開始できません。（現在: " + state.getDisplayName() + "）");
             }
             // TP未設定エラーは ArenaManager 側で broadcastMessage 済み
             return;
         }
 
-        ArenaSession session = manager.getActiveSession();
-
         Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
         Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED + ChatColor.BOLD + "試合開始！");
-        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW + "賭けは締め切りました！");
+        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW + "ベットは締め切りました！");
         Bukkit.broadcastMessage("");
         plugin.getBettingManager().broadcastOdds(session);
         Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);

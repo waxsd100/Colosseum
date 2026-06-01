@@ -27,7 +27,7 @@ public final class YamlHelper {
         List<String> names = new ArrayList<>();
         for (File file : files) {
             String fileName = file.getName();
-            names.add(fileName.substring(0, fileName.length() - 4));
+            names.add(fileName.substring(0, fileName.lastIndexOf('.')));
         }
         Collections.sort(names);
         return names;

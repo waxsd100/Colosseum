@@ -88,7 +88,7 @@ public class PresetSubCommand implements SubCommand {
         sender.sendMessage(ArenaMessages.MSG_PRESET_LOADED + ChatColor.WHITE + name);
         sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY
                 + "→ " + ChatColor.YELLOW + "/arena status" + ChatColor.GRAY + " で設定確認  "
-                + ChatColor.YELLOW + "/arena open" + ChatColor.GRAY + " で賭け受付開始");
+                + ChatColor.YELLOW + "/arena open" + ChatColor.GRAY + " でベット受付開始");
     }
 
     // ── list ──

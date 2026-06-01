@@ -17,7 +17,7 @@ import java.util.Map;
  * WorldEdit 連携によるエリア管理。
  *
  * <p>WorldEdit が存在する場合のみ動作し、プレイヤーの選択範囲を
- * チーム賭けエリアやチーム配属エリアとして使用する。
+ * チームベットエリアやチーム配属エリアとして使用する。
  */
 public class RegionManager {
 
@@ -43,7 +43,7 @@ public class RegionManager {
     }
 
     /**
-     * プレイヤーの WorldEdit 選択範囲をチームの賭けエリアとして設定する。
+     * プレイヤーの WorldEdit 選択範囲をチームのベットエリアとして設定する。
      *
      * @param player   選択範囲を持つプレイヤー
      * @param teamName チーム名
@@ -75,7 +75,7 @@ public class RegionManager {
     }
 
     /**
-     * 指定座標がどのチームの賭けエリア内にあるかを判定する。
+     * 指定座標がどのチームのベットエリア内にあるかを判定する。
      *
      * @param location 判定対象座標
      * @return チーム名。どのエリアにも含まれない場合 {@code null}
@@ -90,7 +90,7 @@ public class RegionManager {
     }
 
     /**
-     * チームの賭けエリアが設定されているかを返す。
+     * チームのベットエリアが設定されているかを返す。
      *
      * @param teamName チーム名
      * @return 設定されている場合 {@code true}
@@ -100,10 +100,10 @@ public class RegionManager {
     }
 
     /**
-     * チームの賭けエリアを取得する。
+     * チームのベットエリアを取得する。
      *
      * @param teamName チーム名
-     * @return 賭けエリア。未設定の場合 {@code null}
+     * @return ベットエリア。未設定の場合 {@code null}
      */
     public BettingRegion getBettingRegion(String teamName) {
         return bettingRegions.get(teamName);
@@ -115,14 +115,14 @@ public class RegionManager {
      * プリセットロード時にBettingRegionを直接登録する。
      *
      * @param teamName チーム名
-     * @param region   賭けエリア
+     * @param region   ベットエリア
      */
     public void registerBettingRegion(String teamName, BettingRegion region) {
         bettingRegions.put(teamName, region);
     }
 
     /**
-     * 賭けエリアが1つでも設定されているかを返す。
+     * ベットエリアが1つでも設定されているかを返す。
      *
      * @return 設定されている場合 {@code true}
      */
@@ -131,7 +131,7 @@ public class RegionManager {
     }
 
     /**
-     * 全賭けエリアをクリアする。
+     * 全ベットエリアをクリアする。
      */
     public void clearRegions() {
         bettingRegions.clear();

@@ -5,10 +5,7 @@ import io.wax100.arenaCore.model.ArenaSession;
 import io.wax100.arenaCore.model.BettingRegion;
 import io.wax100.arenaCore.model.TeamAreaConfig;
 import io.wax100.arenaCore.util.YamlHelper;
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.Location;
-import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -21,7 +18,7 @@ import java.util.logging.Logger;
  * アリーナプリセットの YAML 永続化を担当する。
  *
  * <p>保存先は {@code plugins/ArenaCore/arenas/<名前>.yml}。
- * チーム構成・待機場・TP先・賭けエリア・戦闘エリアを保持し、
+ * チーム構成・待機場・TP先・ベットエリア・戦闘エリアを保持し、
  * {@link PresetData} として不変データクラスで返却する。
  */
 public class ArenaPresetStore {
@@ -49,7 +46,7 @@ public class ArenaPresetStore {
      *
      * @param name          プリセット名（ファイル名に使用、null不可）
      * @param session       保存するセッション（null不可）
-     * @param regionManager 賭けエリア取得用（null不可）
+     * @param regionManager ベットエリア取得用（null不可）
      */
     public void save(String name, ArenaSession session, RegionManager regionManager) {
         Objects.requireNonNull(name, "name must not be null");
@@ -244,7 +241,7 @@ public class ArenaPresetStore {
      * @param mobTeams        モンスターチーム名セット
      * @param fieldConfig     戦闘エリア設定（nullable）
      * @param teamAreaConfigs チーム別待機場設定
-     * @param bettingRegions  チーム別賭けエリア設定
+     * @param bettingRegions  チーム別ベットエリア設定
      * @param teamColors      チーム別カラー設定
      */
     public record PresetData(

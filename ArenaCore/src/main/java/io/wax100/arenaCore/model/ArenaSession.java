@@ -10,11 +10,11 @@ import java.util.*;
 /**
  * 闘技場セッションのデータモデル。
  *
- * <p>チーム構成、賭け情報、設置カーペット座標、スコアなどを保持する。
+ * <p>チーム構成、ベット情報、設置カーペット座標、スコアなどを保持する。
  *
  * <h3>状態遷移</h3>
  * <pre>
- * SETUP → BETTING → CLOSED → ACTIVE → FINISHED
+ * SETUP → RECRUITING → BETTING → BLIND → CLOSED → ACTIVE → FINISHED
  *   any state → FINISHED  (cancel)
  * </pre>
  */
@@ -24,19 +24,26 @@ public class ArenaSession {
     private final List<String> teamNames;
     private final Map<String, List<UUID>> teams;
     private final Map<UUID, Map<String, Bet>> bets;
-    /** 設置されたカーペットの座標 → 賭け情報(playerId, teamName, chipValue) */
+    /** 設置されたカーペットの座標 → ベット情報(playerId, teamName, chipValue) */
     private final Map<Location, PlacedChipInfo> placedChips;
     /** チーム別スコア（キル数） */
     private final Map<String, Integer> scores;
 
-    /** チーム別賭け金キャッシュ */
+    /** チーム別ベット額キャッシュ */
     private final Map<String, Long> teamPools = new HashMap<>();
-    /** 全賭け金合計キャッシュ */
+    /** 全ベット額合計キャッシュ */
     private long totalPool;
 
     private ArenaState state;
     private String winningTeam;
     private long entryFeePool;
+
+    /** 試合モード（通常 or デスマッチ） */
+    private MatchMode matchMode = MatchMode.NORMAL;
+    /** デスマッチプール（闘技者の参加費合計）— ベッタープールとは完全分離 */
+    private long deathmatchPool = 0;
+    /** デスマッチ参加費（セッションごとに設定、1人あたり） */
+    private long deathmatchEntryFee = 0;
 
     /** モンスターチームのセット */
     private final Set<String> mobTeams = new HashSet<>();
@@ -82,12 +89,13 @@ public class ArenaSession {
      *
      * <p>許可される遷移:
      * <ul>
-     *   <li>SETUP → BETTING</li>
-     *   <li>BETTING → CLOSED</li>
-     *   <li>BETTING → ACTIVE</li>
-     *   <li>CLOSED → ACTIVE</li>
+     *   <li>SETUP → RECRUITING, FINISHED</li>
+     *   <li>RECRUITING → BETTING, FINISHED</li>
+     *   <li>BETTING → BLIND, CLOSED, FINISHED</li>
+     *   <li>BLIND → CLOSED, FINISHED</li>
+     *   <li>CLOSED → ACTIVE, FINISHED</li>
      *   <li>ACTIVE → FINISHED</li>
-     *   <li>任意 → FINISHED（キャンセル）</li>
+     *   <li>FINISHED → (なし)</li>
      * </ul>
      *
      * @param newState 新しい状態
@@ -109,11 +117,13 @@ public class ArenaSession {
     private static final Map<ArenaState, EnumSet<ArenaState>> VALID_TRANSITIONS;
     static {
         Map<ArenaState, EnumSet<ArenaState>> m = new EnumMap<>(ArenaState.class);
-        m.put(ArenaState.SETUP,    EnumSet.of(ArenaState.BETTING, ArenaState.FINISHED));
-        m.put(ArenaState.BETTING,  EnumSet.of(ArenaState.CLOSED, ArenaState.ACTIVE, ArenaState.FINISHED));
-        m.put(ArenaState.CLOSED,   EnumSet.of(ArenaState.ACTIVE, ArenaState.FINISHED));
-        m.put(ArenaState.ACTIVE,   EnumSet.of(ArenaState.FINISHED));
-        m.put(ArenaState.FINISHED, EnumSet.noneOf(ArenaState.class));
+        m.put(ArenaState.SETUP,      EnumSet.of(ArenaState.RECRUITING, ArenaState.FINISHED));
+        m.put(ArenaState.RECRUITING, EnumSet.of(ArenaState.BETTING, ArenaState.FINISHED));
+        m.put(ArenaState.BETTING,    EnumSet.of(ArenaState.BLIND, ArenaState.CLOSED, ArenaState.FINISHED));
+        m.put(ArenaState.BLIND,      EnumSet.of(ArenaState.CLOSED, ArenaState.FINISHED));
+        m.put(ArenaState.CLOSED,     EnumSet.of(ArenaState.ACTIVE, ArenaState.FINISHED));
+        m.put(ArenaState.ACTIVE,     EnumSet.of(ArenaState.FINISHED));
+        m.put(ArenaState.FINISHED,   EnumSet.noneOf(ArenaState.class));
         VALID_TRANSITIONS = Collections.unmodifiableMap(m);
     }
 
@@ -220,6 +230,65 @@ public class ArenaSession {
         return null;
     }
 
+    // ── 試合モード ──
+
+    /**
+     * 試合モードを返す。
+     *
+     * @return 試合モード（デフォルト: {@link MatchMode#NORMAL}）
+     */
+    public MatchMode getMatchMode() { return matchMode; }
+
+    /**
+     * 試合モードを設定する。
+     *
+     * @param matchMode 試合モード（null不可）
+     * @throws NullPointerException matchMode が null の場合
+     */
+    public void setMatchMode(MatchMode matchMode) {
+        this.matchMode = Objects.requireNonNull(matchMode, "matchMode must not be null");
+    }
+
+    /**
+     * デスマッチプール（闘技者の参加費合計）を返す。
+     *
+     * @return デスマッチプール
+     */
+    public long getDeathmatchPool() { return deathmatchPool; }
+
+    /**
+     * デスマッチプールを設定する。
+     *
+     * @param deathmatchPool デスマッチプール（0以上）
+     * @throws IllegalArgumentException 負の値の場合
+     */
+    public void setDeathmatchPool(long deathmatchPool) {
+        if (deathmatchPool < 0) {
+            throw new IllegalArgumentException("deathmatchPool must not be negative: " + deathmatchPool);
+        }
+        this.deathmatchPool = deathmatchPool;
+    }
+
+    /**
+     * デスマッチ参加費（1人あたり）を返す。
+     *
+     * @return デスマッチ参加費
+     */
+    public long getDeathmatchEntryFee() { return deathmatchEntryFee; }
+
+    /**
+     * デスマッチ参加費（1人あたり）を設定する。
+     *
+     * @param deathmatchEntryFee デスマッチ参加費（0以上）
+     * @throws IllegalArgumentException 負の値の場合
+     */
+    public void setDeathmatchEntryFee(long deathmatchEntryFee) {
+        if (deathmatchEntryFee < 0) {
+            throw new IllegalArgumentException("deathmatchEntryFee must not be negative: " + deathmatchEntryFee);
+        }
+        this.deathmatchEntryFee = deathmatchEntryFee;
+    }
+
     // ── 参加費 ──
 
     public long getEntryFeePool() { return entryFeePool; }
@@ -237,12 +306,12 @@ public class ArenaSession {
         this.entryFeePool = Math.addExact(this.entryFeePool, fee);
     }
 
-    // ── 賭け管理 ──
+    // ── ベット管理 ──
 
     /**
-     * 全賭けをフラットなコレクションとして返す。
+     * 全ベットをフラットなコレクションとして返す。
      *
-     * @return 全プレイヤーの全チームへの賭けリスト（変更不可）
+     * @return 全プレイヤーの全チームへのベットリスト（変更不可）
      */
     public List<Bet> getAllBets() {
         List<Bet> result = new ArrayList<>();
@@ -253,10 +322,10 @@ public class ArenaSession {
     }
 
     /**
-     * 指定プレイヤーの全賭けを返す。
+     * 指定プレイヤーの全ベットを返す。
      *
      * @param playerId プレイヤーの UUID
-     * @return チーム名→Bet のマップ。賭けがない場合は空マップ
+     * @return チーム名→Bet のマップ。ベットがない場合は空マップ
      */
     public Map<String, Bet> getPlayerBets(UUID playerId) {
         Map<String, Bet> teamBets = bets.get(playerId);
@@ -264,11 +333,11 @@ public class ArenaSession {
     }
 
     /**
-     * 指定プレイヤーの指定チームへの賭けを返す。
+     * 指定プレイヤーの指定チームへのベットを返す。
      *
      * @param playerId プレイヤーの UUID
      * @param teamName チーム名
-     * @return 賭け。存在しない場合 {@code null}
+     * @return ベット。存在しない場合 {@code null}
      */
     public Bet getBet(UUID playerId, String teamName) {
         Map<String, Bet> teamBets = bets.get(playerId);
@@ -276,7 +345,7 @@ public class ArenaSession {
     }
 
     /**
-     * 指定プレイヤーの指定チームへの賭けを削除する。
+     * 指定プレイヤーの指定チームへのベットを削除する。
      *
      * @param playerId プレイヤーの UUID
      * @param teamName チーム名
@@ -295,11 +364,11 @@ public class ArenaSession {
     }
 
     /**
-     * 賭けを追加または更新する。複数チームへの賭けも許可される。
+     * ベットを追加または更新する。複数チームへのベットも許可される。
      *
-     * @param playerId 賭けたプレイヤーの UUID（null不可）
-     * @param teamName 賭け先チーム名（null不可）
-     * @param amount   賭け金額
+     * @param playerId ベットしたプレイヤーの UUID（null不可）
+     * @param teamName ベット先チーム名（null不可）
+     * @param amount   ベット額
      * @throws NullPointerException playerId または teamName が null の場合
      */
     public void addOrUpdateBet(UUID playerId, String teamName, long amount) {
@@ -316,12 +385,12 @@ public class ArenaSession {
         totalPool = Math.addExact(totalPool, amount);
     }
 
-    /** チーム別の賭け金合計（キャッシュ済み O(1)） */
+    /** チーム別のベット額合計（キャッシュ済み O(1)） */
     public long getTeamPool(String teamName) {
         return teamPools.getOrDefault(teamName, 0L);
     }
 
-    /** 全賭け金合計（キャッシュ済み O(1)） */
+    /** 全ベット額合計（キャッシュ済み O(1)） */
     public long getTotalPool() {
         return totalPool;
     }
@@ -333,7 +402,7 @@ public class ArenaSession {
      *
      * @param location  設置座標
      * @param playerId  設置者
-     * @param teamName  賭け先チーム
+     * @param teamName  ベット先チーム
      * @param chipValue チップ額面
      */
     public void addPlacedChip(Location location, UUID playerId, String teamName,
@@ -352,7 +421,7 @@ public class ArenaSession {
     }
 
     /**
-     * 設置チップを削除する（賭け取消時）。
+     * 設置チップを削除する（ベット取消時）。
      *
      * @param location 座標
      */
@@ -408,6 +477,9 @@ public class ArenaSession {
         winningTeam = null;
         teamColors.clear();
         fieldConfig = null;
+        matchMode = MatchMode.NORMAL;
+        deathmatchPool = 0;
+        deathmatchEntryFee = 0;
     }
 
     // ── 戦闘エリア管理 ──
@@ -553,44 +625,22 @@ public class ArenaSession {
     // ── 設置チップ情報 ──
 
     /**
-     * 設置されたカーペットチップの情報（不変オブジェクト）。
+     * 設置されたカーペットチップの情報（不変レコード）。
      *
      * <p>{@code originalBlock} はカーペット設置前の元ブロックの素材を保持する。
      * 元ブロックが存在しない場合（空気ブロック等）は {@code null} が許容される。
-     * 呼び出し側は {@link #getOriginalBlock()} の戻り値が {@code null} の場合に
-     * {@link Material#AIR} へフォールバックすること。
+     *
+     * @param playerId      設置者（null不可）
+     * @param teamName      ベット先チーム（null不可）
+     * @param chipValue     チップ額面
+     * @param originalBlock 元ブロック素材（null許容: AIR として扱われる）
      */
-    public static class PlacedChipInfo {
-        private final UUID playerId;
-        private final String teamName;
-        private final long chipValue;
-        /** カーペット設置前の元ブロック素材。{@code null} の場合は AIR として扱う。 */
-        private final Material originalBlock;
+    public record PlacedChipInfo(UUID playerId, String teamName, long chipValue, Material originalBlock) {
 
-        /**
-         * @param playerId      設置者（null不可）
-         * @param teamName      賭け先チーム（null不可）
-         * @param chipValue     チップ額面
-         * @param originalBlock 元ブロック素材（null許容: AIR として扱われる）
-         * @throws NullPointerException playerId または teamName が null の場合
-         */
-        public PlacedChipInfo(UUID playerId, String teamName, long chipValue, Material originalBlock) {
-            this.playerId = Objects.requireNonNull(playerId, "playerId must not be null");
-            this.teamName = Objects.requireNonNull(teamName, "teamName must not be null");
-            this.chipValue = chipValue;
-            this.originalBlock = originalBlock;
+        public PlacedChipInfo {
+            Objects.requireNonNull(playerId, "playerId must not be null");
+            Objects.requireNonNull(teamName, "teamName must not be null");
         }
-
-        public UUID playerId() { return playerId; }
-        public String teamName() { return teamName; }
-        public long chipValue() { return chipValue; }
-
-        /**
-         * カーペット設置前の元ブロック素材を返す。
-         *
-         * @return 元ブロック素材。{@code null} の場合は {@link Material#AIR} として扱うこと。
-         */
-        public Material originalBlock() { return originalBlock; }
 
         /**
          * 元ブロック素材を返す（null安全版）。
@@ -601,31 +651,6 @@ public class ArenaSession {
          */
         public Material getOriginalBlockOrAir() {
             return originalBlock != null ? originalBlock : Material.AIR;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof PlacedChipInfo that)) return false;
-            return chipValue == that.chipValue
-                    && playerId.equals(that.playerId)
-                    && teamName.equals(that.teamName)
-                    && originalBlock == that.originalBlock;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(playerId, teamName, chipValue, originalBlock);
-        }
-
-        @Override
-        public String toString() {
-            return "PlacedChipInfo{" +
-                    "playerId=" + playerId +
-                    ", teamName='" + teamName + '\'' +
-                    ", chipValue=" + chipValue +
-                    ", originalBlock=" + originalBlock +
-                    '}';
         }
     }
 }

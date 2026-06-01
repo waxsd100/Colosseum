@@ -8,10 +8,10 @@ import org.bukkit.event.HandlerList;
 import java.util.Objects;
 
 /**
- * 賭け受付が開始されるときに発火するイベント。
+ * ベット受付が開始されるときに発火するイベント。
  *
  * <p>このイベントは {@link Cancellable} であり、リスナーがキャンセルすると
- * 賭け受付への遷移が中止される。
+ * ベット受付への遷移が中止される。
  */
 public class ArenaBettingOpenEvent extends Event implements Cancellable {
 

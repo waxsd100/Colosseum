@@ -86,7 +86,9 @@ class ArenaSessionFieldConfigTest {
             session.setFieldConfig(ArenaFieldConfig.of("world", 0, 0, 0, 100, 64, 100));
 
             // clearAllDataを呼ぶにはFINISHED状態が必要
+            session.setState(ArenaState.RECRUITING);
             session.setState(ArenaState.BETTING);
+            session.setState(ArenaState.CLOSED);
             session.setState(ArenaState.ACTIVE);
             session.setState(ArenaState.FINISHED);
             session.clearAllData();

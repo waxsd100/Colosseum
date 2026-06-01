@@ -13,7 +13,7 @@ import java.util.UUID;
  * <p>チームのメンバーが全員脱落すると、そのチームは敗北。
  * 残り1チームになったら自動的に勝利が確定する。
  */
-public class LastTeamStandingCondition implements WinCondition {
+public final class LastTeamStandingCondition implements WinCondition {
 
     @Override
     public String checkWinOnDeath(ArenaSession session, UUID deadPlayerId, Set<UUID> eliminatedPlayers) {

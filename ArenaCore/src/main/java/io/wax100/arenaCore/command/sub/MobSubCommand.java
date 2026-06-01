@@ -14,7 +14,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -22,7 +21,7 @@ import java.util.List;
  */
 public class MobSubCommand implements SubCommand {
 
-    private static final List<String> SUB_COMMANDS = Arrays.asList("area", "dest", "list");
+    private static final List<String> SUB_COMMANDS = List.of("area", "dest", "list");
 
     private final ArenaCore plugin;
 

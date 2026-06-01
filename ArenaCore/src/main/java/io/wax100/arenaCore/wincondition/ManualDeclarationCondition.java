@@ -10,7 +10,7 @@ import java.util.UUID;
  *
  * <p>死亡で自動判定は行わず、{@code /arena win <チーム>} で管理者が宣言する。
  */
-public class ManualDeclarationCondition implements WinCondition {
+public final class ManualDeclarationCondition implements WinCondition {
 
     @Override
     public String checkWinOnDeath(ArenaSession session, UUID deadPlayerId, Set<UUID> eliminatedPlayers) {
