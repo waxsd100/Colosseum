@@ -52,7 +52,9 @@ public class TeamAreaConfig implements CuboidArea {
     }
 
     /**
-     * 待機エリア内の全 LivingEntity（Player を除く）を取得する。
+     * 待機エリア内の戦闘可能な LivingEntity（Player・ArmorStand を除く）を取得する。
+     *
+     * <p>エリアが未ロードチャンクにまたがる場合、スキャン前にチャンクを強制ロードする。
      *
      * @return エリア内のMobリスト
      */
@@ -61,14 +63,36 @@ public class TeamAreaConfig implements CuboidArea {
         World world = Bukkit.getWorld(worldName);
         if (world == null) return result;
 
+        // エリア内のチャンクを強制ロード（未ロードだとエンティティが取得できない）
+        ensureChunksLoaded(world);
+
         for (Entity entity : world.getEntities()) {
             if (entity instanceof Player) continue;
-            if (!(entity instanceof LivingEntity)) continue;
+            if (!(entity instanceof LivingEntity living)) continue;
+            if (living instanceof org.bukkit.entity.ArmorStand) continue;
+            if (!living.isValid() || living.isDead()) continue;
             if (contains(entity.getLocation())) {
-                result.add((LivingEntity) entity);
+                result.add(living);
             }
         }
         return result;
+    }
+
+    /**
+     * エリアを含むチャンクがすべてロードされていることを保証する。
+     */
+    private void ensureChunksLoaded(World world) {
+        int chunkMinX = minX >> 4;
+        int chunkMaxX = maxX >> 4;
+        int chunkMinZ = minZ >> 4;
+        int chunkMaxZ = maxZ >> 4;
+        for (int cx = chunkMinX; cx <= chunkMaxX; cx++) {
+            for (int cz = chunkMinZ; cz <= chunkMaxZ; cz++) {
+                if (!world.isChunkLoaded(cx, cz)) {
+                    world.loadChunk(cx, cz);
+                }
+            }
+        }
     }
 
     /**

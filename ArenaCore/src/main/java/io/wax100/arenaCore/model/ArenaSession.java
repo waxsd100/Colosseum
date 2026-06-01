@@ -586,11 +586,19 @@ public class ArenaSession {
     }
 
     /**
-     * チームの実効メンバー数を返す（プレイヤー + 待機場内Mob数）。
+     * チームの実効メンバー数を返す（プレイヤー + Mob数）。
+     *
+     * <p>試合中（ACTIVE以降）は {@code trackedMobs} を参照する。
+     * それ以前は待機場内のMobをスキャンして数える。
      */
     public int getEffectiveTeamSize(String teamName) {
         int playerSize = getTeamSize(teamName);
         if (isMobTeam(teamName)) {
+            if (state == ArenaState.ACTIVE) {
+                // 試合中: trackedMobs から生存Mob数を取得
+                return playerSize + getAliveMobCount(teamName);
+            }
+            // 試合前: 待機場をスキャン
             TeamAreaConfig config = getTeamAreaConfig(teamName);
             if (config != null) {
                 return playerSize + config.scanEntities().size();
