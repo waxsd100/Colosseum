@@ -42,6 +42,7 @@ public class ArenaManager {
 
     private ArenaSession activeSession;
     private BukkitTask oddsBroadcastTask;
+    private BukkitTask bettingTimerTask;
     private final Set<UUID> eliminatedPlayers = new HashSet<>();
 
     public ArenaManager(ArenaCore plugin, BettingManager bettingManager,
@@ -199,6 +200,66 @@ public class ArenaManager {
         stopOddsBroadcast();
         plugin.getLogger().info("賭けを締め切りました: " + activeSession.getName());
         return true;
+    }
+
+    /**
+     * 賭け受付の制限時間タイマーを開始する。
+     *
+     * <p>残り時間のカウントダウンをブロードキャストし、
+     * 時間切れで自動的に {@link #closeBetting()} を呼ぶ。
+     *
+     * @param seconds 制限時間（秒）
+     */
+    public void scheduleBettingTimer(int seconds) {
+        cancelBettingTimer();
+        final int[] remaining = {seconds};
+
+        bettingTimerTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (activeSession == null || activeSession.getState() != ArenaState.BETTING) {
+                cancelBettingTimer();
+                return;
+            }
+
+            int r = remaining[0];
+
+            // アナウンスタイミング: 60,30,10,5,4,3,2,1
+            if (r == 60 || r == 30 || r == 10 || (r <= 5 && r >= 1)) {
+                ChatColor urgency = r <= 5 ? ChatColor.RED : ChatColor.YELLOW;
+                Bukkit.broadcastMessage(ArenaMessages.PREFIX + urgency + ChatColor.BOLD
+                        + "残り " + r + "秒" + ChatColor.RESET + ChatColor.GRAY + " で賭け締切！");
+            }
+
+            if (r <= 0) {
+                // 自動締切
+                closeBetting();
+                ArenaSession session = activeSession;
+                Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
+                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED + ChatColor.BOLD
+                        + "⏰ 時間切れ！賭け締め切り！");
+                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
+                        + "これ以上賭けることはできません。");
+                Bukkit.broadcastMessage("");
+                if (session != null) {
+                    bettingManager.broadcastOdds(session);
+                }
+                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
+                        + "試合開始を待っています… " + ChatColor.YELLOW + "/arena start");
+                Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
+                return;
+            }
+
+            remaining[0]--;
+        }, 0L, 20L); // 1秒ごと
+    }
+
+    /**
+     * 賭け制限時間タイマーをキャンセルする。
+     */
+    private void cancelBettingTimer() {
+        if (bettingTimerTask != null) {
+            bettingTimerTask.cancel();
+            bettingTimerTask = null;
+        }
     }
 
     /**
@@ -523,6 +584,7 @@ public class ArenaManager {
             oddsBroadcastTask.cancel();
             oddsBroadcastTask = null;
         }
+        cancelBettingTimer();
     }
 
     /**

@@ -15,7 +15,10 @@ import org.bukkit.command.CommandSender;
 import java.util.List;
 
 /**
- * {@code /arena open} — 賭け受付開始を処理する。
+ * {@code /arena open [秒数]} — 賭け受付開始を処理する。
+ *
+ * <p>秒数を指定すると、指定時間後に自動的に賭けを締め切る。
+ * 省略した場合は手動で {@code /arena close} するまで受付を継続する。
  */
 public class OpenSubCommand implements SubCommand {
 
@@ -78,6 +81,21 @@ public class OpenSubCommand implements SubCommand {
         ArenaSession session = manager.getActiveSession();
         double houseEdge = plugin.getConfig().getDouble("house-edge", 0.1);
 
+        // 制限時間の解析
+        int timerSeconds = 0;
+        if (args.length >= 1) {
+            try {
+                timerSeconds = Integer.parseInt(args[0]);
+                if (timerSeconds <= 0) {
+                    sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                            + "秒数は1以上を指定してください。");
+                    timerSeconds = 0;
+                }
+            } catch (NumberFormatException ignored) {
+                // 数値でなければ無視
+            }
+        }
+
         Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
         Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GOLD + ChatColor.BOLD + "賭け受付開始！");
         Bukkit.broadcastMessage("");
@@ -85,6 +103,11 @@ public class OpenSubCommand implements SubCommand {
                 + "各チームの賭けエリアにカーペット（チップ）を置いて賭けよう！");
         Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
                 + "手数料率: " + ChatColor.YELLOW + String.format("%.0f%%", houseEdge * 100));
+
+        if (timerSeconds > 0) {
+            Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW + ChatColor.BOLD
+                    + "⏱ 制限時間: " + timerSeconds + "秒");
+        }
 
         List<String> teamNames = session.getTeamNames();
         for (int i = 0; i < teamNames.size(); i++) {
@@ -99,10 +122,15 @@ public class OpenSubCommand implements SubCommand {
                     + (hasRegion ? ChatColor.GREEN + " エリア設定済" : ChatColor.RED + " エリア未設定"));
         }
         Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
+
+        // タイマー開始
+        if (timerSeconds > 0) {
+            manager.scheduleBettingTimer(timerSeconds);
+        }
     }
 
     @Override
     public String getUsage() {
-        return "/arena open";
+        return "/arena open [秒数]";
     }
 }
