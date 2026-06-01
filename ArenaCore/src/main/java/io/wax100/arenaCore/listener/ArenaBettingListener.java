@@ -9,6 +9,8 @@ import io.wax100.arenaCore.model.ArenaState;
 import io.wax100.arenaCore.util.ArenaMessages;
 import io.wax100.chipLib.ChipManager;
 import io.wax100.chipLib.ChipPlugin;
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.block.Block;
@@ -91,8 +93,8 @@ public class ArenaBettingListener implements Listener {
             // 賭けエリア外 → 設置をキャンセルしてプレイヤーに通知
             event.setCancelled(true);
             if (regionManager.hasAnyRegion()) {
-                player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
-                        + "賭けエリア外です。チームの賭けエリア内にチップを置いてください。");
+                player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
+                        TextComponent.fromLegacyText(ChatColor.RED + "賭けエリア外です！"));
             } else {
                 player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
                         + "賭けエリアが設定されていません。" + ChatColor.GRAY + " → /arena region <チーム名>");
@@ -104,7 +106,8 @@ public class ArenaBettingListener implements Listener {
         ArenaSession.PlacedChipInfo existingChip = session.getPlacedChip(event.getBlock().getLocation());
         if (existingChip != null) {
             event.setCancelled(true);
-            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "この場所には既にチップが置かれています。");
+            player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
+                    TextComponent.fromLegacyText(ChatColor.RED + "この場所には既にチップがあります"));
             return;
         }
 

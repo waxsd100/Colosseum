@@ -16,6 +16,8 @@ import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.TextComponent;
 
 import java.util.List;
 import java.util.Map;
@@ -76,13 +78,13 @@ public class BettingManager {
 
         ChatColor teamColor = session.getTeamColor(teamName);
 
-        player.sendMessage(ArenaMessages.PREFIX + ChatColor.GREEN
-                + "✔ " + teamColor + ChatColor.BOLD + teamName
+        String msg = ChatColor.GREEN + "✔ " + teamColor + ChatColor.BOLD + teamName
                 + ChatColor.RESET + ChatColor.GREEN + " に "
                 + ChatColor.YELLOW + ChipManager.formatAmount(chipValue) + " E"
-                + ChatColor.GREEN + " を賭けました！"
+                + ChatColor.GREEN + " 賭け"
                 + ChatColor.GRAY + " (合計: "
-                + ChipManager.formatAmount(session.getBet(player.getUniqueId(), teamName).amount()) + " E)");
+                + ChipManager.formatAmount(session.getBet(player.getUniqueId(), teamName).amount()) + " E)";
+        player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText(msg));
 
         return true;
     }
@@ -124,9 +126,14 @@ public class BettingManager {
         // 視覚エフェクト: 回収演出
         playChipBreakEffect(location);
 
-        player.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
-                + "賭けを " + ChipManager.formatAmount(chipInfo.chipValue())
-                + " E 分取り消しました。");
+        String msg = ChatColor.YELLOW + "↩ "
+                + ChipManager.formatAmount(chipInfo.chipValue())
+                + " E 取消";
+        Bet remainingBet = session.getBet(player.getUniqueId(), chipInfo.teamName());
+        if (remainingBet != null && remainingBet.amount() > 0) {
+            msg += ChatColor.GRAY + " (残: " + ChipManager.formatAmount(remainingBet.amount()) + " E)";
+        }
+        player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText(msg));
     }
 
     /**
