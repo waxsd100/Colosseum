@@ -134,7 +134,7 @@ public class ArenaManager {
         List<String> missingDest = new ArrayList<>();
         for (String team : activeSession.getTeamNames()) {
             TeamAreaConfig areaConfig = activeSession.getTeamAreaConfig(team);
-            if (areaConfig != null && areaConfig.getDestination() == null) {
+            if (areaConfig == null || areaConfig.getDestination() == null) {
                 missingDest.add(team);
             }
         }
@@ -148,18 +148,11 @@ public class ArenaManager {
             return false;
         }
 
-        // 設定漏れ警告（待機場未設定）
-        for (String team : activeSession.getTeamNames()) {
-            TeamAreaConfig areaConfig = activeSession.getTeamAreaConfig(team);
-            ChatColor teamColor = activeSession.getTeamColor(team);
-            if (areaConfig == null) {
-                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
-                        + "⚠ " + teamColor + team + ChatColor.YELLOW + " の待機場が未設定です。");
-            }
-        }
+        // 戦闘エリア未設定チェック（エラー）
         if (activeSession.getFieldConfig() == null) {
-            Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
-                    + "⚠ 戦闘エリアが未設定です。地形復元が行われません。");
+            Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED
+                    + "✗ 戦闘エリアが未設定です。" + ChatColor.GRAY + " → /arena field");
+            return false;
         }
 
         // カスタムイベント発火（キャンセル可能）
