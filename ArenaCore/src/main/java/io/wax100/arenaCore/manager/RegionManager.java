@@ -122,6 +122,15 @@ public class RegionManager {
     }
 
     /**
+     * 賭けエリアが1つでも設定されているかを返す。
+     *
+     * @return 設定されている場合 {@code true}
+     */
+    public boolean hasAnyRegion() {
+        return !bettingRegions.isEmpty();
+    }
+
+    /**
      * 全賭けエリアをクリアする。
      */
     public void clearRegions() {

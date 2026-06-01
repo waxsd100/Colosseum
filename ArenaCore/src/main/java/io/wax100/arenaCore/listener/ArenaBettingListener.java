@@ -80,12 +80,15 @@ public class ArenaBettingListener implements Listener {
         String teamName = regionManager.getTeamForLocation(event.getBlock().getLocation());
 
         if (teamName == null) {
-            // 賭けエリア外 → 通常のカーペット設置として扱う
-            plugin.getLogger().info("[BET-DEBUG] チップ設置: 賭けエリア外 loc="
-                    + event.getBlock().getLocation().getBlockX() + ","
-                    + event.getBlock().getLocation().getBlockY() + ","
-                    + event.getBlock().getLocation().getBlockZ()
-                    + " world=" + event.getBlock().getWorld().getName());
+            // 賭けエリア外 → 設置をキャンセルしてプレイヤーに通知
+            event.setCancelled(true);
+            if (regionManager.hasAnyRegion()) {
+                player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                        + "賭けエリア外です。チームの賭けエリア内にチップを置いてください。");
+            } else {
+                player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                        + "賭けエリアが設定されていません。" + ChatColor.GRAY + " → /arena region <チーム名>");
+            }
             return;
         }
 
