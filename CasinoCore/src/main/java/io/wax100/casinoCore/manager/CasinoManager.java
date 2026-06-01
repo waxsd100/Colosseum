@@ -17,7 +17,6 @@ import org.bukkit.entity.Player;
 
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 
 import java.util.List;
@@ -412,12 +411,15 @@ public class CasinoManager {
         savedKeepInventory = current != null && current;
         world.setGameRule(GameRule.KEEP_INVENTORY, true);
 
+        ChipPlugin chipPlugin = getChipPlugin();
         for (Player p : Bukkit.getOnlinePlayers()) {
             casinoPlayers.add(p.getUniqueId());
             savedGameModes.put(p.getUniqueId(), p.getGameMode());
             p.setGameMode(GameMode.ADVENTURE);
             shearsHelper.giveCasinoShears(p);
             getOrCreateStats(p.getUniqueId()).recordSessionJoin(p.getName());
+            // ChipLib にチップ使用を許可
+            if (chipPlugin != null) chipPlugin.allowPlayer(p.getUniqueId());
         }
     }
 
@@ -483,20 +485,7 @@ public class CasinoManager {
         }
     }
 
-    /**
-     * 単一プレイヤーのチップを換金する。
-     *
-     * <p>
-     * {@code /chip cashout} コマンドから呼び出される。
-     * 換金後、当該プレイヤーのセッション購入記録を削除する。
-     *
-     * @param player 換金対象プレイヤー
-     */
-    public void cashoutSinglePlayer(Player player) {
-        cashoutPlayer(player, plugin.getChipManager(), plugin.getEconomy());
-        shearsHelper.removeCasinoShears(player);
-        saveData();
-    }
+
 
     /**
      * 個別プレイヤーのチップを換金し、結果を通知する。

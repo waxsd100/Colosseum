@@ -57,7 +57,7 @@ public final class CommandHelper {
      * @return 条件を満たせば ArenaSession、そうでなければ null（エラーメッセージ送信済み）
      */
     public static ArenaSession requireSessionInState(CommandSender sender, ArenaManager manager,
-                                                     ArenaState requiredState, String errorMsg) {
+                                                               ArenaState requiredState, String errorMsg) {
         ArenaSession session = requireActiveSession(sender, manager);
         if (session == null) return null;
         if (session.getState() != requiredState) {
@@ -86,7 +86,7 @@ public final class CommandHelper {
      *
      * @return 足りていれば true、そうでなければ false（使い方メッセージ送信済み）
      */
-    public static boolean requireArgs(CommandSender sender, String[] args, int minLength, String usage) {
+    public static boolean requireArgs(CommandSender sender, String [] args, int minLength, String usage) {
         if (args.length >= minLength) return true;
         sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "使い方: " + usage);
         return false;
@@ -136,8 +136,7 @@ public final class CommandHelper {
             com.sk89q.worldedit.math.BlockVector3 min = region.getMinimumPoint();
             com.sk89q.worldedit.math.BlockVector3 max = region.getMaximumPoint();
             String worldName = player.getWorld().getName();
-            @SuppressWarnings("deprecation")
-            io.wax100.arenaCore.model.ArenaFieldConfig result = new io.wax100.arenaCore.model.ArenaFieldConfig(worldName,
+            io.wax100.arenaCore.model.ArenaFieldConfig result = io.wax100.arenaCore.model.ArenaFieldConfig.of(worldName,
                     min.getX(), min.getY(), min.getZ(), max.getX(), max.getY(), max.getZ());
             return result;
         } catch (NoClassDefFoundError | Exception e) {

@@ -2,10 +2,6 @@ package io.wax100.arenaCore.manager;
 
 import io.wax100.arenaCore.model.TeamAreaConfig;
 import io.wax100.arenaCore.util.YamlHelper;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.World;
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;

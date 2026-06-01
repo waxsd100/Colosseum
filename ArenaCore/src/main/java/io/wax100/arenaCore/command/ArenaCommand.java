@@ -29,14 +29,16 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
         subCommands.put("field", new FieldSubCommand(plugin));
         subCommands.put("preset", new PresetSubCommand(plugin));
         subCommands.put("open", new OpenSubCommand(plugin));
+        subCommands.put("close", new CloseSubCommand(plugin));
         subCommands.put("start", new StartSubCommand(plugin));
+        subCommands.put("end", new EndSubCommand(plugin));
         subCommands.put("win", new WinSubCommand(plugin));
         subCommands.put("cancel", new CancelSubCommand(plugin));
         subCommands.put("status", new StatusSubCommand(plugin));
     }
 
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+    public boolean onCommand(CommandSender sender, Command command, String label, String [] args) {
         if (args.length == 0) {
             sendUsage(sender);
             return true;
@@ -55,7 +57,7 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
     }
 
     @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String [] args) {
         if (args.length == 1) {
             return CommandHelper.filterStartsWith(subCommands.keySet(), args[0]);
         }
@@ -83,7 +85,9 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "  /arena field save/list/delete" + ChatColor.GRAY + " <- 戦闘エリア管理");
         sender.sendMessage(ChatColor.YELLOW + "  /arena preset save/load/list/delete" + ChatColor.GRAY + " <- プリセット管理");
         sender.sendMessage(ChatColor.YELLOW + "  /arena open" + ChatColor.GRAY + " <- 賭け受付開始");
-        sender.sendMessage(ChatColor.YELLOW + "  /arena start" + ChatColor.GRAY + " <- 試合開始（待機場から自動登録）");
+        sender.sendMessage(ChatColor.YELLOW + "  /arena close" + ChatColor.GRAY + " <- 賭け締切（試合は開始しない）");
+        sender.sendMessage(ChatColor.YELLOW + "  /arena start" + ChatColor.GRAY + " <- 試合開始");
+        sender.sendMessage(ChatColor.YELLOW + "  /arena end" + ChatColor.GRAY + " <- 強制終了（引き分け・全額返金）");
         sender.sendMessage(ChatColor.YELLOW + "  /arena win <チーム名>");
         sender.sendMessage(ChatColor.YELLOW + "  /arena cancel");
         sender.sendMessage(ChatColor.YELLOW + "  /arena status");

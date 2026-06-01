@@ -45,6 +45,11 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
      */
     private static final List<String> ADMIN_SUB_COMMANDS = Arrays.asList("on", "off");
     /**
+     * 統計表示用の日時フォーマッタ
+     */
+    private static final java.time.format.DateTimeFormatter STATS_DATE_FORMATTER =
+            java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm");
+    /**
      * プラグインインスタンス
      */
     private final CasinoCore plugin;
@@ -65,7 +70,7 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
      * 引数がない場合や不明なサブコマンドの場合はヘルプを表示する。
      */
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+    public boolean onCommand(CommandSender sender, Command command, String label, String [] args) {
         if (args.length == 0) {
             sendUsage(sender);
             return true;
@@ -104,7 +109,7 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
      * @param sender コマンド実行者
      * @param args   コマンド引数（{@code args[0]}="on", {@code args[1]}=プレイヤー名（任意））
      */
-    private void handleOn(CommandSender sender, String[] args) {
+    private void handleOn(CommandSender sender, String [] args) {
         if (!sender.hasPermission("casino.admin")) {
             sender.sendMessage(Messages.NO_PERMISSION);
             return;
@@ -164,7 +169,7 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
      * @param sender コマンド実行者
      * @param args   コマンド引数（{@code args[0]}="off", {@code args[1]}=プレイヤー名（任意））
      */
-    private void handleOff(CommandSender sender, String[] args) {
+    private void handleOff(CommandSender sender, String [] args) {
         if (!sender.hasPermission("casino.admin")) {
             sender.sendMessage(Messages.NO_PERMISSION);
             return;
@@ -240,7 +245,7 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
      * @param sender コマンド実行者
      * @param args   コマンド引数
      */
-    private void handleRanking(CommandSender sender, String[] args) {
+    private void handleRanking(CommandSender sender, String [] args) {
         if (args.length >= 2 && args[1].equalsIgnoreCase("reset")) {
             if (!sender.hasPermission("casino.admin")) {
                 sender.sendMessage(Messages.NO_PERMISSION);
@@ -290,7 +295,7 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
      * @param sender コマンド実行者
      * @param args   コマンド引数
      */
-    private void handleStats(CommandSender sender, String[] args) {
+    private void handleStats(CommandSender sender, String [] args) {
         Player target;
         if (args.length >= 2) {
             target = Bukkit.getPlayer(args[1]);
@@ -342,11 +347,14 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
                     + ChipManager.formatAmount(stats.getBiggestLoss()) + " E");
         }
 
-        if (stats.getFirstPlayed() != null) {
-            java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm");
+        if (stats.getFirstPlayed() != null || stats.getLastPlayed() != null) {
             sender.sendMessage("");
-            sender.sendMessage(ChatColor.GRAY + "  初回参加: " + ChatColor.WHITE + stats.getFirstPlayed().format(fmt));
-            sender.sendMessage(ChatColor.GRAY + "  最終参加: " + ChatColor.WHITE + stats.getLastPlayed().format(fmt));
+            if (stats.getFirstPlayed() != null) {
+                sender.sendMessage(ChatColor.GRAY + "  初回参加: " + ChatColor.WHITE + stats.getFirstPlayed().format(STATS_DATE_FORMATTER));
+            }
+            if (stats.getLastPlayed() != null) {
+                sender.sendMessage(ChatColor.GRAY + "  最終参加: " + ChatColor.WHITE + stats.getLastPlayed().format(STATS_DATE_FORMATTER));
+            }
         }
 
         sender.sendMessage(ChatColor.GOLD.toString() + ChatColor.BOLD + "══════════════════════");
@@ -375,7 +383,7 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
      * 管理者権限のないプレイヤーには管理系サブコマンドを表示しない。
      */
     @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String [] args) {
         if (args.length > 2) return Collections.emptyList();
 
         if (args.length == 2) {

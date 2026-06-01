@@ -151,7 +151,9 @@ public class ChipManager {
      *
      * @param material 判定対象のマテリアル
      * @return チップ用マテリアルの場合 {@code true}
+     * @deprecated {@link Chip#isChipMaterial(Material)} を直接使用してください
      */
+    @Deprecated
     public static boolean isChipMaterial(Material material) {
         return Chip.isChipMaterial(material);
     }
@@ -254,22 +256,7 @@ public class ChipManager {
         return pdc.getOrDefault(chipKey, PersistentDataType.LONG, 0L);
     }
 
-    /**
-     * 額面から対応する {@link Chip} enum 値を取得する。
-     *
-     * <p>改善: 内部実装を {@link Chip#fromValue(long)} に委譲し O(1) 参照に改善。
-     * 後方互換性のために null 返却を維持するが、
-     * 新規コードでは {@link Chip#fromValue(long)} の使用を推奨する。</p>
-     *
-     * @param value 額面
-     * @return 対応する Chip。見つからない場合は {@code null}
-     * @deprecated {@link Chip#fromValue(long)} を使用してください
-     */
-    @Deprecated
-    public Chip getChipByValue(long value) {
-        // 改善: O(n) のループを O(1) のマップ参照に置き換え
-        return Chip.fromValue(value).orElse(null);
-    }
+
 
     /**
      * 金額をチップに分割する（貪欲法: 大きい額面から順に）。

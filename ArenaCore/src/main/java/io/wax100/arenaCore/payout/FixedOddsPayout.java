@@ -37,7 +37,7 @@ public class FixedOddsPayout implements PayoutStrategy {
                 if (odds <= 1.0) {
                     odds = 1.01;
                 }
-                // Math.floor で切り捨て: プールを超過しない保証
+                // Math.floor で切り捨て（個別の切り捨てのみ。合計がプールを超える可能性あり）
                 long payout = Math.max(0L, (long) Math.floor(bet.amount() * odds));
                 payouts.merge(bet.playerId(), payout, Long::sum);
             }

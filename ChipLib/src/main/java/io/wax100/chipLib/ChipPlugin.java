@@ -4,6 +4,7 @@ import io.wax100.chipLib.command.ChipCommand;
 import io.wax100.chipLib.command.RankingCommand;
 import io.wax100.chipLib.ranking.RankingManager;
 import net.milkbowl.vault.economy.Economy;
+import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.GameMode;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
@@ -47,6 +48,11 @@ public final class ChipPlugin extends JavaPlugin implements Listener {
     private ChipManager chipManager;
 
     /**
+     * ハサミ管理ヘルパー
+     */
+    private ShearsHelper shearsHelper;
+
+    /**
      * ランキング管理マネージャ
      */
     private RankingManager rankingManager;
@@ -83,6 +89,7 @@ public final class ChipPlugin extends JavaPlugin implements Listener {
         }
 
         chipManager = new ChipManager(this);
+        shearsHelper = new ShearsHelper(this);
         rankingManager = new RankingManager(this);
 
         ChipCommand chipCommand = new ChipCommand(this);
@@ -125,13 +132,32 @@ public final class ChipPlugin extends JavaPlugin implements Listener {
     }
 
     /**
-     * プレイヤー退出時に previousGameModes エントリを削除してメモリリークを防止する。
+     * プレイヤー退出時のクリーンアップ処理。
+     *
+     * <p>以下の処理を行う:
+     * <ol>
+     *   <li>所持チップの自動換金（Vault経由で入金）</li>
+     *   <li>チップ回収用ハサミの回収</li>
+     *   <li>元のゲームモードの復元</li>
+     *   <li>previousGameModes エントリの削除（メモリリーク防止）</li>
+     * </ol>
      *
      * @param event プレイヤー退出イベント
      */
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        previousGameModes.remove(event.getPlayer().getUniqueId());
+        Player player = event.getPlayer();
+        UUID playerId = player.getUniqueId();
+
+        // チップ所持チェック → 自動換金（cashoutPlayer に委譲）
+        long totalValue = cashoutPlayer(player);
+        if (totalValue > 0) {
+            getLogger().info("ログアウト時自動換金: " + player.getName()
+                    + " / " + ChipManager.formatAmount(totalValue) + " E");
+        }
+
+        // allowedPlayers からも削除
+        allowedPlayers.remove(playerId);
     }
 
     /**
@@ -173,6 +199,15 @@ public final class ChipPlugin extends JavaPlugin implements Listener {
      */
     public RankingManager getRankingManager() {
         return rankingManager;
+    }
+
+    /**
+     * ハサミ管理ヘルパーを取得する。
+     *
+     * @return {@link ShearsHelper} インスタンス
+     */
+    public ShearsHelper getShearsHelper() {
+        return shearsHelper;
     }
 
     /**
@@ -244,7 +279,13 @@ public final class ChipPlugin extends JavaPlugin implements Listener {
         long totalValue = chipManager.calculateTotalValue(player);
         if (totalValue == 0) return 0;
         chipManager.removeAllChips(player);
-        economy.depositPlayer(player, totalValue);
+        shearsHelper.removeShears(player);
+        EconomyResponse resp = economy.depositPlayer(player, totalValue);
+        if (!resp.transactionSuccess()) {
+            getLogger().severe("換金入金失敗: player=" + player.getName()
+                    + ", amount=" + ChipManager.formatAmount(totalValue)
+                    + " E, error=" + resp.errorMessage);
+        }
 
         // 元のゲームモードに復元
         GameMode previous = previousGameModes.remove(player.getUniqueId());

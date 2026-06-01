@@ -1,5 +1,6 @@
 package io.wax100.arenaCore.model;
 
+
 import java.util.Objects;
 import java.util.UUID;
 

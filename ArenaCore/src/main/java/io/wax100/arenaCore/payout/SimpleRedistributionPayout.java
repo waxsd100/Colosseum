@@ -39,8 +39,7 @@ public class SimpleRedistributionPayout implements PayoutStrategy {
                 // 元金 + 再分配分の按分 (Math.floor で切り捨て)
                 double share = (double) bet.amount() / winningPool;
                 long bonus = (long) Math.floor(redistributable * share);
-                // 最低でも元金を返す
-                long payout = Math.max(bet.amount(), bet.amount() + bonus);
+                long payout = bet.amount() + bonus;
                 payouts.merge(bet.playerId(), payout, Long::sum);
             }
         }

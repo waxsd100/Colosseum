@@ -86,12 +86,6 @@ public class PlayerStats {
         return lastPlayed;
     }
 
-    // ── セッター ──
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
     // ── 統計更新メソッド ──
 
     /**

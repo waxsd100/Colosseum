@@ -14,7 +14,7 @@ import java.util.*;
  *
  * <h3>状態遷移</h3>
  * <pre>
- * SETUP → BETTING → ACTIVE → FINISHED
+ * SETUP → BETTING → CLOSED → ACTIVE → FINISHED
  *   any state → FINISHED  (cancel)
  * </pre>
  */
@@ -83,7 +83,9 @@ public class ArenaSession {
      * <p>許可される遷移:
      * <ul>
      *   <li>SETUP → BETTING</li>
+     *   <li>BETTING → CLOSED</li>
      *   <li>BETTING → ACTIVE</li>
+     *   <li>CLOSED → ACTIVE</li>
      *   <li>ACTIVE → FINISHED</li>
      *   <li>任意 → FINISHED（キャンセル）</li>
      * </ul>
@@ -108,7 +110,8 @@ public class ArenaSession {
     static {
         Map<ArenaState, EnumSet<ArenaState>> m = new EnumMap<>(ArenaState.class);
         m.put(ArenaState.SETUP,    EnumSet.of(ArenaState.BETTING, ArenaState.FINISHED));
-        m.put(ArenaState.BETTING,  EnumSet.of(ArenaState.ACTIVE, ArenaState.FINISHED));
+        m.put(ArenaState.BETTING,  EnumSet.of(ArenaState.CLOSED, ArenaState.ACTIVE, ArenaState.FINISHED));
+        m.put(ArenaState.CLOSED,   EnumSet.of(ArenaState.ACTIVE, ArenaState.FINISHED));
         m.put(ArenaState.ACTIVE,   EnumSet.of(ArenaState.FINISHED));
         m.put(ArenaState.FINISHED, EnumSet.noneOf(ArenaState.class));
         VALID_TRANSITIONS = Collections.unmodifiableMap(m);
@@ -285,7 +288,8 @@ public class ArenaSession {
         if (removed != null) {
             long amt = removed.amount();
             teamPools.merge(teamName, -amt, Long::sum);
-            totalPool = Math.addExact(totalPool, -amt);
+            // データ不整合時にオーバーフローしないよう安全に減算
+            totalPool = Math.max(0L, totalPool - amt);
         }
         if (teamBets.isEmpty()) bets.remove(playerId);
     }

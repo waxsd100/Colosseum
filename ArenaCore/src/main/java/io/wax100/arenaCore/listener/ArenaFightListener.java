@@ -75,6 +75,9 @@ public class ArenaFightListener implements Listener {
                 + ChatColor.GRAY + " (" + teamColor + team + ChatColor.GRAY + ")"
                 + suffix);
 
+        // Scoreboard Team からも削除（タブリスト表示をクリーンに保つ）
+        plugin.getArenaManager().removeFromScoreboardTeam(team, player);
+
         manager.onFighterDeath(player.getUniqueId());
     }
 

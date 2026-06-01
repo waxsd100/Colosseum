@@ -24,7 +24,7 @@ public class WinSubCommand implements SubCommand {
     }
 
     @Override
-    public void execute(CommandSender sender, String[] args) {
+    public void execute(CommandSender sender, String [] args) {
         if (!CommandHelper.requireArgs(sender, args, 1, getUsage())) return;
 
         ArenaManager manager = plugin.getArenaManager();
@@ -43,7 +43,7 @@ public class WinSubCommand implements SubCommand {
     }
 
     @Override
-    public List<String> tabComplete(CommandSender sender, String[] args) {
+    public List<String> tabComplete(CommandSender sender, String [] args) {
         if (args.length == 1) {
             return CommandHelper.getTeamNameCandidates(plugin.getArenaManager(), args[0]);
         }

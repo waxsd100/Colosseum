@@ -8,6 +8,8 @@ import io.wax100.arenaCore.model.ArenaSession;
 import io.wax100.arenaCore.model.ArenaState;
 import io.wax100.arenaCore.util.ArenaMessages;
 import io.wax100.chipLib.ChipManager;
+import io.wax100.chipLib.ChipPlugin;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -16,6 +18,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.ItemStack;
 
 /**
@@ -56,7 +59,14 @@ public class ArenaBettingListener implements Listener {
 
         // チップかどうか判定
         ChipManager chipManager = plugin.getChipManager();
-        if (!chipManager.isChip(item)) return;
+        if (!chipManager.isChip(item)) {
+            // カーペット素材だがチップでないアイテムの場合のみログ出力
+            if (io.wax100.chipLib.Chip.isChipMaterial(item.getType())) {
+                plugin.getLogger().warning("[BET-DEBUG] カーペット設置だがチップ判定 false: "
+                        + item.getType() + " player=" + player.getName());
+            }
+            return;
+        }
 
         // 戦闘員チェック
         if (session.isFighter(player.getUniqueId())) {
@@ -71,6 +81,11 @@ public class ArenaBettingListener implements Listener {
 
         if (teamName == null) {
             // 賭けエリア外 → 通常のカーペット設置として扱う
+            plugin.getLogger().info("[BET-DEBUG] チップ設置: 賭けエリア外 loc="
+                    + event.getBlock().getLocation().getBlockX() + ","
+                    + event.getBlock().getLocation().getBlockY() + ","
+                    + event.getBlock().getLocation().getBlockZ()
+                    + " world=" + event.getBlock().getWorld().getName());
             return;
         }
 
@@ -129,12 +144,33 @@ public class ArenaBettingListener implements Listener {
             return;
         }
 
-        // BETTING 以外の状態（ACTIVE, SETUP, FINISHED）では回収不可
+        // BETTING 以外の状態（CLOSED, ACTIVE, SETUP, FINISHED）では回収不可
         event.setCancelled(true);
         if (session.getState() == ArenaState.ACTIVE) {
             player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "試合中は賭けカーペットを回収できません。");
         } else {
             player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "現在、賭けカーペットの操作はできません。");
+        }
+    }
+
+    /**
+     * 途中参加プレイヤーへのチップ使用許可。
+     *
+     * <p>賭け受付中にサーバーへ参加したプレイヤーに対して、
+     * チップ購入コマンドの使用を自動的に許可する。
+     */
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        ArenaManager arenaManager = plugin.getArenaManager();
+        if (!arenaManager.hasActiveSession()) return;
+
+        ArenaSession session = arenaManager.getActiveSession();
+        ArenaState state = session.getState();
+        if (state != ArenaState.BETTING && state != ArenaState.CLOSED) return;
+
+        org.bukkit.plugin.Plugin chipLibPlugin = Bukkit.getPluginManager().getPlugin("ChipLib");
+        if (chipLibPlugin instanceof ChipPlugin chipPlugin) {
+            chipPlugin.allowPlayer(event.getPlayer().getUniqueId());
         }
     }
 }

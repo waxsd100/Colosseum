@@ -26,7 +26,7 @@ public class RegionSubCommand implements SubCommand {
     }
 
     @Override
-    public void execute(CommandSender sender, String[] args) {
+    public void execute(CommandSender sender, String [] args) {
         Player player = CommandHelper.requirePlayer(sender);
         if (player == null) return;
         if (!CommandHelper.requireArgs(sender, args, 1, getUsage())) return;
@@ -50,7 +50,7 @@ public class RegionSubCommand implements SubCommand {
     }
 
     private void handleSetRegion(CommandSender sender, Player player, ArenaSession session,
-                           RegionManager regionManager, String teamName, ChatColor teamColor) {
+                                 RegionManager regionManager, String teamName, ChatColor teamColor) {
         if (session.getState() != ArenaState.SETUP && session.getState() != ArenaState.BETTING) {
             sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
                     + ArenaMessages.MSG_SETUP_OR_BETTING_ONLY);
@@ -69,7 +69,7 @@ public class RegionSubCommand implements SubCommand {
     // ── Tab 補完 ──
 
     @Override
-    public List<String> tabComplete(CommandSender sender, String[] args) {
+    public List<String> tabComplete(CommandSender sender, String [] args) {
         if (args.length == 1) {
             return CommandHelper.getTeamNameCandidates(plugin.getArenaManager(), args[0]);
         }

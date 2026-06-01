@@ -142,6 +142,7 @@ public enum Chip {
      * @return チップ用マテリアルの場合 {@code true}
      */
     public static boolean isChipMaterial(Material material) {
+        if (material == null) return false;
         return CHIP_MATERIALS.contains(material);
     }
 

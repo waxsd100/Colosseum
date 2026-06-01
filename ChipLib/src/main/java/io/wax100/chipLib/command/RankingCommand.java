@@ -50,7 +50,7 @@ public class RankingCommand implements CommandExecutor, TabCompleter {
      * {@inheritDoc}
      */
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+    public boolean onCommand(CommandSender sender, Command command, String label, String [] args) {
         RankingManager rankingManager = plugin.getRankingManager();
 
         if (args.length == 0 || args[0].equalsIgnoreCase("total")) {
@@ -124,7 +124,7 @@ public class RankingCommand implements CommandExecutor, TabCompleter {
      * @param rankingManager ランキングマネージャ
      * @param args           コマンド引数
      */
-    private void handleReset(CommandSender sender, RankingManager rankingManager, String[] args) {
+    private void handleReset(CommandSender sender, RankingManager rankingManager, String [] args) {
         if (!sender.isOp()) {
             sender.sendMessage(ChatColor.RED + "このコマンドはOP権限が必要です。");
             return;
@@ -189,7 +189,7 @@ public class RankingCommand implements CommandExecutor, TabCompleter {
      * {@inheritDoc}
      */
     @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String [] args) {
         if (args.length == 1) {
             List<String> result = new ArrayList<>();
             String input = args[0].toLowerCase();

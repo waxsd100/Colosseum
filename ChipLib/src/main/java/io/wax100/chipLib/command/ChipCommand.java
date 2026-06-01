@@ -62,7 +62,7 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
      * プレイヤー以外からの実行は拒否する。
      */
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+    public boolean onCommand(CommandSender sender, Command command, String label, String [] args) {
         if (!(sender instanceof Player player)) {
             sender.sendMessage(ChipMessages.PLAYER_ONLY);
             return true;
@@ -124,7 +124,7 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
      * @param count        枚数
      */
     private void handleBuyDenomination(Player player, long denomination, int count) {
-        Chip chip = plugin.getChipManager().getChipByValue(denomination);
+        Chip chip = Chip.fromValue(denomination).orElse(null);
         if (chip == null) {
             player.sendMessage(ChipMessages.INVALID_DENOMINATION);
             return;
@@ -172,7 +172,7 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
             return;
         }
         long maxBuy = plugin.getConfig().getLong("max-buy", 1000000);
-        if (amount > maxBuy) {
+        if (maxBuy > 0 && amount > maxBuy) {
             player.sendMessage(ChipMessages.MAX_BUY_EXCEEDED);
             return;
         }
@@ -234,6 +234,9 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
 
         cm.giveChips(player, chips);
 
+        // チップ回収用ハサミを配布（未所持の場合のみ）
+        plugin.getShearsHelper().giveShears(player);
+
         // 購入リスナーに通知（CasinoCore のランキング記録等）
         ChipPurchaseListener listener = plugin.getPurchaseListener();
         if (listener != null) {
@@ -281,7 +284,7 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
     private void handleBalance(Player player) {
         ChipManager cm = plugin.getChipManager();
         Map<Chip, Integer> counts = cm.countChips(player);
-        long total = cm.calculateTotalValue(player);
+        long total = ChipManager.calcTotal(counts);
         boolean hasChips = counts.values().stream().anyMatch(c -> c > 0);
 
         player.sendMessage("");
@@ -327,6 +330,7 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
         }
 
         cm.removeAllChips(player);
+        plugin.getShearsHelper().removeShears(player);
         Economy economy = plugin.getEconomy();
         economy.depositPlayer(player, totalValue);
 
@@ -365,7 +369,7 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
      * 第2引数には枚数候補を提示する。
      */
     @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String [] args) {
         List<String> result = new ArrayList<>();
         if (args.length == 1) {
             String input = args[0].toLowerCase();

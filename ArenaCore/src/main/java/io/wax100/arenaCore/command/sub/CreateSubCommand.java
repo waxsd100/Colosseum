@@ -25,7 +25,7 @@ public class CreateSubCommand implements SubCommand {
     }
 
     @Override
-    public void execute(CommandSender sender, String[] args) {
+    public void execute(CommandSender sender, String [] args) {
         if (!CommandHelper.requireArgs(sender, args, 1, getUsage())) return;
 
         ArenaManager manager = plugin.getArenaManager();

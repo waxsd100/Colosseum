@@ -41,9 +41,9 @@ public class OpenSubCommand implements SubCommand {
                 sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
                         + ArenaMessages.MSG_OPEN_SETUP_ONLY);
             } else {
-                sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
-                        + ArenaMessages.MSG_MIN_TEAMS_REQUIRED);
-                // メンバーが0のチームを表示
+                // TP未設定エラーは ArenaManager 側で broadcastMessage 済み
+                // メンバー不足チェック
+                int teamsWithMembers = 0;
                 for (String team : session.getTeamNames()) {
                     boolean hasPlayer = session.getTeamSize(team) > 0;
                     boolean hasMob = false;
@@ -51,9 +51,24 @@ public class OpenSubCommand implements SubCommand {
                     if (areaConfig != null) {
                         hasMob = !areaConfig.scanEntities().isEmpty();
                     }
-                    if (!hasPlayer && !hasMob) {
-                        sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY
-                                + "  ✗ " + team + " (メンバーなし)");
+                    if (hasPlayer || hasMob) {
+                        teamsWithMembers++;
+                    }
+                }
+                if (teamsWithMembers < 2) {
+                    sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                            + ArenaMessages.MSG_MIN_TEAMS_REQUIRED);
+                    for (String team : session.getTeamNames()) {
+                        boolean hasPlayer = session.getTeamSize(team) > 0;
+                        boolean hasMob = false;
+                        var areaConfig = session.getTeamAreaConfig(team);
+                        if (areaConfig != null) {
+                            hasMob = !areaConfig.scanEntities().isEmpty();
+                        }
+                        if (!hasPlayer && !hasMob) {
+                            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY
+                                    + "  ✗ " + team + " (メンバーなし)");
+                        }
                     }
                 }
             }

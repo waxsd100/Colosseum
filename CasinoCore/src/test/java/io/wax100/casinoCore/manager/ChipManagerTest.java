@@ -185,24 +185,24 @@ class ChipManagerTest {
         }
     }
 
-    // ── getChipByValue ──
+    // ── fromValue ──
 
     @Nested
-    @DisplayName("getChipByValue")
-    class GetChipByValueTest {
+    @DisplayName("fromValue")
+    class FromValueTest {
         @Test
         @DisplayName("有効な額面")
         void validDenomination() {
-            assertEquals(Chip.CHIP_100, chipManager.getChipByValue(100));
-            assertEquals(Chip.CHIP_1000000, chipManager.getChipByValue(1000000));
+            assertEquals(Chip.CHIP_100, Chip.fromValue(100).orElse(null));
+            assertEquals(Chip.CHIP_1000000, Chip.fromValue(1000000).orElse(null));
         }
 
         @Test
-        @DisplayName("無効な額面はnull")
-        void invalidDenominationReturnsNull() {
-            assertNull(chipManager.getChipByValue(999));
-            assertNull(chipManager.getChipByValue(0));
-            assertNull(chipManager.getChipByValue(-1));
+        @DisplayName("無効な額面はempty")
+        void invalidDenominationReturnsEmpty() {
+            assertTrue(Chip.fromValue(999).isEmpty());
+            assertTrue(Chip.fromValue(0).isEmpty());
+            assertTrue(Chip.fromValue(-1).isEmpty());
         }
     }
 

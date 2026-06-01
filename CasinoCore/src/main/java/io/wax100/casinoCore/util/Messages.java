@@ -24,8 +24,7 @@ public final class Messages {
 
     /** プレイヤーが見つからない場合のメッセージテンプレート（%s にプレイヤー名） */
     public static final String PLAYER_NOT_FOUND = PREFIX + ChatColor.RED + "プレイヤー '%s' が見つかりません。";
-    /** コンソールからプレイヤー専用コマンドを実行した場合 */
-    public static final String PLAYER_ONLY = PREFIX + ChatColor.RED + "このコマンドはプレイヤーのみ使用できます。";
+
     /** コンソールからプレイヤー名を指定せずに実行した場合 */
     public static final String SPECIFY_PLAYER = PREFIX + ChatColor.RED + "プレイヤー名を指定してください。";
     /** 権限不足 */

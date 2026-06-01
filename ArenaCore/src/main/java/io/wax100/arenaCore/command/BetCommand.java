@@ -35,7 +35,7 @@ public class BetCommand implements CommandExecutor, TabCompleter {
     }
 
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+    public boolean onCommand(CommandSender sender, Command command, String label, String [] args) {
         Player player = CommandHelper.requirePlayer(sender);
         if (player == null) return true;
 
@@ -111,7 +111,7 @@ public class BetCommand implements CommandExecutor, TabCompleter {
     }
 
     @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String [] args) {
         if (args.length == 1) {
             return CommandHelper.filterStartsWith(SUB_COMMANDS, args[0]);
         }

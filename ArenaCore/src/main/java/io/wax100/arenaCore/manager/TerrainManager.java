@@ -53,6 +53,18 @@ import java.util.Objects;
  */
 public class TerrainManager {
 
+    private static final Particle BLOCK_PARTICLE;
+
+    static {
+        Particle p;
+        try {
+            p = Particle.valueOf("BLOCK");
+        } catch (IllegalArgumentException e) {
+            p = Particle.valueOf("BLOCK_CRACK");
+        }
+        BLOCK_PARTICLE = p;
+    }
+
     // ── 状態 ──
 
     enum State { IDLE, TRACKING, FLUSHING }
@@ -555,7 +567,7 @@ public class TerrainManager {
         World world = loc.getWorld();
         if (world == null) return;
         Location center = loc.clone().add(0.5, 0.5, 0.5);
-        world.spawnParticle(Particle.BLOCK_CRACK, center,
+        world.spawnParticle(BLOCK_PARTICLE, center,
                 8, 0.3, 0.3, 0.3, 0, data);
         world.playSound(center, Sound.BLOCK_STONE_PLACE, 0.5f, 1.2f);
     }

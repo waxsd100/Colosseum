@@ -220,31 +220,30 @@ class ChipManagerTest {
     // ========================================================================
 
     @Nested
-    @DisplayName("getChipByValue - 額面からChip取得")
-    @SuppressWarnings("deprecation")
-    class GetChipByValueTest {
+    @DisplayName("fromValue - 額面からChip取得")
+    class FromValueTest {
 
         @Test
         @DisplayName("有効な額面でChipを返す")
         void validValue() {
-            assertEquals(Chip.CHIP_1, chipManager.getChipByValue(1));
-            assertEquals(Chip.CHIP_100, chipManager.getChipByValue(100));
-            assertEquals(Chip.CHIP_1000000, chipManager.getChipByValue(1_000_000));
+            assertEquals(Chip.CHIP_1, Chip.fromValue(1).orElse(null));
+            assertEquals(Chip.CHIP_100, Chip.fromValue(100).orElse(null));
+            assertEquals(Chip.CHIP_1000000, Chip.fromValue(1_000_000).orElse(null));
         }
 
         @Test
-        @DisplayName("無効な額面でnullを返す")
-        void invalidValue_returnsNull() {
-            assertNull(chipManager.getChipByValue(0));
-            assertNull(chipManager.getChipByValue(-1));
-            assertNull(chipManager.getChipByValue(999));
+        @DisplayName("無効な額面でemptyを返す")
+        void invalidValue_returnsEmpty() {
+            assertTrue(Chip.fromValue(0).isEmpty());
+            assertTrue(Chip.fromValue(-1).isEmpty());
+            assertTrue(Chip.fromValue(999).isEmpty());
         }
 
         @Test
         @DisplayName("全Chipが正引きできる")
         void allChips_reverseLookup() {
             for (Chip chip : Chip.values()) {
-                assertEquals(chip, chipManager.getChipByValue(chip.getValue()));
+                assertEquals(chip, Chip.fromValue(chip.getValue()).orElse(null));
             }
         }
     }

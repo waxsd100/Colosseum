@@ -34,18 +34,22 @@ public class ArenaTeamAreaListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerMove(PlayerMoveEvent event) {
+        Location to = event.getTo();
+        if (to == null) return;
         // ブロック単位で変化がない場合はスキップ（パフォーマンス対策）
-        if (event.getFrom().getBlockX() == event.getTo().getBlockX()
-                && event.getFrom().getBlockY() == event.getTo().getBlockY()
-                && event.getFrom().getBlockZ() == event.getTo().getBlockZ()) {
+        if (event.getFrom().getBlockX() == to.getBlockX()
+                && event.getFrom().getBlockY() == to.getBlockY()
+                && event.getFrom().getBlockZ() == to.getBlockZ()) {
             return;
         }
-        handleMovement(event.getPlayer(), event.getFrom(), event.getTo());
+        handleMovement(event.getPlayer(), event.getFrom(), to);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerTeleport(PlayerTeleportEvent event) {
-        handleMovement(event.getPlayer(), event.getFrom(), event.getTo());
+        Location to = event.getTo();
+        if (to == null) return;
+        handleMovement(event.getPlayer(), event.getFrom(), to);
     }
 
     @EventHandler
@@ -143,6 +147,6 @@ public class ArenaTeamAreaListener implements Listener {
 
     private boolean isAutoJoinState(ArenaSession session) {
         ArenaState state = session.getState();
-        return state == ArenaState.SETUP || state == ArenaState.BETTING;
+        return state == ArenaState.SETUP || state == ArenaState.BETTING || state == ArenaState.CLOSED;
     }
 }

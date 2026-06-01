@@ -29,7 +29,7 @@ public class PresetSubCommand implements SubCommand {
     }
 
     @Override
-    public void execute(CommandSender sender, String[] args) {
+    public void execute(CommandSender sender, String [] args) {
         if (!CommandHelper.requireArgs(sender, args, 1, getUsage())) return;
 
         switch (args[0].toLowerCase()) {
@@ -43,7 +43,7 @@ public class PresetSubCommand implements SubCommand {
 
     // ── save ──
 
-    private void handleSave(CommandSender sender, String[] args) {
+    private void handleSave(CommandSender sender, String [] args) {
         ArenaManager manager = plugin.getArenaManager();
         ArenaSession session = CommandHelper.requireActiveSession(sender, manager);
         if (session == null) return;
@@ -59,7 +59,7 @@ public class PresetSubCommand implements SubCommand {
 
     // ── load ──
 
-    private void handleLoad(CommandSender sender, String[] args) {
+    private void handleLoad(CommandSender sender, String [] args) {
         if (!CommandHelper.requireArgs(sender, args, 2, "/arena preset load <名前>")) return;
 
         String name = args[1];
@@ -110,7 +110,7 @@ public class PresetSubCommand implements SubCommand {
 
     // ── delete ──
 
-    private void handleDelete(CommandSender sender, String[] args) {
+    private void handleDelete(CommandSender sender, String [] args) {
         if (!CommandHelper.requireArgs(sender, args, 2, "/arena preset delete <名前>")) return;
 
         String name = args[1];
@@ -126,7 +126,7 @@ public class PresetSubCommand implements SubCommand {
     // ── Tab 補完 ──
 
     @Override
-    public List<String> tabComplete(CommandSender sender, String[] args) {
+    public List<String> tabComplete(CommandSender sender, String [] args) {
         if (args.length == 1) {
             return CommandHelper.filterStartsWith(SUB_COMMANDS, args[0]);
         }

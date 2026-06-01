@@ -23,12 +23,9 @@ public class LastTeamStandingCondition implements WinCondition {
             // チーム全体が全滅マークされている場合はスキップ
             if (session.isTeamEliminated(team)) continue;
 
-            boolean hasAlive = false;
+            boolean hasAlive = session.isMobTeam(team) && session.hasAliveMobs(team);
 
             // Mobが生存していれば存続
-            if (session.isMobTeam(team) && session.hasAliveMobs(team)) {
-                hasAlive = true;
-            }
 
             // プレイヤーが1人でも生存していれば存続
             if (!hasAlive) {

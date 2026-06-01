@@ -11,6 +11,7 @@ import io.wax100.arenaCore.util.ArenaMessages;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 
 import java.util.Arrays;
@@ -34,7 +35,7 @@ public class TeamSubCommand implements SubCommand {
     }
 
     @Override
-    public void execute(CommandSender sender, String[] args) {
+    public void execute(CommandSender sender, String [] args) {
         // args: [sub, ...]  例: ["add", "チーム名"]
         if (!CommandHelper.requireArgs(sender, args, 1, getUsage())) return;
 
@@ -51,7 +52,7 @@ public class TeamSubCommand implements SubCommand {
 
     // ── add (チーム追加) ──
 
-    private void handleAdd(CommandSender sender, String[] args) {
+    private void handleAdd(CommandSender sender, String [] args) {
         if (!CommandHelper.requireArgs(sender, args, 2,
                 "/arena team add <チーム名>")) return;
 
@@ -128,7 +129,7 @@ public class TeamSubCommand implements SubCommand {
 
     // ── area (待機場設定) ──
 
-    private void handleArea(CommandSender sender, String[] args) {
+    private void handleArea(CommandSender sender, String [] args) {
         if (!CommandHelper.requireArgs(sender, args, 2,
                 "/arena team area <チーム名> [待機場名]")) return;
 
@@ -174,18 +175,35 @@ public class TeamSubCommand implements SubCommand {
         }
         session.setTeamAreaConfig(teamName, newConfig);
 
+        // 待機場内のMobを検出し、いれば自動的にMobチームとしてマーク
+        List<LivingEntity> mobs = newConfig.scanEntities();
+        if (!mobs.isEmpty()) {
+            session.markAsMobTeam(teamName);
+        }
+
         ChatColor teamColor = session.getTeamColor(teamName);
 
-        int count = newConfig.scanPlayers().size();
-        sender.sendMessage(ArenaMessages.PREFIX + teamColor + ChatColor.BOLD + teamName
-                + ChatColor.RESET + ChatColor.GREEN + " の待機場を設定しました。"
-                + ChatColor.GRAY + " (エリア内: " + ChatColor.WHITE + count + "人"
-                + ChatColor.GRAY + ")");
+        int playerCount = newConfig.scanPlayers().size();
+        int mobCount = mobs.size();
+        StringBuilder info = new StringBuilder();
+        info.append(ArenaMessages.PREFIX).append(teamColor).append(ChatColor.BOLD).append(teamName)
+                .append(ChatColor.RESET).append(ChatColor.GREEN).append(" の待機場を設定しました。")
+                .append(ChatColor.GRAY).append(" (エリア内: ");
+        if (mobCount > 0) {
+            info.append(ChatColor.WHITE).append(mobCount).append("体");
+            if (playerCount > 0) {
+                info.append(ChatColor.GRAY).append(" + ").append(ChatColor.WHITE).append(playerCount).append("人");
+            }
+        } else {
+            info.append(ChatColor.WHITE).append(playerCount).append("人");
+        }
+        info.append(ChatColor.GRAY).append(")");
+        sender.sendMessage(info.toString());
     }
 
     // ── dest (TP先設定) ──
 
-    private void handleDest(CommandSender sender, String[] args) {
+    private void handleDest(CommandSender sender, String [] args) {
         if (!CommandHelper.requireArgs(sender, args, 2,
                 "/arena team dest <チーム名>")) return;
 
@@ -215,7 +233,7 @@ public class TeamSubCommand implements SubCommand {
 
     // ── color (チームカラー設定) ──
 
-    private void handleColor(CommandSender sender, String[] args) {
+    private void handleColor(CommandSender sender, String [] args) {
         if (!CommandHelper.requireArgs(sender, args, 3,
                 "/arena team color <チーム名> <色>")) return;
 
@@ -270,7 +288,7 @@ public class TeamSubCommand implements SubCommand {
     // ── Tab 補完 ──
 
     @Override
-    public List<String> tabComplete(CommandSender sender, String[] args) {
+    public List<String> tabComplete(CommandSender sender, String [] args) {
         // args[0]=sub args[1]=teamName args[2]=...
         if (args.length == 1) {
             return CommandHelper.filterStartsWith(SUB_COMMANDS, args[0]);

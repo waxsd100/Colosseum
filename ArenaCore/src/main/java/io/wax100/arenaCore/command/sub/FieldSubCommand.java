@@ -39,7 +39,7 @@ public class FieldSubCommand implements SubCommand {
     }
 
     @Override
-    public void execute(CommandSender sender, String[] args) {
+    public void execute(CommandSender sender, String [] args) {
         if (!CommandHelper.requireArgs(sender, args, 1, getUsage())) return;
 
         switch (args[0].toLowerCase()) {
@@ -54,7 +54,7 @@ public class FieldSubCommand implements SubCommand {
 
     // ── set ──
 
-    private void handleSet(CommandSender sender, String[] args) {
+    private void handleSet(CommandSender sender, String [] args) {
         Player player = CommandHelper.requirePlayer(sender);
         if (player == null) return;
 
@@ -144,7 +144,7 @@ public class FieldSubCommand implements SubCommand {
     // ── Tab 補完 ──
 
     @Override
-    public List<String> tabComplete(CommandSender sender, String[] args) {
+    public List<String> tabComplete(CommandSender sender, String [] args) {
         if (args.length == 1) {
             return CommandHelper.filterStartsWith(SUB_COMMANDS, args[0]);
         }
@@ -162,7 +162,7 @@ public class FieldSubCommand implements SubCommand {
 
     // ── save (保存) ──
 
-    private void handleSave(CommandSender sender, String[] args) {
+    private void handleSave(CommandSender sender, String [] args) {
         if (!CommandHelper.requireArgs(sender, args, 2,
                 "/arena field save <名前>")) return;
 
@@ -232,7 +232,7 @@ public class FieldSubCommand implements SubCommand {
 
     // ── delete (削除) ──
 
-    private void handleDelete(CommandSender sender, String[] args) {
+    private void handleDelete(CommandSender sender, String [] args) {
         if (!CommandHelper.requireArgs(sender, args, 2,
                 "/arena field delete <名前>")) return;
 

@@ -109,9 +109,14 @@ public class BettingManager {
         // 賭け金額の更新（減算）
         Bet bet = session.getBet(player.getUniqueId(), chipInfo.teamName());
         if (bet != null) {
-            bet.addAmount(-chipInfo.chipValue());
-            // 金額が0以下になった場合は賭け自体を削除
-            if (bet.amount() <= 0) {
+            if (bet.amount() >= chipInfo.chipValue()) {
+                bet.addAmount(-chipInfo.chipValue());
+                // 金額が0以下になった場合は賭け自体を削除
+                if (bet.amount() <= 0) {
+                    session.removeBet(player.getUniqueId(), chipInfo.teamName());
+                }
+            } else {
+                // データ不整合 — 賭け自体を削除
                 session.removeBet(player.getUniqueId(), chipInfo.teamName());
             }
         }
@@ -265,11 +270,11 @@ public class BettingManager {
             Map<Chip, Integer> chips = chipManager.breakdownAmount(amount);
             int slotsNeeded = chipManager.calculateSlotsNeeded(chips);
             int emptySlots = chipManager.countEmptySlots(player);
-            chipManager.giveChips(player, chips);
             if (emptySlots < slotsNeeded) {
                 player.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
-                        + "⚠️ インベントリがいっぱいため、一部のチップが足元にドロップしました。");
+                        + "⚠️ インベントリがいっぱいのため、一部のチップが足元にドロップされます。");
             }
+            chipManager.giveChips(player, chips);
         } else {
             org.bukkit.OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerId);
             if (plugin.getEconomy() != null) {

@@ -77,6 +77,10 @@ class CasinoFlowIT {
 
         when(chipPlugin.getChipManager()).thenReturn(chipManager);
 
+        // ShearsHelper モック設定
+        io.wax100.chipLib.ShearsHelper shearsHelper = mock(io.wax100.chipLib.ShearsHelper.class);
+        when(chipPlugin.getShearsHelper()).thenReturn(shearsHelper);
+
         chipCommand = new ChipCommand(chipPlugin);
 
         // Player モック設定

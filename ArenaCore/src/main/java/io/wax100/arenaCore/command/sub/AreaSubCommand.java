@@ -29,7 +29,7 @@ public class AreaSubCommand implements SubCommand {
     }
 
     @Override
-    public void execute(CommandSender sender, String[] args) {
+    public void execute(CommandSender sender, String [] args) {
         if (!CommandHelper.requireArgs(sender, args, 1, getUsage())) return;
 
         switch (args[0].toLowerCase()) {
@@ -47,7 +47,7 @@ public class AreaSubCommand implements SubCommand {
      * {@code /arena area save <名前>} — WE選択範囲を待機場として保存。
      * {@code /arena area save <名前> dest} — 保存済み待機場のTP先を現在地に設定。
      */
-    private void handleSave(CommandSender sender, String[] args) {
+    private void handleSave(CommandSender sender, String [] args) {
         if (!CommandHelper.requireArgs(sender, args, 2, "/arena area save <名前> [dest]")) return;
 
         Player player = CommandHelper.requirePlayer(sender);
@@ -110,7 +110,7 @@ public class AreaSubCommand implements SubCommand {
 
     // ── delete ──
 
-    private void handleDelete(CommandSender sender, String[] args) {
+    private void handleDelete(CommandSender sender, String [] args) {
         if (!CommandHelper.requireArgs(sender, args, 2, "/arena area delete <名前>")) return;
 
         String name = args[1];
@@ -127,7 +127,7 @@ public class AreaSubCommand implements SubCommand {
 
     // ── info ──
 
-    private void handleInfo(CommandSender sender, String[] args) {
+    private void handleInfo(CommandSender sender, String [] args) {
         if (!CommandHelper.requireArgs(sender, args, 2, "/arena area info <名前>")) return;
 
         String name = args[1];
@@ -164,7 +164,7 @@ public class AreaSubCommand implements SubCommand {
     // ── Tab 補完 ──
 
     @Override
-    public List<String> tabComplete(CommandSender sender, String[] args) {
+    public List<String> tabComplete(CommandSender sender, String [] args) {
         if (args.length == 1) {
             return CommandHelper.filterStartsWith(SUB_COMMANDS, args[0]);
         }

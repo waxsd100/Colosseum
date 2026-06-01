@@ -1,6 +1,7 @@
 package io.wax100.arenaCore.model;
 
 
+
 import java.util.Objects;
 
 /**
@@ -48,8 +49,8 @@ public record BettingRegion(
      * @return 正規化済みの BettingRegion
      */
     public static BettingRegion of(String teamName, String worldName,
-                                   int x1, int y1, int z1,
-                                   int x2, int y2, int z2) {
+                                            int x1, int y1, int z1,
+                                            int x2, int y2, int z2) {
         return new BettingRegion(teamName, worldName,
                 Math.min(x1, x2), Math.min(y1, y2), Math.min(z1, z2),
                 Math.max(x1, x2), Math.max(y1, y2), Math.max(z1, z2));

@@ -130,16 +130,31 @@ public class ArenaManager {
         }
         if (teamsWithMembers < 2) return false;
 
-        // 設定漏れ警告
+        // TP先未設定チェック（エラー）
+        List<String> missingDest = new ArrayList<>();
+        for (String team : activeSession.getTeamNames()) {
+            TeamAreaConfig areaConfig = activeSession.getTeamAreaConfig(team);
+            if (areaConfig != null && areaConfig.getDestination() == null) {
+                missingDest.add(team);
+            }
+        }
+        if (!missingDest.isEmpty()) {
+            for (String team : missingDest) {
+                ChatColor teamColor = activeSession.getTeamColor(team);
+                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED
+                        + "✗ " + teamColor + team + ChatColor.RED + " のTP先が未設定です。"
+                        + ChatColor.GRAY + " → /arena team dest " + team);
+            }
+            return false;
+        }
+
+        // 設定漏れ警告（待機場未設定）
         for (String team : activeSession.getTeamNames()) {
             TeamAreaConfig areaConfig = activeSession.getTeamAreaConfig(team);
             ChatColor teamColor = activeSession.getTeamColor(team);
             if (areaConfig == null) {
                 Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
                         + "⚠ " + teamColor + team + ChatColor.YELLOW + " の待機場が未設定です。");
-            } else if (areaConfig.getDestination() == null) {
-                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
-                        + "⚠ " + teamColor + team + ChatColor.YELLOW + " のTP先が未設定です。");
             }
         }
         if (activeSession.getFieldConfig() == null) {
@@ -181,13 +196,41 @@ public class ArenaManager {
     }
 
     /**
+     * 賭け受付を締め切る（試合は開始しない）。
+     *
+     * @return 成功した場合 {@code true}
+     */
+    public boolean closeBetting() {
+        if (activeSession == null || activeSession.getState() != ArenaState.BETTING) return false;
+        activeSession.setState(ArenaState.CLOSED);
+        stopOddsBroadcast();
+        plugin.getLogger().info("賭けを締め切りました: " + activeSession.getName());
+        return true;
+    }
+
+    /**
      * 試合を開始する（賭け締切）。
      *
      * <p>待機場が設定されているチームのプレイヤー・Mobを自動検出し、
      * TP先へ転送する。
      */
     public boolean startMatch() {
-        if (activeSession == null || activeSession.getState() != ArenaState.BETTING) return false;
+        if (activeSession == null) return false;
+        ArenaState currentState = activeSession.getState();
+        if (currentState != ArenaState.BETTING && currentState != ArenaState.CLOSED) return false;
+
+        // TP先未設定チェック
+        for (String team : activeSession.getTeamNames()) {
+            TeamAreaConfig areaConfig = activeSession.getTeamAreaConfig(team);
+            if (areaConfig != null && areaConfig.getDestination() == null) {
+                ChatColor teamColor = activeSession.getTeamColor(team);
+                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED
+                        + "✗ " + teamColor + team + ChatColor.RED + " のTP先が未設定です。"
+                        + ChatColor.GRAY + " → /arena team dest " + team);
+                return false;
+            }
+        }
+
         activeSession.setState(ArenaState.ACTIVE);
         stopOddsBroadcast();
         eliminatedPlayers.clear();
@@ -377,6 +420,60 @@ public class ArenaManager {
         return true;
     }
 
+    /**
+     * 試合を強制終了し、引き分けとして処理する。
+     *
+     * <p>全賭け金を返金し、セッションを終了する。
+     * ACTIVE 状態でのみ実行可能。
+     *
+     * @return 成功した場合 {@code true}
+     */
+    public boolean drawMatch() {
+        if (activeSession == null || activeSession.getState() != ArenaState.ACTIVE) return false;
+        plugin.getLogger().info("試合が引き分けで終了しました: " + activeSession.getName());
+        stopOddsBroadcast();
+
+        try {
+            bettingManager.refundAll(activeSession);
+
+            // 地形復元開始
+            terrainManager.finishAndFlush();
+
+            activeSession.setState(ArenaState.FINISHED);
+
+            // 参加費返金
+            long entryFee = plugin.getConfig().getLong("entry-fee", 0);
+            if (entryFee > 0) {
+                Economy economy = plugin.getEconomy();
+                if (economy != null) {
+                    for (String team : activeSession.getTeamNames()) {
+                        if (activeSession.isMobTeam(team)) continue;
+                        for (UUID playerId : activeSession.getTeamMembers(team)) {
+                            org.bukkit.OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerId);
+                            economy.depositPlayer(offlinePlayer, entryFee);
+
+                            Player onlinePlayer = Bukkit.getPlayer(playerId);
+                            if (onlinePlayer != null && onlinePlayer.isOnline()) {
+                                onlinePlayer.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                                        + "参加費 " + ChipManager.formatAmount(entryFee) + " E を返金しました。");
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 残存Mobを削除
+            cleanupMobs();
+
+            // 全プレイヤーのチップを換金
+            cashoutAllPlayers();
+        } finally {
+            cleanupSession();
+        }
+
+        return true;
+    }
+
     // ── 死亡処理 ──
 
     /**
@@ -512,7 +609,6 @@ public class ArenaManager {
      */
     private void cleanupSession() {
         unregisterScoreboardTeams();
-        cleanupMobs();
         // チップ使用許可を全解除
         ChipPlugin chipPlugin = getChipPlugin();
         if (chipPlugin != null) chipPlugin.clearAllAllowed();
