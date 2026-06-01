@@ -16,7 +16,9 @@ import io.wax100.chipLib.ChipPlugin;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Color;
 import org.bukkit.Location;
+import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -43,6 +45,7 @@ public class ArenaManager {
     private ArenaSession activeSession;
     private BukkitTask oddsBroadcastTask;
     private BukkitTask bettingTimerTask;
+    private BukkitTask regionParticleTask;
     private final Set<UUID> eliminatedPlayers = new HashSet<>();
 
     public ArenaManager(ArenaCore plugin, BettingManager bettingManager,
@@ -185,6 +188,9 @@ public class ArenaManager {
                 bettingManager.broadcastOdds(activeSession);
             }
         }, interval * 20L, interval * 20L);
+
+        // 賭けエリアの境界をパーティクルで表示
+        startRegionParticles();
 
         return true;
     }
@@ -585,6 +591,103 @@ public class ArenaManager {
             oddsBroadcastTask = null;
         }
         cancelBettingTimer();
+        stopRegionParticles();
+    }
+
+    // ══════════════════════════════════════
+    //  賭けエリア パーティクル表示
+    // ══════════════════════════════════════
+
+    /**
+     * 賭けエリアの境界線をパーティクルで表示するタスクを開始する。
+     *
+     * <p>各チームの賭けエリアの辺をチームカラーのダストパーティクルで描画する。
+     * 1秒ごとに更新。
+     */
+    void startRegionParticles() {
+        stopRegionParticles();
+        if (activeSession == null) return;
+
+        regionParticleTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (activeSession == null || activeSession.getState() != ArenaState.BETTING) {
+                stopRegionParticles();
+                return;
+            }
+
+            for (String team : activeSession.getTeamNames()) {
+                if (!regionManager.hasBettingRegion(team)) continue;
+                BettingRegion region = regionManager.getBettingRegion(team);
+                if (region == null) continue;
+
+                World world = Bukkit.getWorld(region.worldName());
+                if (world == null) continue;
+
+                Color color = chatColorToColor(activeSession.getTeamColor(team));
+                Particle.DustOptions dust = new Particle.DustOptions(color, 1.0F);
+
+                drawRegionEdges(world, region, dust);
+            }
+        }, 0L, 20L); // 1秒ごと
+    }
+
+    private void stopRegionParticles() {
+        if (regionParticleTask != null) {
+            regionParticleTask.cancel();
+            regionParticleTask = null;
+        }
+    }
+
+    /**
+     * 直方体の12辺をパーティクルで描画する。
+     */
+    private void drawRegionEdges(World world, BettingRegion region, Particle.DustOptions dust) {
+        double step = 0.5; // パーティクル間隔（ブロック）
+        double x1 = region.minX();
+        double y1 = region.minY();
+        double z1 = region.minZ();
+        double x2 = region.maxX() + 1.0;
+        double y2 = region.maxY() + 1.0;
+        double z2 = region.maxZ() + 1.0;
+
+        // X軸に平行な4辺
+        for (double x = x1; x <= x2; x += step) {
+            world.spawnParticle(Particle.REDSTONE, x, y1, z1, 1, dust);
+            world.spawnParticle(Particle.REDSTONE, x, y1, z2, 1, dust);
+            world.spawnParticle(Particle.REDSTONE, x, y2, z1, 1, dust);
+            world.spawnParticle(Particle.REDSTONE, x, y2, z2, 1, dust);
+        }
+        // Z軸に平行な4辺
+        for (double z = z1; z <= z2; z += step) {
+            world.spawnParticle(Particle.REDSTONE, x1, y1, z, 1, dust);
+            world.spawnParticle(Particle.REDSTONE, x2, y1, z, 1, dust);
+            world.spawnParticle(Particle.REDSTONE, x1, y2, z, 1, dust);
+            world.spawnParticle(Particle.REDSTONE, x2, y2, z, 1, dust);
+        }
+        // Y軸に平行な4辺
+        for (double y = y1; y <= y2; y += step) {
+            world.spawnParticle(Particle.REDSTONE, x1, y, z1, 1, dust);
+            world.spawnParticle(Particle.REDSTONE, x2, y, z1, 1, dust);
+            world.spawnParticle(Particle.REDSTONE, x1, y, z2, 1, dust);
+            world.spawnParticle(Particle.REDSTONE, x2, y, z2, 1, dust);
+        }
+    }
+
+    /**
+     * ChatColor を Bukkit Color に変換する。
+     */
+    private static Color chatColorToColor(ChatColor chatColor) {
+        return switch (chatColor) {
+            case RED, DARK_RED -> Color.RED;
+            case BLUE, DARK_BLUE -> Color.BLUE;
+            case GREEN, DARK_GREEN -> Color.GREEN;
+            case YELLOW, GOLD -> Color.YELLOW;
+            case AQUA, DARK_AQUA -> Color.AQUA;
+            case LIGHT_PURPLE, DARK_PURPLE -> Color.PURPLE;
+            case WHITE -> Color.WHITE;
+            case GRAY, DARK_GRAY -> Color.GRAY;
+            case BLACK -> Color.fromRGB(30, 30, 30);
+            default -> Color.WHITE;
+        };
     }
 
     /**

@@ -71,7 +71,17 @@ public final class CasinoCore extends JavaPlugin {
         }
 
         bindingCurseManager = new BindingCurseManager(this);
-        chipManager = new ChipManager(this);
+
+        // ChipLib から ChipManager を取得（NamespacedKey を統一するため）
+        org.bukkit.plugin.Plugin chipLibPlugin = getServer().getPluginManager().getPlugin("ChipLib");
+        if (chipLibPlugin instanceof io.wax100.chipLib.ChipPlugin chipPlugin) {
+            chipManager = chipPlugin.getChipManager();
+        } else {
+            getLogger().severe("ChipLib が見つかりません！プラグインを無効化します。");
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
+
         casinoManager = new CasinoManager(this, bindingCurseManager);
 
         registerCommand("casino", new CasinoCommand(this));
@@ -79,11 +89,8 @@ public final class CasinoCore extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new BindingCurseListener(this, bindingCurseManager), this);
 
         // ChipLib に購入リスナーを登録（ランキング記録用）
-        org.bukkit.plugin.Plugin chipLibPlugin = getServer().getPluginManager().getPlugin("ChipLib");
-        if (chipLibPlugin instanceof io.wax100.chipLib.ChipPlugin chipPlugin) {
-            chipPlugin.setPurchaseListener((playerId, totalCost) ->
-                    casinoManager.recordPurchase(playerId, totalCost));
-        }
+        ((io.wax100.chipLib.ChipPlugin) chipLibPlugin).setPurchaseListener((playerId, totalCost) ->
+                casinoManager.recordPurchase(playerId, totalCost));
 
         getLogger().info("CasinoCore が有効化されました！");
     }

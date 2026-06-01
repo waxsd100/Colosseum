@@ -62,8 +62,16 @@ public class ArenaBettingListener implements Listener {
         if (!chipManager.isChip(item)) {
             // カーペット素材だがチップでないアイテムの場合のみログ出力
             if (io.wax100.chipLib.Chip.isChipMaterial(item.getType())) {
+                org.bukkit.inventory.meta.ItemMeta debugMeta = item.getItemMeta();
+                String pdcInfo = debugMeta != null
+                        ? debugMeta.getPersistentDataContainer().getKeys().toString()
+                        : "meta=null";
+                boolean hasDisplayName = debugMeta != null && debugMeta.hasDisplayName();
                 plugin.getLogger().warning("[BET-DEBUG] カーペット設置だがチップ判定 false: "
-                        + item.getType() + " player=" + player.getName());
+                        + item.getType() + " player=" + player.getName()
+                        + " PDC=" + pdcInfo
+                        + " displayName=" + hasDisplayName
+                        + " amount=" + item.getAmount());
             }
             return;
         }
