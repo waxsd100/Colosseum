@@ -8,6 +8,7 @@ import io.wax100.arenaCore.model.BettingRegion;
 import io.wax100.arenaCore.model.MatchMode;
 import io.wax100.arenaCore.payout.PayoutDistributor;
 import io.wax100.arenaCore.util.ArenaMessages;
+import io.wax100.arenaCore.util.PayoutAnimation;
 import io.wax100.chipLib.Chip;
 import io.wax100.chipLib.ChipManager;
 import org.bukkit.Bukkit;
@@ -361,13 +362,13 @@ public class BettingManager {
         if (guarantee > 0) {
             for (String teamName : session.getTeamNames()) {
                 for (UUID fighterId : session.getTeamMembers(teamName)) {
-                    // Mob UUID はスキップ（プレイヤーのみ）
                     Player fighter = Bukkit.getPlayer(fighterId);
                     if (fighter != null) {
                         distributeAmount(fighterId, guarantee);
                         fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.GREEN
                                 + "💰 最低保証金: " + ChatColor.YELLOW
                                 + ChipManager.formatAmount(guarantee) + " E");
+                        PayoutAnimation.playGuarantee(plugin, fighter, guarantee, 0L);
                     }
                 }
             }
@@ -416,6 +417,7 @@ public class BettingManager {
                 if (fighter != null && fighter.isOnline()) {
                     fighter.sendMessage(ArenaMessages.PREFIX + labelColor
                             + emoji + " " + label + ": " + ChipManager.formatAmount(perFighter) + " E");
+                    PayoutAnimation.playFighterShare(plugin, fighter, perFighter, label, emoji, 5L);
                 }
             }
         }
@@ -484,6 +486,9 @@ public class BettingManager {
                             : ChatColor.RED.toString())
                             + ChipManager.formatAmount(profit) + " E");
                     player.sendMessage("");
+
+                    // タイトルアニメーション
+                    PayoutAnimation.playWinnerPayout(plugin, player, payout, originalBet, 10L);
                 } else {
                     plugin.getLogger().warning("オフラインプレイヤーへの配当をVault経由で入金: " + playerId + " / " + payout + " E");
                 }
@@ -507,6 +512,8 @@ public class BettingManager {
                             + ChipManager.formatAmount(bet.amount()) + " E"
                             + ChatColor.RED + " は没収されました。");
                     player.sendMessage("");
+
+                    PayoutAnimation.playLoserConfiscation(plugin, player, bet.amount(), 10L);
                 }
             }
         }
