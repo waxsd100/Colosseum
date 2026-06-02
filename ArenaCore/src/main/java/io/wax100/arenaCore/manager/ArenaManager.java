@@ -175,6 +175,11 @@ public class ArenaManager {
             return false;
         }
 
+        // Open時にSchematicから地形を復元（前回の残骸をクリーンアップ）
+        terrainManager.pasteSchematic(
+                activeSession.getName(),
+                activeSession.getFieldConfig().worldName());
+
         // カスタムイベント発火（キャンセル可能）
         ArenaBettingOpenEvent openEvent = new ArenaBettingOpenEvent(activeSession);
         Bukkit.getPluginManager().callEvent(openEvent);
