@@ -40,11 +40,12 @@ public class TeamSubCommand implements SubCommand {
         if (!CommandHelper.requireArgs(sender, args, 1, getUsage())) return;
 
         switch (args[0].toLowerCase()) {
-            case "add"  -> handleAdd(sender, args);
-            case "list" -> handleList(sender);
-            case "area" -> handleArea(sender, args);
-            case "dest" -> handleDest(sender, args);
-            case "color" -> handleColor(sender, args);
+            case "add"    -> handleAdd(sender, args);
+            case "remove" -> handleRemove(sender, args);
+            case "list"   -> handleList(sender);
+            case "area"   -> handleArea(sender, args);
+            case "dest"   -> handleDest(sender, args);
+            case "color"  -> handleColor(sender, args);
             default -> sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "使い方: " + getUsage());
         }
     }
@@ -75,6 +76,29 @@ public class TeamSubCommand implements SubCommand {
         sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY
                 + "→ " + ChatColor.YELLOW + "/arena team area " + teamName + " [待機場名]"
                 + ChatColor.GRAY + " で待機場を設定");
+    }
+
+    // ── remove (チーム削除) ──
+
+    private void handleRemove(CommandSender sender, String[] args) {
+        if (!CommandHelper.requireArgs(sender, args, 2,
+                "/arena team remove <チーム名>")) return;
+
+        ArenaManager manager = plugin.getArenaManager();
+        ArenaSession session = CommandHelper.requireSessionInState(
+                sender, manager, ArenaState.SETUP, ArenaMessages.MSG_SETUP_ONLY);
+        if (session == null) return;
+
+        String teamName = args[1];
+        if (!session.removeTeam(teamName)) {
+            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                    + "チーム「" + teamName + "」は存在しません。");
+            return;
+        }
+
+        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                + "チーム " + ChatColor.BOLD + teamName
+                + ChatColor.RESET + ChatColor.YELLOW + " が削除されました。");
     }
 
     // ── list ──

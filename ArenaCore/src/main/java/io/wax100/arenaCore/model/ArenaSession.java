@@ -193,6 +193,25 @@ public class ArenaSession {
         scores.put(teamName, 0);
     }
 
+    /**
+     * チームを削除する。関連するメンバー・スコア・プール・設定をすべて除去する。
+     *
+     * @param teamName 削除するチーム名
+     * @return 削除できた場合 true
+     */
+    public boolean removeTeam(String teamName) {
+        if (!teams.containsKey(teamName)) return false;
+        teamNames.remove(teamName);
+        teams.remove(teamName);
+        scores.remove(teamName);
+        teamPools.remove(teamName);
+        teamColors.remove(teamName);
+        teamAreaConfigs.remove(teamName);
+        mobTeams.remove(teamName);
+        eliminatedTeams.remove(teamName);
+        return true;
+    }
+
     public boolean hasTeam(String teamName) { return teams.containsKey(teamName); }
 
     public void addTeamMember(String teamName, UUID playerId) {
