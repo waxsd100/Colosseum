@@ -3,27 +3,30 @@ package io.wax100.arenaCore.listener;
 import io.wax100.arenaCore.manager.TerrainManager;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.FallingBlock;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 
 /**
  * 地形変更イベントリスナー。
  *
- * <p>戦闘エリア内のブロック破壊を監視し、
+ * <p>戦闘エリア内のブロック破壊・設置を監視し、
  * {@link TerrainManager} に復元対象として記録する。
  *
  * <p>監視対象:
  * <ul>
  *   <li>プレイヤー手動破壊（{@link BlockBreakEvent}）</li>
+ *   <li>プレイヤーブロック設置（{@link BlockPlaceEvent}）</li>
  *   <li>エンティティ爆発（{@link EntityExplodeEvent}）</li>
  *   <li>ブロック爆発（{@link BlockExplodeEvent}）</li>
- *   <li>エンティティによるブロック変更（{@link EntityChangeBlockEvent}）— 破壊のみ、落下砂除外</li>
+ *   <li>エンティティによるブロック変更（{@link EntityChangeBlockEvent}）— 破壊・設置両方</li>
  * </ul>
  */
 public class ArenaTerrainListener implements Listener {
@@ -41,6 +44,18 @@ public class ArenaTerrainListener implements Listener {
     public void onBlockBreak(BlockBreakEvent e) {
         terrainManager.recordBreak(
                 e.getBlock().getLocation(), e.getBlock().getBlockData());
+    }
+
+    /**
+     * プレイヤーによるブロック設置を記録する。
+     *
+     * <p>設置前の状態（通常はAIR）を記録し、復元時にはAIRに戻す。
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBlockPlace(BlockPlaceEvent e) {
+        terrainManager.recordPlace(
+                e.getBlock().getLocation(),
+                e.getBlockReplacedState().getBlockData());
     }
 
     /**
@@ -68,14 +83,21 @@ public class ArenaTerrainListener implements Listener {
     /**
      * エンティティによるブロック変更を記録する。
      *
-     * <p>破壊（{@code getTo() == AIR}）のみ記録し、
-     * {@link FallingBlock} は除外する（無限ループ防止）。
+     * <p>破壊（{@code getTo() == AIR}）は recordBreak、
+     * 設置（{@code getTo() != AIR}）は recordPlace で記録する。
+     * {@link FallingBlock} は除外（無限ループ防止）。
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onEntityChangeBlock(EntityChangeBlockEvent e) {
-        if (e.getTo() != Material.AIR) return;
         if (e.getEntity() instanceof FallingBlock) return;
-        terrainManager.recordBreak(
-                e.getBlock().getLocation(), e.getBlock().getBlockData());
+
+        Block block = e.getBlock();
+        if (e.getTo() == Material.AIR) {
+            // 破壊: 元のブロックデータを記録
+            terrainManager.recordBreak(block.getLocation(), block.getBlockData());
+        } else {
+            // 設置: 元の状態（設置前）を記録
+            terrainManager.recordPlace(block.getLocation(), block.getBlockData());
+        }
     }
 }
