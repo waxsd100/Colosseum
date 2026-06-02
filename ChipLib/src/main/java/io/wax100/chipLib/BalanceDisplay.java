@@ -223,6 +223,15 @@ public class BalanceDisplay implements Runnable {
         return result;
     }
 
+    /** テキスト中の数字の個数を返す。 */
+    private int countDigits(String text) {
+        int count = 0;
+        for (char c : text.toCharArray()) {
+            if (Character.isDigit(c)) count++;
+        }
+        return count;
+    }
+
     public void clearPlayer(UUID playerId) {
         previousBalances.remove(playerId);
         activeDelta.remove(playerId);
@@ -239,13 +248,41 @@ public class BalanceDisplay implements Runnable {
      * @param amount 変動額（正: 収入, 負: 支出）
      * @param sound  再生する効果音
      */
-    public void notifyDelta(Player player, long amount, Sound sound) {
+    public void notifyDelta(Player player, long amount, Sound doneSound) {
         UUID uuid = player.getUniqueId();
         activeDelta.put(uuid, new DeltaDisplay(amount, NOTIFY_DISPLAY_TICKS, true));
 
-        if (sound != null) {
-            player.playSound(player.getLocation(), sound, 1.0f, 1.0f);
+        // シャッフル音をステップごとにスケジュール
+        String amountText = (amount > 0 ? "+" : "") + ChipManager.formatAmount(amount);
+        int digitCount = countDigits(amountText);
+        int totalSteps = WIND_UP_STEPS + digitCount;
+        int ticksPerStep = 2;
+
+        for (int i = 0; i < totalSteps; i++) {
+            final int step = i;
+            long tickDelay = (long) i * ticksPerStep;
+
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                if (!player.isOnline()) return;
+
+                boolean isLocking = step >= WIND_UP_STEPS;
+                int locked = Math.max(0, step - WIND_UP_STEPS + 1);
+                float pitch = isLocking
+                        ? 1.4f + (locked * 0.06f)
+                        : 0.8f + RNG.nextFloat() * 0.4f;
+                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT,
+                        0.15f, Math.min(pitch, 2.0f));
+            }, tickDelay);
         }
+
+        // 全確定後 → 完了音
+        long finalDelay = (long) totalSteps * ticksPerStep + 1L;
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (!player.isOnline()) return;
+            if (doneSound != null) {
+                player.playSound(player.getLocation(), doneSound, 0.8f, 1.2f);
+            }
+        }, finalDelay);
     }
 
     /**
