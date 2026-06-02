@@ -316,19 +316,39 @@ public class TerrainManager {
      * ブロック破壊を記録する。
      *
      * <p>TRACKING 状態かつフィールド範囲内の場合のみキューに追加する。
-     * キューが空から非空になった場合、復元タスクを起動する。
      *
      * @param loc      破壊されたブロックの座標
      * @param original 破壊前のブロックデータ
      */
     public void recordBreak(Location loc, BlockData original) {
-        if (state != State.TRACKING) return;
-        if (fieldConfig == null || !fieldConfig.contains(loc)) return;
+        if (!isTrackable(loc)) return;
 
-        long restoreAt = tickCounter + duringMatchDelay;
-        restoreQueue.add(new RestoreEntry(loc, original, restoreAt));
+        restoreQueue.add(new RestoreEntry(loc, original, tickCounter + duringMatchDelay));
+        ensureDuringMatchTask();
+    }
 
-        // キュー空→非空: タスク起動
+    /**
+     * ブロック設置を記録する。
+     *
+     * <p>設置ブロックは試合中には復元せず、試合後（Stage 2/3）でのみ復元する。
+     *
+     * @param loc          設置されたブロックの座標
+     * @param previousData 設置前のブロックデータ（通常は AIR）
+     */
+    public void recordPlace(Location loc, BlockData previousData) {
+        if (!isTrackable(loc)) return;
+
+        // Long.MAX_VALUE → Stage 1 では処理されず、Stage 2 の flush で一括復元
+        restoreQueue.add(new RestoreEntry(loc, previousData, Long.MAX_VALUE));
+    }
+
+    /** TRACKING 中かつフィールド範囲内かを判定する。 */
+    private boolean isTrackable(Location loc) {
+        return state == State.TRACKING && fieldConfig != null && fieldConfig.contains(loc);
+    }
+
+    /** 試合中復元タスクが停止していれば起動する。 */
+    private void ensureDuringMatchTask() {
         if (duringMatchTask == null || duringMatchTask.isCancelled()) {
             duringMatchTask = new BukkitRunnable() {
                 @Override
@@ -337,25 +357,6 @@ public class TerrainManager {
                 }
             }.runTaskTimer(plugin, 1L, 1L);
         }
-    }
-
-    /**
-     * ブロック設置を記録する。
-     *
-     * <p>TRACKING 状態かつフィールド範囲内の場合、
-     * 元の状態（設置前のブロックデータ）を復元キューに追加する。
-     *
-     * <p>設置ブロックは試合中には復元せず、試合後（Stage 2/3）でのみ復元する。
-     *
-     * @param loc             設置されたブロックの座標
-     * @param previousData    設置前のブロックデータ（通常は AIR）
-     */
-    public void recordPlace(Location loc, BlockData previousData) {
-        if (state != State.TRACKING) return;
-        if (fieldConfig == null || !fieldConfig.contains(loc)) return;
-
-        // Long.MAX_VALUE → Stage 1 では処理されず、Stage 2 の flush で一括復元
-        restoreQueue.add(new RestoreEntry(loc, previousData, Long.MAX_VALUE));
     }
 
     /**
@@ -408,7 +409,21 @@ public class TerrainManager {
     public void finishAndFlush() {
         if (state != State.TRACKING) return;
 
-        // タスク停止
+        cancelTrackingTasks();
+        state = State.FLUSHING;
+        Bukkit.broadcastMessage(ArenaMessages.MSG_TERRAIN_FLUSHING);
+
+        // 設置ブロックを先頭に → 高速破壊で先に処理
+        reorderPlacedBlocksFirst();
+
+        // Stage 2: 設置ブロック高速破壊 → 破壊ブロック高速復元 → Stage 3
+        flushTask = new TerrainRestoreTask(
+                restoreQueue, this, postMatchBlocksPerTick, effects)
+                .runTaskTimer(plugin, postMatchDelay, 1L);
+    }
+
+    /** 試合中タスクを全て停止する。 */
+    private void cancelTrackingTasks() {
         if (duringMatchTask != null) {
             duringMatchTask.cancel();
             duringMatchTask = null;
@@ -417,28 +432,22 @@ public class TerrainManager {
             tickCounterTask.cancel();
             tickCounterTask = null;
         }
+    }
 
-        state = State.FLUSHING;
-        Bukkit.broadcastMessage(ArenaMessages.MSG_TERRAIN_FLUSHING);
-
-        // 設置ブロック（MAX_VALUE）をキューの先頭に移動 → 高速破壊で先に処理
-        Deque<RestoreEntry> reordered = new ArrayDeque<>();
-        Deque<RestoreEntry> breakEntries = new ArrayDeque<>();
+    /** 設置ブロック（MAX_VALUE）をキュー先頭に並べ替える。 */
+    private void reorderPlacedBlocksFirst() {
+        Deque<RestoreEntry> placed = new ArrayDeque<>();
+        Deque<RestoreEntry> broken = new ArrayDeque<>();
         for (RestoreEntry entry : restoreQueue) {
             if (entry.restoreAtTick == Long.MAX_VALUE) {
-                reordered.add(entry);
+                placed.add(entry);
             } else {
-                breakEntries.add(entry);
+                broken.add(entry);
             }
         }
-        reordered.addAll(breakEntries);
         restoreQueue.clear();
-        restoreQueue.addAll(reordered);
-
-        // Stage 2: 設置ブロック高速破壊 → 破壊ブロック高速復元 → Stage 3
-        flushTask = new TerrainRestoreTask(
-                restoreQueue, this, postMatchBlocksPerTick, effects)
-                .runTaskTimer(plugin, postMatchDelay, 1L);
+        restoreQueue.addAll(placed);
+        restoreQueue.addAll(broken);
     }
 
     /**
@@ -569,7 +578,6 @@ public class TerrainManager {
         return state != State.IDLE;
     }
 
-
     /**
      * すべてのタスクをキャンセルし、状態をクリアする。
      *
@@ -577,9 +585,11 @@ public class TerrainManager {
      * {@code .active} マーカーは残す（次回 onEnable で復旧するため）。
      */
     public void cancelAndClear() {
-        if (duringMatchTask != null) duringMatchTask.cancel();
-        if (flushTask != null) flushTask.cancel();
-        if (tickCounterTask != null) tickCounterTask.cancel();
+        cancelTrackingTasks();
+        if (flushTask != null) {
+            flushTask.cancel();
+            flushTask = null;
+        }
         restoreQueue.clear();
         fieldConfig = null;
         sessionName = null;

@@ -63,10 +63,7 @@ public class ArenaTerrainListener implements Listener {
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onEntityExplode(EntityExplodeEvent e) {
-        for (Block block : e.blockList()) {
-            terrainManager.recordBreak(
-                    block.getLocation(), block.getBlockData());
-        }
+        recordExplosion(e.blockList());
     }
 
     /**
@@ -74,10 +71,7 @@ public class ArenaTerrainListener implements Listener {
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockExplode(BlockExplodeEvent e) {
-        for (Block block : e.blockList()) {
-            terrainManager.recordBreak(
-                    block.getLocation(), block.getBlockData());
-        }
+        recordExplosion(e.blockList());
     }
 
     /**
@@ -93,11 +87,16 @@ public class ArenaTerrainListener implements Listener {
 
         Block block = e.getBlock();
         if (e.getTo() == Material.AIR) {
-            // 破壊: 元のブロックデータを記録
             terrainManager.recordBreak(block.getLocation(), block.getBlockData());
         } else {
-            // 設置: 元の状態（設置前）を記録
             terrainManager.recordPlace(block.getLocation(), block.getBlockData());
+        }
+    }
+
+    /** 爆発で破壊されたブロック群を一括記録する。 */
+    private void recordExplosion(java.util.List<Block> blocks) {
+        for (Block block : blocks) {
+            terrainManager.recordBreak(block.getLocation(), block.getBlockData());
         }
     }
 }

@@ -35,6 +35,9 @@ public class BalanceDisplay implements Runnable {
     /** アニメーション表示の残りtick */
     private static final int DELTA_DISPLAY_TICKS = 40; // 2秒間
 
+    /** タイトルアニメーションを再生する変動額の最小閾値 */
+    private static final long DELTA_ANIMATION_THRESHOLD = 100L;
+
     public BalanceDisplay(ChipPlugin plugin) {
         this.plugin = plugin;
     }
@@ -77,7 +80,7 @@ public class BalanceDisplay implements Runnable {
                 activeDelta.put(uuid, new DeltaDisplay(delta, DELTA_DISPLAY_TICKS));
 
                 // タイトルアニメーション（大きい変動のみ）
-                if (Math.abs(delta) >= 100) {
+                if (Math.abs(delta) >= DELTA_ANIMATION_THRESHOLD) {
                     if (delta > 0) {
                         PayoutAnimation.playIncome(plugin, player, delta, 0L);
                     } else {

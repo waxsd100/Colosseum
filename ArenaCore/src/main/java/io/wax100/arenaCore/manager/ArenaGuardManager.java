@@ -48,6 +48,9 @@ public class ArenaGuardManager {
     private ArenaSession activeSession;
     private BukkitTask mobBounceTask;
 
+    /**
+     * @param plugin ArenaCore プラグインインスタンス
+     */
     public ArenaGuardManager(Plugin plugin) {
         this.plugin = plugin;
         this.worldGuardAvailable = Bukkit.getPluginManager().getPlugin("WorldGuard") != null;
@@ -120,8 +123,9 @@ public class ArenaGuardManager {
         }
 
         // フィールド範囲でリージョン作成
-        BlockVector3 min = field.toRegion().getMinimumPoint();
-        BlockVector3 max = field.toRegion().getMaximumPoint();
+        com.sk89q.worldedit.regions.CuboidRegion cuboid = field.toRegion();
+        BlockVector3 min = cuboid.getMinimumPoint();
+        BlockVector3 max = cuboid.getMaximumPoint();
         ProtectedCuboidRegion region = new ProtectedCuboidRegion(regionId, min, max);
 
         // 優先度を高く設定
@@ -189,8 +193,9 @@ public class ArenaGuardManager {
                 Location loc = entity.getLocation();
                 if (!activeField.contains(loc)) {
                     // 範囲外 → フィールド中心方向へ引き戻し
-                    Vector direction = center.toVector().subtract(loc.toVector()).normalize();
-                    entity.setVelocity(direction.multiply(0.8));
+                    Vector direction = center.toVector().subtract(loc.toVector());
+                    if (direction.lengthSquared() < 0.001) continue;
+                    entity.setVelocity(direction.normalize().multiply(0.8));
                 }
             }
         }, MOB_CHECK_INTERVAL, MOB_CHECK_INTERVAL);
