@@ -135,6 +135,13 @@ public class ArenaGuardManager {
         region.setFlag(Flags.ENTRY, StateFlag.State.DENY);
         region.setFlag(Flags.EXIT, StateFlag.State.DENY);
 
+        // 戦闘中の地形破壊・TNT・PvPを許可（親リージョンのDENYを上書き）
+        region.setFlag(Flags.TNT, StateFlag.State.ALLOW);
+        region.setFlag(Flags.OTHER_EXPLOSION, StateFlag.State.ALLOW);
+        region.setFlag(Flags.BLOCK_BREAK, StateFlag.State.ALLOW);
+        region.setFlag(Flags.BLOCK_PLACE, StateFlag.State.ALLOW);
+        region.setFlag(Flags.PVP, StateFlag.State.ALLOW);
+
         // 全ファイターをメンバーとして追加
         for (String team : session.getTeamNames()) {
             if (session.isMobTeam(team)) continue;
