@@ -560,62 +560,99 @@ public class BettingManager {
     /**
      * 負けたベッターに没収通知を送信する。
      *
-     * <p>勝ちチームにもベットしているプレイヤーは、勝者演出が終わった後に
-     * 没収通知を遅延表示する。
+     * <p>勝ちチームにもベットしているプレイヤーは、勝者演出の後に
+     * 差し引き結果を表示する専用演出を行う。
      */
     private void notifyLosers(ArenaSession session, String winningTeam) {
-        // 勝ちチームにもベットしているプレイヤーを特定
-        Set<UUID> winnersWithBets = new java.util.HashSet<>();
+        // 勝ちチームへのベット額を事前計算（両チームベット判定用）
+        Map<UUID, Long> winnerPayoutMap = new HashMap<>();
         for (Bet bet : session.getAllBets()) {
             if (bet.teamName().equals(winningTeam)) {
-                winnersWithBets.add(bet.playerId());
+                winnerPayoutMap.put(bet.playerId(), bet.amount());
             }
         }
 
         // 勝者演出の所要tick（4ステップ × 30tick）
         int winnerAnimationTicks = 4 * 30;
+        int stepDuration = 30;
 
         for (Bet bet : session.getAllBets()) {
-            if (!bet.teamName().equals(winningTeam)) {
-                Player player = Bukkit.getPlayer(bet.playerId());
-                if (player != null && player.isOnline()) {
-                    // 勝者でもある場合は遅延、そうでなければ即時
-                    int delayTicks = winnersWithBets.contains(bet.playerId()) ? winnerAnimationTicks + 20 : 0;
+            if (bet.teamName().equals(winningTeam)) continue;
 
-                    final long amount = bet.amount();
-                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                        if (!player.isOnline()) return;
+            Player player = Bukkit.getPlayer(bet.playerId());
+            if (player == null || !player.isOnline()) continue;
 
-                        player.sendMessage("");
-                        player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
-                                + "残念… ベット額 " + ChatColor.YELLOW
-                                + ChipManager.formatAmount(amount) + " E"
-                                + ChatColor.RED + " は没収されました。");
-                        player.sendMessage("");
+            final long lossAmount = bet.amount();
+            boolean isBothSideBettor = winnerPayoutMap.containsKey(bet.playerId());
 
-                        // サブタイトル: 没収演出
-                        int stepDuration = 30;
-                        int step = 0;
+            if (isBothSideBettor) {
+                // ── 両チームベット専用演出 ──
+                // 勝者演出の後に差し引き結果を表示
+                final long winBet = winnerPayoutMap.get(bet.playerId());
 
-                        scheduleSubtitle(player, stepDuration * step++,
-                                ChatColor.RED.toString() + ChatColor.BOLD + "💀 CONFISCATED",
-                                ChatColor.GRAY + "Your Bet  " + ChatColor.YELLOW + ChipManager.formatAmount(amount) + " E",
-                                stepDuration);
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    if (!player.isOnline()) return;
 
-                        scheduleSubtitle(player, stepDuration * step++,
-                                ChatColor.RED.toString() + ChatColor.BOLD + "💀 CONFISCATED",
-                                ChatColor.RED + "-" + ChipManager.formatAmount(amount) + " E",
-                                stepDuration);
+                    int step = 0;
 
-                        int holdTicks = stepDuration * step;
-                        notifyBalanceDelta(player, -amount, holdTicks);
+                    // Step 1: 没収額表示
+                    scheduleSubtitle(player, stepDuration * step++,
+                            ChatColor.RED.toString() + ChatColor.BOLD + "💀 HEDGE LOSS",
+                            ChatColor.GRAY + "Losing Bet  " + ChatColor.RED + "-"
+                                    + ChipManager.formatAmount(lossAmount) + " E",
+                            stepDuration);
 
-                        // ダブルアップ保留中なら没収
-                        DoubleUpManager doubleUp = plugin.getDoubleUpManager();
-                        if (doubleUp != null && doubleUp.hasActiveStreak(player.getUniqueId())) {
-                            doubleUp.confiscateOnLoss(player.getUniqueId());
-                        }
-                    }, delayTicks);
+                    // Step 2: 差し引き結果
+                    // 勝ち配当（payout）はdistributeWinnerBetPayoutsで既に計算済み
+                    // ここではベット額の差のみ表示（実際の配当はオッズによる）
+                    scheduleSubtitle(player, stepDuration * step++,
+                            ChatColor.AQUA.toString() + ChatColor.BOLD + "📊 NET RESULT",
+                            ChatColor.GRAY + "Won Bet " + ChatColor.GREEN + ChipManager.formatAmount(winBet) + " E"
+                                    + ChatColor.GRAY + " | Lost " + ChatColor.RED + ChipManager.formatAmount(lossAmount) + " E",
+                            stepDuration + 10);
+
+                    // チャット通知
+                    player.sendMessage("");
+                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.AQUA + "📊 ヘッジベット結果:");
+                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "  勝ちベット: "
+                            + ChatColor.GREEN + ChipManager.formatAmount(winBet) + " E"
+                            + ChatColor.GRAY + " → 配当済み");
+                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "  負けベット: "
+                            + ChatColor.RED + "-" + ChipManager.formatAmount(lossAmount) + " E"
+                            + ChatColor.GRAY + " → 没収");
+                    player.sendMessage("");
+
+                    int holdTicks = stepDuration * step;
+                    notifyBalanceDelta(player, -lossAmount, holdTicks);
+                }, winnerAnimationTicks + 20);
+            } else {
+                // ── 負けのみ: 従来通り即時 ──
+                player.sendMessage("");
+                player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                        + "残念… ベット額 " + ChatColor.YELLOW
+                        + ChipManager.formatAmount(lossAmount) + " E"
+                        + ChatColor.RED + " は没収されました。");
+                player.sendMessage("");
+
+                int step = 0;
+
+                scheduleSubtitle(player, stepDuration * step++,
+                        ChatColor.RED.toString() + ChatColor.BOLD + "💀 CONFISCATED",
+                        ChatColor.GRAY + "Your Bet  " + ChatColor.YELLOW + ChipManager.formatAmount(lossAmount) + " E",
+                        stepDuration);
+
+                scheduleSubtitle(player, stepDuration * step++,
+                        ChatColor.RED.toString() + ChatColor.BOLD + "💀 CONFISCATED",
+                        ChatColor.RED + "-" + ChipManager.formatAmount(lossAmount) + " E",
+                        stepDuration);
+
+                int holdTicks = stepDuration * step;
+                notifyBalanceDelta(player, -lossAmount, holdTicks);
+
+                // ダブルアップ保留中なら没収
+                DoubleUpManager doubleUp = plugin.getDoubleUpManager();
+                if (doubleUp != null && doubleUp.hasActiveStreak(player.getUniqueId())) {
+                    doubleUp.confiscateOnLoss(player.getUniqueId());
                 }
             }
         }
