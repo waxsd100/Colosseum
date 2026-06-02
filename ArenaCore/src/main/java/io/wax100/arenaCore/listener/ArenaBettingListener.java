@@ -62,9 +62,7 @@ public class ArenaBettingListener implements Listener {
 
         // チップかどうか判定
         ChipManager chipManager = plugin.getChipManager();
-        if (!chipManager.isChip(item)) {
-            return;
-        }
+        if (chipManager == null || !chipManager.isChip(item)) return;
 
         // 戦闘員チェック
         if (session.isFighter(player.getUniqueId())) {
