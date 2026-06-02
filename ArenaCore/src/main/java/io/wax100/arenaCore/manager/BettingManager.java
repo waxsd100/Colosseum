@@ -25,6 +25,7 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.FireworkMeta;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
@@ -100,14 +101,13 @@ public class BettingManager {
         session.addPlacedChip(location, player.getUniqueId(), teamName, chipValue, originalBlock);
 
         ChatColor teamColor = session.getTeamColor(teamName);
+        long total = session.getBet(player.getUniqueId(), teamName).amount();
 
-        String msg = ChatColor.GREEN + "✔ " + teamColor + ChatColor.BOLD + teamName
-                + ChatColor.RESET + ChatColor.GREEN + " に "
-                + ChatColor.YELLOW + ChipManager.formatAmount(chipValue) + " E"
-                + ChatColor.GREEN + " ベット"
-                + ChatColor.GRAY + " (合計: "
-                + ChipManager.formatAmount(session.getBet(player.getUniqueId(), teamName).amount()) + " E)";
-        player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText(msg));
+        player.sendTitle(
+                teamColor.toString() + ChatColor.BOLD + teamName,
+                ChatColor.GREEN + "+" + ChipManager.formatAmount(chipValue) + " E"
+                        + ChatColor.GRAY + "  (合計: " + ChipManager.formatAmount(total) + " E)",
+                5, 30, 10);
 
         return true;
     }
@@ -131,17 +131,27 @@ public class BettingManager {
         // カーペットブロックを除去（ドロップ防止のため直接AIRに設定）
         location.getBlock().setType(Material.AIR);
 
+        // チップアイテムをプレイヤーに返却
+        Chip.fromValue(chipInfo.chipValue()).ifPresent(chip -> {
+            ChipPlugin chipPlugin = (ChipPlugin) Bukkit.getPluginManager().getPlugin("ChipLib");
+            if (chipPlugin != null) {
+                ItemStack chipItem = chipPlugin.getChipManager().createChipItem(chip, 1);
+                Map<Integer, ItemStack> overflow = player.getInventory().addItem(chipItem);
+                for (ItemStack leftover : overflow.values()) {
+                    player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+                }
+            }
+        });
+
         // ベット額の更新（減算）
         Bet bet = session.getBet(player.getUniqueId(), chipInfo.teamName());
         if (bet != null) {
             if (bet.amount() >= chipInfo.chipValue()) {
                 bet.addAmount(-chipInfo.chipValue());
-                // 金額が0以下になった場合はベット自体を削除
                 if (bet.amount() <= 0) {
                     session.removeBet(player.getUniqueId(), chipInfo.teamName());
                 }
             } else {
-                // データ不整合 — ベット自体を削除
                 session.removeBet(player.getUniqueId(), chipInfo.teamName());
             }
         }
@@ -149,14 +159,15 @@ public class BettingManager {
         // 視覚エフェクト: 回収演出
         playChipBreakEffect(location);
 
-        String msg = ChatColor.YELLOW + "↩ "
-                + ChipManager.formatAmount(chipInfo.chipValue())
-                + " E 取消";
+        // サブタイトル表示
         Bet remainingBet = session.getBet(player.getUniqueId(), chipInfo.teamName());
-        if (remainingBet != null && remainingBet.amount() > 0) {
-            msg += ChatColor.GRAY + " (残: " + ChipManager.formatAmount(remainingBet.amount()) + " E)";
-        }
-        player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText(msg));
+        String remaining = (remainingBet != null && remainingBet.amount() > 0)
+                ? ChatColor.GRAY + "  (残: " + ChipManager.formatAmount(remainingBet.amount()) + " E)"
+                : "";
+        player.sendTitle(
+                ChatColor.YELLOW.toString() + ChatColor.BOLD + "↩ BET CANCEL",
+                ChatColor.YELLOW + "-" + ChipManager.formatAmount(chipInfo.chipValue()) + " E" + remaining,
+                5, 30, 10);
     }
 
     /**
