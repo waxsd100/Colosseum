@@ -4,6 +4,7 @@ import io.wax100.arenaCore.ArenaCore;
 import io.wax100.arenaCore.model.ArenaSession;
 import io.wax100.arenaCore.model.Bet;
 import io.wax100.arenaCore.model.ArenaState;
+import io.wax100.arenaCore.model.BettingRegion;
 import io.wax100.arenaCore.model.MatchMode;
 import io.wax100.arenaCore.payout.PayoutDistributor;
 import io.wax100.arenaCore.util.ArenaMessages;
@@ -319,7 +320,7 @@ public class BettingManager {
         distributeDeathmatchPool(session, winningTeam);
 
         // ── 結果サマリー ──
-        broadcastPayoutSummary(dist, totalPayout);
+        broadcastPayoutSummary(session, winningTeam, dist, totalPayout);
     }
 
     /**
@@ -567,19 +568,46 @@ public class BettingManager {
     /**
      * 配当結果サマリーをブロードキャストする。
      */
-    private void broadcastPayoutSummary(PayoutDistributor.DistributionResult dist, long totalPayout) {
+    private void broadcastPayoutSummary(ArenaSession session, String winningTeam,
+                                        PayoutDistributor.DistributionResult dist,
+                                        long totalPayout) {
         JackpotManager jackpot = plugin.getJackpotManager();
+        long totalPool = dist.loserFighterTotal() + dist.winnerFighterTotal()
+                + dist.houseFee() + dist.bettorPayoutPool();
 
+        Bukkit.broadcastMessage("");
+        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GOLD + "━━━ 配当結果 ━━━");
         Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
-                + "闘技者還元: " + ChatColor.YELLOW
-                + ChipManager.formatAmount(dist.loserFighterTotal() + dist.winnerFighterTotal()) + " E"
-                + ChatColor.GRAY + " / 配当: " + ChatColor.YELLOW
+                + "ベット総額: " + ChatColor.WHITE + ChipManager.formatAmount(totalPool) + " E");
+
+        // チーム別内訳
+        for (String team : session.getTeamNames()) {
+            ChatColor color = session.getTeamColor(team);
+            long teamPool = session.getTeamPool(team);
+            String marker = team.equals(winningTeam) ? ChatColor.GREEN + "✔ " : ChatColor.RED + "✘ ";
+            Bukkit.broadcastMessage(ArenaMessages.PREFIX + "  " + marker + color + team
+                    + ChatColor.GRAY + ": " + ChatColor.YELLOW + ChipManager.formatAmount(teamPool) + " E");
+        }
+
+        // 天引き内訳
+        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
+                + "敗者闘技者還元: " + ChatColor.YELLOW
+                + ChipManager.formatAmount(dist.loserFighterTotal()) + " E"
+                + ChatColor.GRAY + " / 勝者闘技者還元: " + ChatColor.YELLOW
+                + ChipManager.formatAmount(dist.winnerFighterTotal()) + " E");
+        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
+                + "運営手数料: " + ChatColor.YELLOW
+                + ChipManager.formatAmount(dist.houseFee()) + " E"
+                + ChatColor.GRAY + " / 観客配当: " + ChatColor.GREEN
                 + ChipManager.formatAmount(totalPayout) + " E");
+
         if (jackpot != null) {
             Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
                     + "🎰 ジャックポット残高: " + ChatColor.YELLOW
                     + ChipManager.formatAmount(jackpot.getBalance()) + " E");
         }
+        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GOLD + "━━━━━━━━━━━━━━");
+        Bukkit.broadcastMessage("");
     }
 
     // ── 内部ヘルパーメソッド ──
@@ -729,16 +757,41 @@ public class BettingManager {
     /**
      * 設置されたカーペットチップを全てワールドから削除する。
      *
+     * <p>2段階で確実に除去する:
+     * <ol>
+     *   <li>placedChips マップに登録された座標を AIR に置換</li>
+     *   <li>ベットエリア全体をスキャンし、残存カーペットも AIR に置換</li>
+     * </ol>
+     *
      * @param session セッション
      */
     private void clearPlacedChips(ArenaSession session) {
+        // ① 登録済みチップ座標を AIR に
         for (Map.Entry<Location, ArenaSession.PlacedChipInfo> entry : session.getPlacedChips().entrySet()) {
             Location loc = entry.getKey();
-            ArenaSession.PlacedChipInfo info = entry.getValue();
             Block block = loc.getBlock();
             if (block.getType().name().contains("CARPET")) {
-                block.setType(info.getOriginalBlockOrAir());
+                block.setType(Material.AIR, false);
                 playChipBreakEffect(loc);
+            }
+        }
+
+        // ② ベットエリア全体をスキャンし、残存カーペットも除去
+        RegionManager regionManager = plugin.getRegionManager();
+        for (String team : session.getTeamNames()) {
+            BettingRegion region = regionManager.getBettingRegion(team);
+            if (region == null) continue;
+            World world = Bukkit.getWorld(region.worldName());
+            if (world == null) continue;
+            for (int x = region.minX(); x <= region.maxX(); x++) {
+                for (int y = region.minY(); y <= region.maxY(); y++) {
+                    for (int z = region.minZ(); z <= region.maxZ(); z++) {
+                        Block block = world.getBlockAt(x, y, z);
+                        if (block.getType().name().contains("CARPET")) {
+                            block.setType(Material.AIR, false);
+                        }
+                    }
+                }
             }
         }
     }
