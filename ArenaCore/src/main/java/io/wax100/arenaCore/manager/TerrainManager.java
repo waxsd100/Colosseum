@@ -344,7 +344,8 @@ public class TerrainManager {
      *
      * <p>TRACKING 状態かつフィールド範囲内の場合、
      * 元の状態（設置前のブロックデータ）を復元キューに追加する。
-     * 復元時には設置前の状態（通常はAIR）に戻される。
+     *
+     * <p>設置ブロックは試合中には復元せず、試合後（Stage 2/3）でのみ復元する。
      *
      * @param loc             設置されたブロックの座標
      * @param previousData    設置前のブロックデータ（通常は AIR）
@@ -353,18 +354,8 @@ public class TerrainManager {
         if (state != State.TRACKING) return;
         if (fieldConfig == null || !fieldConfig.contains(loc)) return;
 
-        long restoreAt = tickCounter + duringMatchDelay;
-        restoreQueue.add(new RestoreEntry(loc, previousData, restoreAt));
-
-        // キュー空→非空: タスク起動
-        if (duringMatchTask == null || duringMatchTask.isCancelled()) {
-            duringMatchTask = new BukkitRunnable() {
-                @Override
-                public void run() {
-                    processDuringMatch();
-                }
-            }.runTaskTimer(plugin, 1L, 1L);
-        }
+        // Long.MAX_VALUE → Stage 1 では処理されず、Stage 2 の flush で一括復元
+        restoreQueue.add(new RestoreEntry(loc, previousData, Long.MAX_VALUE));
     }
 
     /**
