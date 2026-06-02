@@ -147,27 +147,31 @@ public class BalanceDisplay implements Runnable {
         ChatColor color = delta.amount > 0 ? C_PLUS : C_MINUS;
 
         if (!delta.animated) {
-            // 通常表示（シャッフルなし）
             return color.toString() + ChatColor.BOLD + amountText;
         }
 
-        // アニメーション: 残りtickから現在のステップを計算
-        int totalTicks = NOTIFY_DISPLAY_TICKS;
+        // 経過tick（hold + アニメーション全体）
+        int totalTicks = delta.holdTicks + NOTIFY_DISPLAY_TICKS;
         int elapsed = totalTicks - delta.remaining;
-        int ticksPerStep = 2; // 0.1秒ごとに1ステップ
+        int ticksPerStep = 2;
 
         int[] digitIndices = findDigitIndices(amountText);
         int digitCount = digitIndices.length;
         int totalSteps = WIND_UP_STEPS + digitCount;
 
-        int currentStep = elapsed / ticksPerStep;
+        // holdTicks期間中 → 全桁シャッフル（ロック0）
+        if (elapsed < delta.holdTicks) {
+            return renderShuffle(amountText, digitIndices, 0, color);
+        }
+
+        // hold後の経過からステップを計算
+        int animElapsed = elapsed - delta.holdTicks;
+        int currentStep = animElapsed / ticksPerStep;
 
         if (currentStep >= totalSteps) {
-            // 全確定後 → 通常表示
             return color.toString() + ChatColor.BOLD + amountText;
         }
 
-        // シャッフル中
         int locked = Math.max(0, currentStep - WIND_UP_STEPS + 1);
         return renderShuffle(amountText, digitIndices, locked, color);
     }
@@ -244,15 +248,19 @@ public class BalanceDisplay implements Runnable {
     /**
      * カジノ・アリーナからの残高変動を音付き＋シャッフルアニメーションで通知する。
      *
-     * @param player 対象プレイヤー
-     * @param amount 変動額（正: 収入, 負: 支出）
-     * @param sound  再生する効果音
+     * <p>holdTicks の間はシャッフルを維持し続け、その後ロックイン開始。
+     *
+     * @param player    対象プレイヤー
+     * @param amount    変動額（正: 収入, 負: 支出）
+     * @param doneSound 全確定後の効果音
+     * @param holdTicks シャッフル維持期間（tick）。0ならすぐロックイン開始。
      */
-    public void notifyDelta(Player player, long amount, Sound doneSound) {
+    public void notifyDelta(Player player, long amount, Sound doneSound, int holdTicks) {
         UUID uuid = player.getUniqueId();
-        activeDelta.put(uuid, new DeltaDisplay(amount, NOTIFY_DISPLAY_TICKS, true));
+        int totalDisplay = holdTicks + NOTIFY_DISPLAY_TICKS;
+        activeDelta.put(uuid, new DeltaDisplay(amount, totalDisplay, true, holdTicks));
 
-        // シャッフル音をステップごとにスケジュール
+        // カチカチ音: holdTicks後からスケジュール
         String amountText = (amount > 0 ? "+" : "") + ChipManager.formatAmount(amount);
         int digitCount = countDigits(amountText);
         int totalSteps = WIND_UP_STEPS + digitCount;
@@ -260,7 +268,7 @@ public class BalanceDisplay implements Runnable {
 
         for (int i = 0; i < totalSteps; i++) {
             final int step = i;
-            long tickDelay = (long) i * ticksPerStep;
+            long tickDelay = holdTicks + (long) i * ticksPerStep;
 
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 if (!player.isOnline()) return;
@@ -276,7 +284,7 @@ public class BalanceDisplay implements Runnable {
         }
 
         // 全確定後 → 完了音
-        long finalDelay = (long) totalSteps * ticksPerStep + 1L;
+        long finalDelay = holdTicks + (long) totalSteps * ticksPerStep + 1L;
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (!player.isOnline()) return;
             if (doneSound != null) {
@@ -286,28 +294,38 @@ public class BalanceDisplay implements Runnable {
     }
 
     /**
-     * カジノ・アリーナからの残高変動を通知する（デフォルト効果音）。
-     *
-     * @param player 対象プレイヤー
-     * @param amount 変動額（正: 収入, 負: 支出）
+     * カジノ・アリーナからの残高変動を音付きで通知する（holdTicks=0）。
+     */
+    public void notifyDelta(Player player, long amount, Sound doneSound) {
+        notifyDelta(player, amount, doneSound, 0);
+    }
+
+    /**
+     * カジノ・アリーナからの残高変動を通知する（デフォルト効果音、holdTicks=0）。
      */
     public void notifyDelta(Player player, long amount) {
         Sound sound = amount >= 0
                 ? Sound.ENTITY_EXPERIENCE_ORB_PICKUP
                 : Sound.BLOCK_NOTE_BLOCK_BASS;
-        notifyDelta(player, amount, sound);
+        notifyDelta(player, amount, sound, 0);
     }
 
     /** 差額表示の一時データ */
     private static class DeltaDisplay {
         final long amount;
         final boolean animated;
+        final int holdTicks; // ロックイン開始前のシャッフル維持期間
         int remaining;
 
         DeltaDisplay(long amount, int remaining, boolean animated) {
+            this(amount, remaining, animated, 0);
+        }
+
+        DeltaDisplay(long amount, int remaining, boolean animated, int holdTicks) {
             this.amount = amount;
             this.remaining = remaining;
             this.animated = animated;
+            this.holdTicks = holdTicks;
         }
     }
 }

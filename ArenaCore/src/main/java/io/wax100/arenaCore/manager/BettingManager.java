@@ -484,42 +484,57 @@ public class BettingManager {
                     // ダブルアップ不参加 → 通常配布
                     distributeAmount(playerId, payout);
 
-                    // 配当計算式の表示
+                    // 計算式データ
                     long totalPool = session.getTotalPool();
                     long winningPool = session.getTeamPool(winningTeam);
                     double odds = winningPool > 0 ? (double) bettorPool / winningPool : 0;
 
+                    // チャット: 簡潔な結果のみ
                     player.sendMessage("");
                     player.sendMessage(ArenaMessages.PREFIX + ChatColor.GOLD + ChatColor.BOLD + "🎉 配当受取！");
-                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.DARK_GRAY + "───────────────────");
-                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "総ベット額: "
-                            + ChatColor.WHITE + ChipManager.formatAmount(totalPool) + " E");
-                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "勝利チームプール: "
-                            + ChatColor.WHITE + ChipManager.formatAmount(winningPool) + " E");
-                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "配当プール: "
-                            + ChatColor.WHITE + ChipManager.formatAmount(bettorPool) + " E"
-                            + ChatColor.DARK_GRAY + " (天引後)");
-                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "オッズ: "
-                            + ChatColor.AQUA + String.format("×%.2f", odds)
-                            + ChatColor.DARK_GRAY + " (" + ChipManager.formatAmount(bettorPool)
-                            + " ÷ " + ChipManager.formatAmount(winningPool) + ")");
-                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.DARK_GRAY + "───────────────────");
-                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "あなたのベット: "
-                            + ChatColor.YELLOW + ChipManager.formatAmount(originalBet) + " E");
-                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "計算: "
-                            + ChatColor.WHITE + ChipManager.formatAmount(originalBet)
-                            + ChatColor.GRAY + " × "
-                            + ChatColor.AQUA + String.format("%.2f", odds)
-                            + ChatColor.GRAY + " = "
-                            + ChatColor.YELLOW + ChatColor.BOLD + ChipManager.formatAmount(payout) + " E");
-                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "損益: "
+                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "ベット: "
+                            + ChatColor.YELLOW + ChipManager.formatAmount(originalBet) + " E"
+                            + ChatColor.DARK_GRAY + "  ×" + String.format("%.2f", odds)
+                            + ChatColor.GRAY + "  →  "
+                            + ChatColor.YELLOW + ChatColor.BOLD + ChipManager.formatAmount(payout) + " E"
+                            + ChatColor.RESET + "  "
                             + (profit >= 0 ? ChatColor.GREEN + "+"
                             : ChatColor.RED.toString())
                             + ChipManager.formatAmount(profit) + " E");
-                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.DARK_GRAY + "───────────────────");
                     player.sendMessage("");
 
-                    notifyBalanceDelta(player, payout);
+                    // サブタイトル: 計算式をステップ表示（各30tick = 1.5秒）
+                    int stepDuration = 30;
+                    int step = 0;
+
+                    scheduleSubtitle(player, stepDuration * step++,
+                            ChatColor.GOLD.toString() + ChatColor.BOLD + "🎉 PAYOUT",
+                            ChatColor.GRAY + "Total Pool  " + ChatColor.WHITE + ChipManager.formatAmount(totalPool) + " E",
+                            stepDuration);
+
+                    scheduleSubtitle(player, stepDuration * step++,
+                            ChatColor.GOLD.toString() + ChatColor.BOLD + "🎉 PAYOUT",
+                            ChatColor.GRAY + "Winner Pool  " + ChatColor.WHITE + ChipManager.formatAmount(winningPool) + " E",
+                            stepDuration);
+
+                    scheduleSubtitle(player, stepDuration * step++,
+                            ChatColor.GOLD.toString() + ChatColor.BOLD + "🎉 PAYOUT",
+                            ChatColor.GRAY + "Odds  " + ChatColor.AQUA + "×" + String.format("%.2f", odds),
+                            stepDuration);
+
+                    scheduleSubtitle(player, stepDuration * step++,
+                            ChatColor.GOLD.toString() + ChatColor.BOLD + "🎉 PAYOUT",
+                            ChatColor.WHITE + ChipManager.formatAmount(originalBet)
+                                    + ChatColor.GRAY + " × "
+                                    + ChatColor.AQUA + String.format("%.2f", odds)
+                                    + ChatColor.GRAY + " = "
+                                    + ChatColor.YELLOW + "???",
+                            stepDuration);
+
+                    int holdTicks = stepDuration * step; // サブタイトル表示完了まで
+
+                    // notifyDelta: holdTicks間シャッフル維持 → サブタイトル終了後にロックイン
+                    notifyBalanceDelta(player, payout, holdTicks);
                 } else {
                     distributeAmount(playerId, payout);
                     plugin.getLogger().warning("オフラインプレイヤーへの配当をVault経由で入金: " + playerId + " / " + payout + " E");
@@ -868,15 +883,37 @@ public class BettingManager {
     }
     /**
      * ChipLib の BalanceDisplay に音付き差額通知を送る。
-     *
-     * @param player 対象プレイヤー
-     * @param amount 変動額（正: 収入, 負: 支出）
      */
     private void notifyBalanceDelta(Player player, long amount) {
+        notifyBalanceDelta(player, amount, 0);
+    }
+
+    /**
+     * ChipLib の BalanceDisplay に音付き差額通知を送る（holdTicks指定）。
+     *
+     * @param player    対象プレイヤー
+     * @param amount    変動額
+     * @param holdTicks シャッフル維持期間（tick）
+     */
+    private void notifyBalanceDelta(Player player, long amount, int holdTicks) {
         ChipPlugin chipPlugin = (ChipPlugin) Bukkit.getPluginManager().getPlugin("ChipLib");
         if (chipPlugin == null) return;
         BalanceDisplay display = chipPlugin.getBalanceDisplay();
         if (display == null) return;
-        display.notifyDelta(player, amount);
+        Sound sound = amount >= 0
+                ? Sound.ENTITY_EXPERIENCE_ORB_PICKUP
+                : Sound.BLOCK_NOTE_BLOCK_BASS;
+        display.notifyDelta(player, amount, sound, holdTicks);
+    }
+
+    /**
+     * 遅延付きでサブタイトルを表示する。
+     */
+    private void scheduleSubtitle(Player player, long delayTicks,
+                                   String title, String subtitle, int stayTicks) {
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (!player.isOnline()) return;
+            player.sendTitle(title, subtitle, 5, stayTicks, 5);
+        }, delayTicks);
     }
 }
