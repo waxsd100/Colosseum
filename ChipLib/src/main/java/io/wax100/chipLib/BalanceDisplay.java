@@ -109,6 +109,17 @@ public class BalanceDisplay implements Runnable {
     }
 
     private String buildActionBar(long balance, long chipValue, UUID uuid) {
+        // オーバーレイメッセージがある場合は残高表示を一時的に置き換え
+        OverlayMessage overlay = activeOverlay.get(uuid);
+        if (overlay != null) {
+            if (overlay.remaining > 0) {
+                overlay.remaining -= INTERVAL_TICKS;
+                return C_SEPARATOR + "┃ " + overlay.message + ChatColor.RESET + C_SEPARATOR + " ┃";
+            } else {
+                activeOverlay.remove(uuid);
+            }
+        }
+
         StringBuilder sb = new StringBuilder();
 
         sb.append(C_SEPARATOR).append("┃ ");
@@ -133,18 +144,6 @@ public class BalanceDisplay implements Runnable {
             sb.append(C_LABEL).append("🎰 ");
             sb.append(C_CHIPS).append(ChipManager.formatAmount(chipValue));
             sb.append(C_UNIT).append(" E");
-        }
-
-        // オーバーレイメッセージ
-        OverlayMessage overlay = activeOverlay.get(uuid);
-        if (overlay != null) {
-            if (overlay.remaining > 0) {
-                sb.append(ChatColor.RESET).append(C_SEPARATOR).append("  ┃  ");
-                sb.append(overlay.message);
-                overlay.remaining -= INTERVAL_TICKS;
-            } else {
-                activeOverlay.remove(uuid);
-            }
         }
 
         sb.append(ChatColor.RESET).append(C_SEPARATOR).append(" ┃");
