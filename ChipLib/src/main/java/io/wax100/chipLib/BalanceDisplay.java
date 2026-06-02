@@ -128,12 +128,15 @@ public class BalanceDisplay implements Runnable {
             }
         }
 
-        // ┃ 🎰 Chips  3,000 E ┃
-        sb.append(ChatColor.RESET).append(C_SEPARATOR).append("  ┃  ");
-        sb.append(C_LABEL).append("🎰 ");
-        sb.append(C_CHIPS).append(ChipManager.formatAmount(chipValue));
-        sb.append(C_UNIT).append(" E");
-        sb.append(C_SEPARATOR).append(" ┃");
+        // ┃ 🎰 Chips  3,000 E ┃（チップ所持時のみ）
+        if (chipValue > 0) {
+            sb.append(ChatColor.RESET).append(C_SEPARATOR).append("  ┃  ");
+            sb.append(C_LABEL).append("🎰 ");
+            sb.append(C_CHIPS).append(ChipManager.formatAmount(chipValue));
+            sb.append(C_UNIT).append(" E");
+        }
+
+        sb.append(ChatColor.RESET).append(C_SEPARATOR).append(" ┃");
 
         return sb.toString();
     }
