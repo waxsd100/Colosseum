@@ -115,7 +115,8 @@ public class ArenaGuardManager {
         RegionManager regionManager = container.get(BukkitAdapter.adapt(world));
         if (regionManager == null) return;
 
-        String regionId = REGION_PREFIX + session.getName().toLowerCase();
+        // WorldGuard は ASCII英数字・ハイフン・アンダースコアのみ許可
+        String regionId = REGION_PREFIX + session.getName().toLowerCase().replaceAll("[^a-z0-9_\\-]", "_");
 
         // 既存リージョンがあれば削除
         if (regionManager.hasRegion(regionId)) {
