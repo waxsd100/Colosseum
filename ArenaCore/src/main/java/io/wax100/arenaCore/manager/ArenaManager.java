@@ -34,6 +34,7 @@ import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
 import java.util.*;
+import java.util.logging.Level;
 
 /**
  * 闘技場セッションのライフサイクルを管理するクラス。
@@ -468,7 +469,7 @@ public class ArenaManager {
         // TP先未設定チェック
         for (String team : activeSession.getTeamNames()) {
             TeamAreaConfig areaConfig = activeSession.getTeamAreaConfig(team);
-            if (areaConfig != null && areaConfig.getDestination() == null) {
+            if (areaConfig == null || areaConfig.getDestination() == null) {
                 ChatColor teamColor = activeSession.getTeamColor(team);
                 Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED
                         + "✗ " + teamColor + team + ChatColor.RED + " のTP先が未設定です。"
@@ -688,7 +689,11 @@ public class ArenaManager {
         Bukkit.broadcastMessage("");
 
         try {
-            bettingManager.calculateAndDistributePayout(activeSession, winningTeam);
+            try {
+                bettingManager.calculateAndDistributePayout(activeSession, winningTeam);
+            } catch (Exception e) {
+                plugin.getLogger().log(Level.SEVERE, "配当処理中にエラー", e);
+            }
 
             // 地形復元開始（非同期。TerrainManager が sessionName/fieldConfig を独自保持するため、
             // この後の activeSession=null でも問題ない）
@@ -829,9 +834,8 @@ public class ArenaManager {
         String team = activeSession.getMobTeam(entityId);
         if (team == null) return;
 
-        activeSession.removeMob(entityId);
-
-        if (!activeSession.hasAliveMobs(team)) {
+        // removeMob を勝敗判定の後に行う（先に除去すると checkWinOnDeath がチームを検出できない）
+        if (!activeSession.hasAliveMobs(team, entityId)) {
             // Mobチーム全滅 → 仮想メンバーを全員脱落扱いにする
             eliminatedPlayers.addAll(activeSession.getTeamMembers(team));
             // Mobチームにプレイヤーメンバーがいない場合でも
@@ -848,6 +852,7 @@ public class ArenaManager {
                 declareWinner(winner);
             }
         }
+        activeSession.removeMob(entityId);
     }
 
     /**

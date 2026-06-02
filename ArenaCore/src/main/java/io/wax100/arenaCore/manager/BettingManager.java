@@ -144,18 +144,8 @@ public class BettingManager {
             }
         });
 
-        // ベット額の更新（減算）
-        Bet bet = session.getBet(player.getUniqueId(), chipInfo.teamName());
-        if (bet != null) {
-            if (bet.amount() >= chipInfo.chipValue()) {
-                bet.addAmount(-chipInfo.chipValue());
-                if (bet.amount() <= 0) {
-                    session.removeBet(player.getUniqueId(), chipInfo.teamName());
-                }
-            } else {
-                session.removeBet(player.getUniqueId(), chipInfo.teamName());
-            }
-        }
+        // ベット額の更新（減算）— プールキャッシュも同時に更新
+        session.reduceBetAmount(player.getUniqueId(), chipInfo.teamName(), chipInfo.chipValue());
 
         // 視覚エフェクト: 回収演出
         playChipBreakEffect(location);
@@ -483,14 +473,14 @@ public class BettingManager {
                 Player player = Bukkit.getPlayer(playerId);
                 if (player != null && player.isOnline()) {
                     Bet playerBet = session.getBet(playerId, winningTeam);
-                    if (playerBet == null) continue;
-                    long originalBet = playerBet.amount();
+                    long originalBet = playerBet != null ? playerBet.amount() : 0;
                     long profit = payout - originalBet;
 
                     // ダブルアップ選択を提示（配布前に判定）
                     DoubleUpManager doubleUp = plugin.getDoubleUpManager();
                     if (doubleUp != null && doubleUp.offerChoice(playerId, payout, originalBet, winningTeam)) {
                         // ダブルアップ選択待ち — 配当はまだ配布しない
+                        totalPayout += payout;
                         continue;
                     }
 
@@ -562,20 +552,27 @@ public class BettingManager {
                 final long winBet = winnerPayoutMap.get(bet.playerId());
 
                 Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                    if (!player.isOnline()) return;
+                    Player p = Bukkit.getPlayer(bet.playerId());
+                    if (p == null || !p.isOnline()) return;
 
                     // チャット通知
-                    player.sendMessage("");
-                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.AQUA + "📊 ヘッジベット結果:");
-                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "  勝ちベット: "
+                    p.sendMessage("");
+                    p.sendMessage(ArenaMessages.PREFIX + ChatColor.AQUA + "📊 ヘッジベット結果:");
+                    p.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "  勝ちベット: "
                             + ChatColor.GREEN + ChipManager.formatAmount(winBet) + " E"
                             + ChatColor.GRAY + " → 配当済み");
-                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "  負けベット: "
+                    p.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "  負けベット: "
                             + ChatColor.RED + "-" + ChipManager.formatAmount(lossAmount) + " E"
                             + ChatColor.GRAY + " → 没収");
-                    player.sendMessage("");
+                    p.sendMessage("");
 
-                    notifyBalanceDelta(player, -lossAmount, 0);
+                    // ダブルアップ保留中なら没収
+                    DoubleUpManager doubleUp = plugin.getDoubleUpManager();
+                    if (doubleUp != null && doubleUp.hasActiveStreak(bet.playerId())) {
+                        doubleUp.confiscateOnLoss(bet.playerId());
+                    }
+
+                    notifyBalanceDelta(p, -lossAmount, 0);
                 }, winnerAnimationTicks + 20);
             } else {
                 // ── 負けのみ: 従来通り即時 ──

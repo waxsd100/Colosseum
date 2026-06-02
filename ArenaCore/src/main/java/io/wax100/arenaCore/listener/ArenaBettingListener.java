@@ -166,7 +166,7 @@ public class ArenaBettingListener implements Listener {
 
         ArenaSession session = arenaManager.getActiveSession();
         ArenaState state = session.getState();
-        if (state != ArenaState.BETTING && state != ArenaState.BLIND && state != ArenaState.CLOSED) return;
+        if (state != ArenaState.BETTING && state != ArenaState.BLIND) return;
 
         Plugin chipLibPlugin = Bukkit.getPluginManager().getPlugin("ChipLib");
         if (chipLibPlugin instanceof ChipPlugin chipPlugin) {

@@ -144,6 +144,7 @@ public class ArenaTeamAreaListener implements Listener {
      */
     private String findTeamArea(ArenaSession session, Location loc) {
         for (String team : session.getTeamNames()) {
+            if (session.isMobTeam(team)) continue;
             TeamAreaConfig config = session.getTeamAreaConfig(team);
             if (config != null && config.contains(loc)) {
                 return team;

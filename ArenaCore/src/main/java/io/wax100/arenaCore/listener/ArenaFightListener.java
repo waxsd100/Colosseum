@@ -14,7 +14,6 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
 /**
@@ -46,15 +45,6 @@ public class ArenaFightListener implements Listener {
     public void onPlayerQuit(PlayerQuitEvent event) {
         handleFighterElimination(event.getPlayer(),
                 ChatColor.YELLOW + " がログアウトしました（死亡扱い）");
-    }
-
-    /**
-     * 試合中の戦闘員キック（死亡扱い）。
-     */
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onPlayerKick(PlayerKickEvent event) {
-        handleFighterElimination(event.getPlayer(),
-                ChatColor.YELLOW + " がキックされました（死亡扱い）");
     }
 
     /**

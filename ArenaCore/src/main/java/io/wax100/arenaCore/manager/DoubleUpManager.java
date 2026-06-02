@@ -113,6 +113,7 @@ public class DoubleUpManager {
         pendingChoices.put(playerId, new PendingChoice(payoutAmount, originalBet, teamName));
         sendChoiceUI(player, payoutAmount, originalBet, currentStreak + 1);
 
+        cancelTimer(playerId);  // cancel old timer first
         BukkitTask task = Bukkit.getScheduler().runTaskLater(plugin, () -> {
             handleCashOut(playerId);
         }, TIMEOUT_SECONDS * 20L);
@@ -246,7 +247,12 @@ public class DoubleUpManager {
                 targetTeam = session.getTeamNames().isEmpty() ? null : session.getTeamNames().get(0);
             }
             if (targetTeam == null) {
-                handleCashOut(playerId);
+                DoubleUpState state2 = activeStreaks.remove(playerId);
+                if (state2 != null) {
+                    // 直接払い出し
+                    plugin.getBettingManager().payoutToPlayer(playerId, state2.getEffectiveAmount());
+                    notifyBalanceDelta(Bukkit.getPlayer(playerId), state2.getEffectiveAmount());
+                }
                 continue;
             }
 
@@ -301,6 +307,7 @@ public class DoubleUpManager {
      * プラグイン無効化時に全保留を強制確定。
      */
     public void shutdown() {
+        clearTimers();
         for (UUID playerId : new HashMap<>(pendingChoices).keySet()) {
             handleCashOut(playerId);
         }
@@ -315,7 +322,6 @@ public class DoubleUpManager {
                         + " E を強制確定しました。");
             }
         }
-        clearTimers();
         activeStreaks.clear();
     }
 

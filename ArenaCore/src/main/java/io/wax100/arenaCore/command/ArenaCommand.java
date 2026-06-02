@@ -40,6 +40,11 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String [] args) {
+        if (!sender.hasPermission("arenacore.admin")) {
+            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "権限がありません。");
+            return true;
+        }
+
         if (args.length == 0) {
             sendUsage(sender);
             return true;

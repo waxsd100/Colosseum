@@ -201,6 +201,21 @@ public class ArenaSession {
      */
     public boolean removeTeam(String teamName) {
         if (!teams.containsKey(teamName)) return false;
+
+        // ベットクリーンアップ
+        long poolAmount = teamPools.getOrDefault(teamName, 0L);
+        for (Map<String, Bet> teamBets : bets.values()) {
+            teamBets.remove(teamName);
+        }
+        bets.values().removeIf(Map::isEmpty);
+        totalPool = Math.max(0L, totalPool - poolAmount);
+
+        // 設置チップクリーンアップ
+        placedChips.values().removeIf(chip -> chip.teamName().equals(teamName));
+
+        // 追跡Mobクリーンアップ
+        trackedMobs.values().removeIf(team -> team.equals(teamName));
+
         teamNames.remove(teamName);
         teams.remove(teamName);
         scores.remove(teamName);
@@ -384,6 +399,7 @@ public class ArenaSession {
         if (removed != null) {
             long amt = removed.amount();
             teamPools.merge(teamName, -amt, Long::sum);
+            teamPools.computeIfPresent(teamName, (k, v) -> Math.max(0L, v));
             // データ不整合時にオーバーフローしないよう安全に減算
             totalPool = Math.max(0L, totalPool - amt);
         }
@@ -398,6 +414,28 @@ public class ArenaSession {
      * @param amount   ベット額
      * @throws NullPointerException playerId または teamName が null の場合
      */
+    /**
+     * ベット額を減額し、プールキャッシュも同時に更新する。
+     * 額が0以下になった場合はベットを削除する。
+     *
+     * @param playerId プレイヤーUUID
+     * @param teamName チーム名
+     * @param amount   減額する量（正の値）
+     */
+    public void reduceBetAmount(UUID playerId, String teamName, long amount) {
+        Bet bet = getBet(playerId, teamName);
+        if (bet == null) return;
+        long actual = Math.min(amount, bet.amount());
+        if (actual <= 0) return;
+        bet.addAmount(-actual);
+        teamPools.merge(teamName, -actual, Long::sum);
+        teamPools.computeIfPresent(teamName, (k, v) -> Math.max(0L, v));
+        totalPool = Math.max(0L, totalPool - actual);
+        if (bet.amount() <= 0) {
+            removeBet(playerId, teamName);
+        }
+    }
+
     public void addOrUpdateBet(UUID playerId, String teamName, long amount) {
         Objects.requireNonNull(playerId, "playerId must not be null");
         Objects.requireNonNull(teamName, "teamName must not be null");
@@ -592,6 +630,22 @@ public class ArenaSession {
     public boolean hasAliveMobs(String teamName) {
         return trackedMobs.containsValue(teamName);
     }
+
+    /**
+     * 指定チームに生存中のモンスターがいるかを返す（特定エンティティを除外）。
+     *
+     * @param teamName  チーム名
+     * @param excludeId 除外するエンティティUUID（死亡処理中のMob）
+     */
+    public boolean hasAliveMobs(String teamName, UUID excludeId) {
+        for (Map.Entry<UUID, String> entry : trackedMobs.entrySet()) {
+            if (entry.getValue().equals(teamName) && !entry.getKey().equals(excludeId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 
     /**
      * チームを全滅済みとしてマークする（Mobチーム等で使用）。
