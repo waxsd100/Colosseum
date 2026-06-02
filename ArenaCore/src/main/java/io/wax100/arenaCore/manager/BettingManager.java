@@ -560,7 +560,22 @@ public class BettingManager {
                             + ChatColor.RED + " は没収されました。");
                     player.sendMessage("");
 
-                    notifyBalanceDelta(player, -bet.amount());
+                    // サブタイトル: 没収演出
+                    int stepDuration = 30;
+                    int step = 0;
+
+                    scheduleSubtitle(player, stepDuration * step++,
+                            ChatColor.RED.toString() + ChatColor.BOLD + "💀 CONFISCATED",
+                            ChatColor.GRAY + "Your Bet  " + ChatColor.YELLOW + ChipManager.formatAmount(bet.amount()) + " E",
+                            stepDuration);
+
+                    scheduleSubtitle(player, stepDuration * step++,
+                            ChatColor.RED.toString() + ChatColor.BOLD + "💀 CONFISCATED",
+                            ChatColor.RED + "-" + ChipManager.formatAmount(bet.amount()) + " E",
+                            stepDuration);
+
+                    int holdTicks = stepDuration * step;
+                    notifyBalanceDelta(player, -bet.amount(), holdTicks);
 
                     // ダブルアップ保留中なら没収
                     DoubleUpManager doubleUp = plugin.getDoubleUpManager();
