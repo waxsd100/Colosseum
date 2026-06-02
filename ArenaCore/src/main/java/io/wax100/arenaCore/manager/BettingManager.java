@@ -484,19 +484,41 @@ public class BettingManager {
                     // ダブルアップ不参加 → 通常配布
                     distributeAmount(playerId, payout);
 
+                    // 配当計算式の表示
+                    long totalPool = session.getTotalPool();
+                    long winningPool = session.getTeamPool(winningTeam);
+                    double odds = winningPool > 0 ? (double) bettorPool / winningPool : 0;
+
                     player.sendMessage("");
                     player.sendMessage(ArenaMessages.PREFIX + ChatColor.GOLD + ChatColor.BOLD + "🎉 配当受取！");
-                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "ベット額: "
+                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.DARK_GRAY + "───────────────────");
+                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "総ベット額: "
+                            + ChatColor.WHITE + ChipManager.formatAmount(totalPool) + " E");
+                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "勝利チームプール: "
+                            + ChatColor.WHITE + ChipManager.formatAmount(winningPool) + " E");
+                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "配当プール: "
+                            + ChatColor.WHITE + ChipManager.formatAmount(bettorPool) + " E"
+                            + ChatColor.DARK_GRAY + " (天引後)");
+                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "オッズ: "
+                            + ChatColor.AQUA + String.format("×%.2f", odds)
+                            + ChatColor.DARK_GRAY + " (" + ChipManager.formatAmount(bettorPool)
+                            + " ÷ " + ChipManager.formatAmount(winningPool) + ")");
+                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.DARK_GRAY + "───────────────────");
+                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "あなたのベット: "
                             + ChatColor.YELLOW + ChipManager.formatAmount(originalBet) + " E");
-                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "配当: "
-                            + ChatColor.YELLOW + ChipManager.formatAmount(payout) + " E");
+                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "計算: "
+                            + ChatColor.WHITE + ChipManager.formatAmount(originalBet)
+                            + ChatColor.GRAY + " × "
+                            + ChatColor.AQUA + String.format("%.2f", odds)
+                            + ChatColor.GRAY + " = "
+                            + ChatColor.YELLOW + ChatColor.BOLD + ChipManager.formatAmount(payout) + " E");
                     player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "損益: "
                             + (profit >= 0 ? ChatColor.GREEN + "+"
                             : ChatColor.RED.toString())
                             + ChipManager.formatAmount(profit) + " E");
+                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.DARK_GRAY + "───────────────────");
                     player.sendMessage("");
 
-                    // タイトルアニメーション
                     notifyBalanceDelta(player, payout);
                 } else {
                     distributeAmount(playerId, payout);
