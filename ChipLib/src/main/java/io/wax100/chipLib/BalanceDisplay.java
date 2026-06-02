@@ -42,6 +42,7 @@ public class BalanceDisplay implements Runnable {
     // ── キャッシュ ──
     private final Map<UUID, Long> previousBalances = new ConcurrentHashMap<>();
     private final Map<UUID, DeltaDisplay> activeDelta = new ConcurrentHashMap<>();
+    private final Map<UUID, OverlayMessage> activeOverlay = new ConcurrentHashMap<>();
 
     // ── カラーパレット ──
     private static final ChatColor C_SEPARATOR = ChatColor.DARK_GRAY;
@@ -104,6 +105,7 @@ public class BalanceDisplay implements Runnable {
 
         previousBalances.keySet().removeIf(uuid -> Bukkit.getPlayer(uuid) == null);
         activeDelta.keySet().removeIf(uuid -> Bukkit.getPlayer(uuid) == null);
+        activeOverlay.keySet().removeIf(uuid -> Bukkit.getPlayer(uuid) == null);
     }
 
     private String buildActionBar(long balance, long chipValue, UUID uuid) {
@@ -131,6 +133,18 @@ public class BalanceDisplay implements Runnable {
             sb.append(C_LABEL).append("🎰 ");
             sb.append(C_CHIPS).append(ChipManager.formatAmount(chipValue));
             sb.append(C_UNIT).append(" E");
+        }
+
+        // オーバーレイメッセージ
+        OverlayMessage overlay = activeOverlay.get(uuid);
+        if (overlay != null) {
+            if (overlay.remaining > 0) {
+                sb.append(ChatColor.RESET).append(C_SEPARATOR).append("  ┃  ");
+                sb.append(overlay.message);
+                overlay.remaining -= INTERVAL_TICKS;
+            } else {
+                activeOverlay.remove(uuid);
+            }
         }
 
         sb.append(ChatColor.RESET).append(C_SEPARATOR).append(" ┃");
@@ -239,6 +253,21 @@ public class BalanceDisplay implements Runnable {
     public void clearPlayer(UUID playerId) {
         previousBalances.remove(playerId);
         activeDelta.remove(playerId);
+        activeOverlay.remove(playerId);
+    }
+
+    /**
+     * アクションバーに一時メッセージを表示する。
+     *
+     * <p>残高表示の右側に指定メッセージを一定時間表示する。
+     * BalanceDisplayの描画ループに乗るため、上書きされない。
+     *
+     * @param player  対象プレイヤー
+     * @param message 表示するメッセージ（色コード込み）
+     * @param ticks   表示時間（tick）
+     */
+    public void showOverlay(Player player, String message, int ticks) {
+        activeOverlay.put(player.getUniqueId(), new OverlayMessage(message, ticks));
     }
 
     // ══════════════════════════════════════
@@ -326,6 +355,17 @@ public class BalanceDisplay implements Runnable {
             this.remaining = remaining;
             this.animated = animated;
             this.holdTicks = holdTicks;
+        }
+    }
+
+    /** アクションバーに一時表示するオーバーレイメッセージ。 */
+    private static class OverlayMessage {
+        final String message;
+        int remaining;
+
+        OverlayMessage(String message, int remaining) {
+            this.message = message;
+            this.remaining = remaining;
         }
     }
 }
