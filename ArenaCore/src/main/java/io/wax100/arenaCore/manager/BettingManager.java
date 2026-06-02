@@ -8,7 +8,7 @@ import io.wax100.arenaCore.model.BettingRegion;
 import io.wax100.arenaCore.model.MatchMode;
 import io.wax100.arenaCore.payout.PayoutDistributor;
 import io.wax100.arenaCore.util.ArenaMessages;
-import io.wax100.arenaCore.util.PayoutAnimation;
+import io.wax100.chipLib.PayoutAnimation;
 import io.wax100.chipLib.Chip;
 import io.wax100.chipLib.ChipManager;
 import org.bukkit.Bukkit;

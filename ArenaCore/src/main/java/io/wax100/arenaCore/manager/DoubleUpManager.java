@@ -3,7 +3,7 @@ package io.wax100.arenaCore.manager;
 import io.wax100.arenaCore.ArenaCore;
 import io.wax100.arenaCore.model.ArenaSession;
 import io.wax100.arenaCore.util.ArenaMessages;
-import io.wax100.arenaCore.util.PayoutAnimation;
+import io.wax100.chipLib.PayoutAnimation;
 import io.wax100.chipLib.ChipManager;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.chat.ClickEvent;

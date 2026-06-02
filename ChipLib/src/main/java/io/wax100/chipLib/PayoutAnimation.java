@@ -1,6 +1,5 @@
-package io.wax100.arenaCore.util;
+package io.wax100.chipLib;
 
-import io.wax100.chipLib.ChipManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Sound;
@@ -16,13 +15,13 @@ import java.util.Random;
  * 左から順に1文字ずつ確定していく演出を行う。
  *
  * <pre>
- * Step 0:  +$#,%!& E     ← 全桁シャッフル
- * Step 1:  +$#,%!& E
- * Step 2:  +1#,%!& E     ← 左端確定
- * Step 3:  +10,%!& E
- * Step 4:  +10,#!& E
- * Step 5:  +10,0!& E
- * Step 6:  +10,00& E
+ * Step 0:  +$#,%!&amp; E     ← 全桁シャッフル
+ * Step 1:  +$#,%!&amp; E
+ * Step 2:  +1#,%!&amp; E     ← 左端確定
+ * Step 3:  +10,%!&amp; E
+ * Step 4:  +10,#!&amp; E
+ * Step 5:  +10,0!&amp; E
+ * Step 6:  +10,00&amp; E
  * Step 7:  +10,000 E     ← 全桁確定 → ホールド
  * </pre>
  */
@@ -102,6 +101,30 @@ public final class PayoutAnimation {
                 Sound.BLOCK_ANVIL_LAND, delay);
     }
 
+    /**
+     * 汎用の金額増加アニメーション（アクションバー用ではなくタイトル用）。
+     */
+    public static void playIncome(Plugin plugin, Player player, long amount, long delay) {
+        play(plugin, player,
+                ChatColor.GREEN.toString() + ChatColor.BOLD + "▲ INCOME",
+                "+" + ChipManager.formatAmount(amount) + " E",
+                null,
+                ChatColor.GREEN, ChatColor.WHITE,
+                Sound.ENTITY_EXPERIENCE_ORB_PICKUP, delay);
+    }
+
+    /**
+     * 汎用の金額減少アニメーション（アクションバー用ではなくタイトル用）。
+     */
+    public static void playExpense(Plugin plugin, Player player, long amount, long delay) {
+        play(plugin, player,
+                ChatColor.RED.toString() + ChatColor.BOLD + "▼ EXPENSE",
+                "-" + ChipManager.formatAmount(amount) + " E",
+                null,
+                ChatColor.RED, ChatColor.GRAY,
+                Sound.BLOCK_NOTE_BLOCK_BASS, delay);
+    }
+
     // ── コアアニメーション ──────────────────────────────
 
     /**
@@ -169,13 +192,6 @@ public final class PayoutAnimation {
 
     /**
      * 指定ステップにおけるサブタイトルテキストを構築する。
-     *
-     * @param original      元テキスト
-     * @param digitIndices  シャッフル対象の文字位置配列
-     * @param lockedDigits  左から確定済みの桁数
-     * @param confirmedCol  確定文字の色
-     * @param unconfirmedCol 未確定文字の色
-     * @return フォーマット済みテキスト
      */
     private static String render(String original, int[] digitIndices,
                                   int lockedDigits, ChatColor confirmedCol,
@@ -183,13 +199,11 @@ public final class PayoutAnimation {
         char[] chars = original.toCharArray();
         StringBuilder sb = new StringBuilder();
 
-        // 確定済みの桁のインデックスをセットに入れる
         boolean[] isConfirmed = new boolean[chars.length];
         for (int d = 0; d < Math.min(lockedDigits, digitIndices.length); d++) {
             isConfirmed[digitIndices[d]] = true;
         }
 
-        // 全桁がシャッフル対象かを判定する配列
         boolean[] isDigitPos = new boolean[chars.length];
         for (int idx : digitIndices) {
             isDigitPos[idx] = true;
@@ -198,15 +212,12 @@ public final class PayoutAnimation {
         for (int i = 0; i < chars.length; i++) {
             if (isDigitPos[i]) {
                 if (isConfirmed[i]) {
-                    // 確定済み → 明るい色で実際の文字
                     sb.append(confirmedCol).append(chars[i]);
                 } else {
-                    // 未確定 → 暗い色でランダムグリフ
                     sb.append(unconfirmedCol);
                     sb.append(GLYPHS.charAt(RNG.nextInt(GLYPHS.length())));
                 }
             } else {
-                // 固定文字（カンマ、スペース、符号、E）
                 sb.append(ChatColor.DARK_GRAY).append(chars[i]);
             }
         }
