@@ -104,8 +104,8 @@ public class DoubleUpManager {
         long minAmount = plugin.getConfig().getLong("double-up.min-amount", 100);
         if (payoutAmount < minAmount) return false;
 
-        KoiKoiState existing = getExistingState(playerId);
-        int currentStreak = existing != null ? existing.streakCount : 0;
+        DoubleUpState existing = activeStreaks.get(playerId);
+        int currentStreak = existing != null ? existing.streakCount() : 0;
 
         pendingChoices.put(playerId, new PendingChoice(payoutAmount, originalBet, teamName));
         sendChoiceUI(player, payoutAmount, originalBet, currentStreak + 1);
@@ -279,14 +279,25 @@ public class DoubleUpManager {
         }
     }
 
+    /**
+     * ダブルアップ保留中のプレイヤーかどうか。
+     */
     public boolean hasActiveStreak(UUID playerId) {
         return activeStreaks.containsKey(playerId);
     }
 
+    /**
+     * 保留中ストリーク情報を取得する。
+     *
+     * @return ストリーク状態、または null
+     */
     public DoubleUpState getStreak(UUID playerId) {
         return activeStreaks.get(playerId);
     }
 
+    /**
+     * 選択待ち中かどうか。
+     */
     public boolean isPendingChoice(UUID playerId) {
         return pendingChoices.containsKey(playerId);
     }
@@ -315,7 +326,7 @@ public class DoubleUpManager {
             plugin.getBettingManager().distributeAmountPublic(playerId, state.getEffectiveAmount());
             Player player = Bukkit.getPlayer(playerId);
             if (player != null && player.isOnline()) {
-                player.sendMessage(ArenaMessages.PREFIX + org.bukkit.ChatColor.YELLOW
+                player.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
                         + "ダブルアップ保留額 " + ChipManager.formatAmount(state.getEffectiveAmount())
                         + " E を強制確定しました。");
             }
@@ -325,14 +336,6 @@ public class DoubleUpManager {
     }
 
     // ── 内部 ──
-
-    /** 後方互換用ラッパー（KoiKoiState は内部的に DoubleUpState と同じ） */
-    private record KoiKoiState(int streakCount) {}
-
-    private KoiKoiState getExistingState(UUID playerId) {
-        DoubleUpState s = activeStreaks.get(playerId);
-        return s != null ? new KoiKoiState(s.streakCount()) : null;
-    }
 
     private void cancelTimer(UUID playerId) {
         BukkitTask task = pendingTimers.remove(playerId);

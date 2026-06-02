@@ -466,14 +466,22 @@ public class BettingManager {
                 long payout = entry.getValue();
                 totalPayout += payout;
 
-                distributeAmount(playerId, payout);
-
                 Player player = Bukkit.getPlayer(playerId);
                 if (player != null && player.isOnline()) {
                     Bet playerBet = session.getBet(playerId, winningTeam);
                     if (playerBet == null) continue;
                     long originalBet = playerBet.amount();
                     long profit = payout - originalBet;
+
+                    // ダブルアップ選択を提示（配布前に判定）
+                    DoubleUpManager doubleUp = plugin.getDoubleUpManager();
+                    if (doubleUp != null && doubleUp.offerChoice(playerId, payout, originalBet, winningTeam)) {
+                        // ダブルアップ選択待ち — 配当はまだ配布しない
+                        continue;
+                    }
+
+                    // ダブルアップ不参加 → 通常配布
+                    distributeAmount(playerId, payout);
 
                     player.sendMessage("");
                     player.sendMessage(ArenaMessages.PREFIX + ChatColor.GOLD + ChatColor.BOLD + "🎉 配当受取！");
@@ -489,14 +497,8 @@ public class BettingManager {
 
                     // タイトルアニメーション
                     PayoutAnimation.playWinnerPayout(plugin, player, payout, originalBet, 10L);
-
-                    // ダブルアップ選択を提示
-                    DoubleUpManager doubleUp = plugin.getDoubleUpManager();
-                    if (doubleUp != null && doubleUp.offerChoice(playerId, payout, originalBet, winningTeam)) {
-                        // ダブルアップ選択待ち — 配当はまだ配布しない
-                        continue;
-                    }
                 } else {
+                    distributeAmount(playerId, payout);
                     plugin.getLogger().warning("オフラインプレイヤーへの配当をVault経由で入金: " + playerId + " / " + payout + " E");
                 }
             }
