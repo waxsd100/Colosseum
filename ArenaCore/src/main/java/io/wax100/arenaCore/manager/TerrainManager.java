@@ -421,7 +421,24 @@ public class TerrainManager {
         state = State.FLUSHING;
         Bukkit.broadcastMessage(ArenaMessages.MSG_TERRAIN_FLUSHING);
 
-        // Stage 2: 高速復元 → 完了後 Stage 3
+        // 設置ブロックを即座に一括除去（高速破壊）
+        Deque<RestoreEntry> deferred = new ArrayDeque<>();
+        for (RestoreEntry entry : restoreQueue) {
+            if (entry.restoreAtTick == Long.MAX_VALUE) {
+                deferred.add(entry);
+            }
+        }
+        restoreQueue.removeAll(deferred);
+        for (RestoreEntry entry : deferred) {
+            if (entry.location.getWorld() == null) continue;
+            Block block = entry.location.getBlock();
+            if (!block.getBlockData().equals(entry.originalData)) {
+                block.setBlockData(entry.originalData, false);
+                if (effects) playEffect(entry.location, entry.originalData);
+            }
+        }
+
+        // Stage 2: 残りの破壊ブロックを高速復元 → 完了後 Stage 3
         flushTask = new TerrainRestoreTask(
                 restoreQueue, this, postMatchBlocksPerTick, effects)
                 .runTaskTimer(plugin, postMatchDelay, 1L);
