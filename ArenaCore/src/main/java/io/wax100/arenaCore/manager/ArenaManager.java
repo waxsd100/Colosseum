@@ -47,6 +47,7 @@ public class ArenaManager {
     private final BettingManager bettingManager;
     private final RegionManager regionManager;
     private final TerrainManager terrainManager;
+    private final ArenaGuardManager guardManager;
 
     private ArenaSession activeSession;
     private BukkitTask oddsBroadcastTask;
@@ -70,6 +71,7 @@ public class ArenaManager {
         this.bettingManager = Objects.requireNonNull(bettingManager, "bettingManager must not be null");
         this.regionManager = Objects.requireNonNull(regionManager, "regionManager must not be null");
         this.terrainManager = Objects.requireNonNull(terrainManager, "terrainManager must not be null");
+        this.guardManager = new ArenaGuardManager(plugin);
     }
 
     public boolean hasActiveSession() { return activeSession != null; }
@@ -574,6 +576,9 @@ public class ArenaManager {
         // 地形追跡開始
         terrainManager.startTracking(activeSession);
 
+        // WorldGuard: 参加者のみ入場可・退場不可
+        guardManager.lockField(activeSession);
+
         // カスタムイベント発火（情報通知・キャンセル不可）
         Bukkit.getPluginManager().callEvent(new ArenaBettingCloseEvent(activeSession));
         plugin.getLogger().info("試合を開始しました: " + activeSession.getName());
@@ -675,6 +680,7 @@ public class ArenaManager {
         if (!activeSession.hasTeam(winningTeam)) return false;
 
         cancelAllTasks();
+        guardManager.unlockField();
 
         activeSession.setWinningTeam(winningTeam);
         activeSession.setState(ArenaState.FINISHED);
@@ -721,6 +727,7 @@ public class ArenaManager {
         boolean wasActive = activeSession.getState() == ArenaState.ACTIVE;
         plugin.getLogger().warning("闘技場セッションがキャンセルされました: " + activeSession.getName());
         cancelAllTasks();
+        guardManager.unlockField();
         cancelDeathmatch(); // 投票中ならキャンセル
 
         try {

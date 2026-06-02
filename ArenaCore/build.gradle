@@ -19,6 +19,7 @@ dependencies {
     compileOnly("org.spigotmc:spigot-api:${spigotApiVersion}")
     compileOnly("com.github.MilkBowl:VaultAPI:${vaultApiVersion}")
     compileOnly("com.sk89q.worldedit:worldedit-bukkit:${worldEditVersion}")
+    compileOnly("com.sk89q.worldguard:worldguard-bukkit:${worldGuardVersion}")
     compileOnly(project(':ChipLib'))
     compileOnly(project(':CasinoCore'))
 
