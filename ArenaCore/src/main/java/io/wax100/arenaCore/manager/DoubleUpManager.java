@@ -194,7 +194,7 @@ public class DoubleUpManager {
                 player.sendMessage(ArenaMessages.PREFIX + ChatColor.AQUA
                         + "×" + streak + " STREAK!  "
                         + ChatColor.GREEN + "Bonus ×"
-                        + String.format("%.1f", existing != null ? existing.getMultiplier() : 1.0));
+                        + String.format("%.1f", existing.getMultiplier()));
             }
             player.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "Total  "
                     + ChatColor.YELLOW + ChatColor.BOLD
