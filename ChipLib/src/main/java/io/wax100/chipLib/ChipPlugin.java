@@ -59,6 +59,11 @@ public final class ChipPlugin extends JavaPlugin implements Listener {
     private RankingManager rankingManager;
 
     /**
+     * 所持金リアルタイム表示タスク
+     */
+    private BalanceDisplay balanceDisplay;
+
+    /**
      * チップ使用を許可されたプレイヤーのセット
      */
     private final Set<UUID> allowedPlayers = new HashSet<>();
@@ -117,6 +122,10 @@ public final class ChipPlugin extends JavaPlugin implements Listener {
         // ランキング自動保存タイマーの開始
         rankingManager.startAutoSave(this);
 
+        // 所持金リアルタイム表示の開始
+        balanceDisplay = new BalanceDisplay(this);
+        balanceDisplay.start();
+
         getLogger().info("ChipLib が有効化されました！");
     }
 
@@ -125,6 +134,9 @@ public final class ChipPlugin extends JavaPlugin implements Listener {
      */
     @Override
     public void onDisable() {
+        if (balanceDisplay != null) {
+            balanceDisplay.stop();
+        }
         if (rankingManager != null) {
             rankingManager.stopAutoSave();
             rankingManager.saveData();
