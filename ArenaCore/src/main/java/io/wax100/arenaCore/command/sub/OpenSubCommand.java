@@ -37,32 +37,6 @@ public class OpenSubCommand implements SubCommand {
             if (session.getState() != ArenaState.SETUP) {
                 sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
                         + ArenaMessages.MSG_OPEN_SETUP_ONLY);
-            } else {
-                // TP未設定エラーは ArenaManager 側で broadcastMessage 済み
-                // メンバー不足チェック
-                int teamsWithMembers = 0;
-                List<String> emptyTeams = new java.util.ArrayList<>();
-                for (String team : session.getTeamNames()) {
-                    boolean hasPlayer = session.getTeamSize(team) > 0;
-                    boolean hasMob = false;
-                    var areaConfig = session.getTeamAreaConfig(team);
-                    if (areaConfig != null) {
-                        hasMob = !areaConfig.scanEntities().isEmpty();
-                    }
-                    if (hasPlayer || hasMob) {
-                        teamsWithMembers++;
-                    } else {
-                        emptyTeams.add(team);
-                    }
-                }
-                if (teamsWithMembers < 2) {
-                    sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
-                            + ArenaMessages.MSG_MIN_TEAMS_REQUIRED);
-                    for (String team : emptyTeams) {
-                        sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY
-                                + "  ✗ " + team + " (メンバーなし)");
-                    }
-                }
             }
             return;
         }

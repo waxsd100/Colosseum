@@ -135,22 +135,14 @@ public class ArenaManager {
     public boolean openBetting() {
         if (activeSession == null || activeSession.getState() != ArenaState.SETUP) return false;
 
-        int teamsWithMembers = 0;
+        // Mobチーム自動検出（待機場にMobがいれば自動マーク）
         for (String team : activeSession.getTeamNames()) {
-            // プレイヤーメンバーがいればカウント
-            if (activeSession.getTeamSize(team) > 0) {
-                teamsWithMembers++;
-                continue;
-            }
-            // プレイヤーがいなくても、待機場にMobがいればカウント
+            if (activeSession.getTeamSize(team) > 0) continue;
             TeamAreaConfig config = activeSession.getTeamAreaConfig(team);
             if (config != null && !config.scanEntities().isEmpty()) {
-                // 自動でMobチームとしてマーク
                 activeSession.markAsMobTeam(team);
-                teamsWithMembers++;
             }
         }
-        if (teamsWithMembers < 2) return false;
 
         // TP先未設定チェック（エラー）
         List<String> missingDest = new ArrayList<>();
@@ -179,7 +171,7 @@ public class ArenaManager {
 
         // Open時にSchematicから地形を復元（前回の残骸をクリーンアップ）
         terrainManager.pasteSchematic(
-                activeSession.getName(),
+                activeSession.getId().toString(),
                 activeSession.getFieldConfig().worldName());
 
         // カスタムイベント発火（キャンセル可能）
