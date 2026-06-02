@@ -7,211 +7,229 @@ import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
+import java.util.Random;
+
 /**
- * 支払い時のタイトルアニメーション表示ユーティリティ。
+ * Hitman風の支払いアニメーション。
  *
- * <p>金額を段階的にカウントアップしながらサブタイトルに表示し、
- * 最終的な金額で確定表示する。中央から展開するテキストアニメーション付き。
+ * <p>サブタイトルに金額を表示し、各桁がランダム文字で高速シャッフルした後、
+ * 左から順に1文字ずつ確定していく演出を行う。
+ *
+ * <pre>
+ * Step 0:  +$#,%!& E     ← 全桁シャッフル
+ * Step 1:  +$#,%!& E
+ * Step 2:  +1#,%!& E     ← 左端確定
+ * Step 3:  +10,%!& E
+ * Step 4:  +10,#!& E
+ * Step 5:  +10,0!& E
+ * Step 6:  +10,00& E
+ * Step 7:  +10,000 E     ← 全桁確定 → ホールド
+ * </pre>
  */
 public final class PayoutAnimation {
 
-    /** カウントアップのステップ数 */
-    private static final int COUNT_UP_STEPS = 8;
-    /** 各ステップの間隔（tick） */
-    private static final int TICK_INTERVAL = 2;
-    /** 最終表示の持続時間（tick） */
-    private static final int FINAL_HOLD_TICKS = 40;
-    /** タイトルのフェードイン（tick） */
-    private static final int FADE_IN = 5;
-    /** タイトルのフェードアウト（tick） */
-    private static final int FADE_OUT = 10;
+    private static final Random RNG = new Random();
+
+    /** シャッフル用のランダム文字セット */
+    private static final String GLYPHS = "0123456789#$%&@!?*>";
+
+    /** 全桁シャッフルのみのステップ数（確定が始まる前の溜め） */
+    private static final int WIND_UP_STEPS = 3;
+    /** 各ステップの間隔（tick）— 1tick = 50ms */
+    private static final int TICK_PER_STEP = 1;
+    /** 最終確定表示の持続時間（tick） */
+    private static final int HOLD_TICKS = 50;
 
     private PayoutAnimation() {}
 
+    // ── 公開API ──────────────────────────────────────
+
     /**
-     * 勝利ベッターへの配当アニメーションを表示する。
-     *
-     * @param plugin      プラグインインスタンス
-     * @param player      対象プレイヤー
-     * @param payout      配当額
-     * @param originalBet 元のベット額
-     * @param delay       表示開始までの遅延（tick）
+     * 勝利ベッター — 配当受取アニメーション。
      */
     public static void playWinnerPayout(Plugin plugin, Player player,
                                          long payout, long originalBet, long delay) {
         long profit = payout - originalBet;
-        String profitText = (profit >= 0 ? ChatColor.GREEN + "+" : ChatColor.RED.toString())
-                + ChipManager.formatAmount(profit) + " E";
+        String profitTag = (profit >= 0 ? ChatColor.GREEN + "(+" : ChatColor.RED + "(")
+                + ChipManager.formatAmount(profit) + " E)";
 
-        playCountUpAnimation(plugin, player,
-                ChatColor.GOLD.toString() + ChatColor.BOLD + "🎉 配当受取",
-                payout,
-                ChatColor.GRAY + "損益: " + profitText,
-                Sound.ENTITY_PLAYER_LEVELUP,
-                delay);
+        play(plugin, player,
+                ChatColor.GOLD.toString() + ChatColor.BOLD + "PAYOUT",
+                "+" + ChipManager.formatAmount(payout) + " E",
+                profitTag,
+                ChatColor.YELLOW, ChatColor.WHITE,
+                Sound.ENTITY_PLAYER_LEVELUP, delay);
     }
 
     /**
-     * 闘技者への還元アニメーションを表示する。
-     *
-     * @param plugin プラグインインスタンス
-     * @param player 対象プレイヤー
-     * @param amount 還元額
-     * @param label  ラベル（例: "勝者還元", "敗者還元"）
-     * @param emoji  絵文字（例: "🏆", "💸"）
-     * @param delay  表示開始までの遅延（tick）
+     * 闘技者還元アニメーション。
      */
     public static void playFighterShare(Plugin plugin, Player player,
                                          long amount, String label, String emoji, long delay) {
-        ChatColor color = label.contains("敗者") ? ChatColor.YELLOW : ChatColor.GREEN;
-        playCountUpAnimation(plugin, player,
-                color.toString() + ChatColor.BOLD + emoji + " " + label,
-                amount,
+        boolean isWinner = !label.contains("敗者");
+        ChatColor accent = isWinner ? ChatColor.GREEN : ChatColor.YELLOW;
+        play(plugin, player,
+                accent.toString() + ChatColor.BOLD + emoji + " " + label,
+                "+" + ChipManager.formatAmount(amount) + " E",
                 null,
-                Sound.ENTITY_EXPERIENCE_ORB_PICKUP,
-                delay);
+                accent, ChatColor.WHITE,
+                Sound.ENTITY_EXPERIENCE_ORB_PICKUP, delay);
     }
 
     /**
-     * 最低保証金のアニメーションを表示する。
-     *
-     * @param plugin プラグインインスタンス
-     * @param player 対象プレイヤー
-     * @param amount 保証金額
-     * @param delay  表示開始までの遅延（tick）
+     * 最低保証金アニメーション。
      */
     public static void playGuarantee(Plugin plugin, Player player, long amount, long delay) {
-        playCountUpAnimation(plugin, player,
-                ChatColor.GREEN.toString() + ChatColor.BOLD + "💰 最低保証金",
-                amount,
+        play(plugin, player,
+                ChatColor.GREEN.toString() + ChatColor.BOLD + "GUARANTEE",
+                "+" + ChipManager.formatAmount(amount) + " E",
                 null,
-                Sound.ENTITY_EXPERIENCE_ORB_PICKUP,
-                delay);
+                ChatColor.GREEN, ChatColor.WHITE,
+                Sound.ENTITY_EXPERIENCE_ORB_PICKUP, delay);
     }
 
     /**
-     * 敗者への没収アニメーションを表示する。
-     *
-     * @param plugin プラグインインスタンス
-     * @param player 対象プレイヤー
-     * @param amount 没収額
-     * @param delay  表示開始までの遅延（tick）
+     * 敗者没収アニメーション。
      */
     public static void playLoserConfiscation(Plugin plugin, Player player, long amount, long delay) {
-        // 敗者はカウントアップなし、即表示
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            String subtitle = ChatColor.RED + "-" + ChipManager.formatAmount(amount) + " E";
-            player.sendTitle(
-                    ChatColor.RED.toString() + ChatColor.BOLD + "没収",
-                    subtitle,
-                    FADE_IN, FINAL_HOLD_TICKS, FADE_OUT);
-            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_LAND, 0.5f, 0.8f);
-        }, delay);
+        play(plugin, player,
+                ChatColor.RED.toString() + ChatColor.BOLD + "CONFISCATED",
+                "-" + ChipManager.formatAmount(amount) + " E",
+                null,
+                ChatColor.RED, ChatColor.GRAY,
+                Sound.BLOCK_ANVIL_LAND, delay);
     }
 
+    // ── コアアニメーション ──────────────────────────────
+
     /**
-     * 金額カウントアップアニメーションを実行する。
+     * Hitman風シャッフル → 左から確定アニメーションを実行する。
      *
-     * <p>ランダムな数字 → 段階的に近づく → 確定額の順にサブタイトルを更新。
-     *
-     * @param plugin    プラグインインスタンス
-     * @param player    対象プレイヤー
-     * @param titleText タイトル行のテキスト
-     * @param amount    最終確定金額
-     * @param extraLine 確定後の追加表示（null可）
-     * @param sound     確定時のサウンド
-     * @param delay     初回表示までの遅延（tick）
+     * @param plugin      プラグイン
+     * @param player      対象プレイヤー
+     * @param title       タイトル行（上段）
+     * @param amountText  金額テキスト（例: "+10,000 E"）
+     * @param suffix      確定後に右側に追加するテキスト（null可）
+     * @param confirmed   確定済み文字の色
+     * @param unconfirmed 未確定シャッフル文字の色
+     * @param doneSound   全確定時のサウンド
+     * @param delay       開始遅延（tick）
      */
-    private static void playCountUpAnimation(Plugin plugin, Player player,
-                                              String titleText, long amount,
-                                              String extraLine, Sound sound, long delay) {
-        // カウントアップ各ステップ
-        for (int i = 0; i < COUNT_UP_STEPS; i++) {
+    private static void play(Plugin plugin, Player player,
+                              String title, String amountText, String suffix,
+                              ChatColor confirmed, ChatColor unconfirmed,
+                              Sound doneSound, long delay) {
+
+        // シャッフル対象の桁位置を特定（数字のみ。カンマ・符号・スペースは固定）
+        int[] digitIndices = findDigitIndices(amountText);
+        int digitCount = digitIndices.length;
+
+        // 総ステップ = ウィンドアップ + 桁数
+        int totalSteps = WIND_UP_STEPS + digitCount;
+
+        // ── シャッフル → 順次確定 ──
+        for (int i = 0; i < totalSteps; i++) {
             final int step = i;
-            long stepDelay = delay + ((long) i * TICK_INTERVAL);
+            long tickDelay = delay + ((long) i * TICK_PER_STEP);
 
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 if (!player.isOnline()) return;
 
-                // 段階的に正解に近づく金額を生成
-                long displayAmount = calculateStepAmount(amount, step, COUNT_UP_STEPS);
-                String amountText = buildStepText(displayAmount, step, COUNT_UP_STEPS);
+                // 左から何桁確定したか
+                int locked = Math.max(0, step - WIND_UP_STEPS + 1);
+                String sub = render(amountText, digitIndices, locked, confirmed, unconfirmed);
 
-                player.sendTitle(
-                        titleText,
-                        amountText,
-                        0, TICK_INTERVAL + 5, 0);
+                player.sendTitle(title, sub, 0, TICK_PER_STEP + 4, 0);
 
-                // カチカチ音
-                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.3f,
-                        1.0f + (step * 0.1f));
-            }, stepDelay);
+                // ティック音: 確定時は少し高い音
+                boolean isLocking = step >= WIND_UP_STEPS;
+                float pitch = isLocking ? 1.4f + (locked * 0.06f) : 0.8f + RNG.nextFloat() * 0.4f;
+                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT,
+                        0.15f, Math.min(pitch, 2.0f));
+            }, tickDelay);
         }
 
-        // 最終確定表示
-        long finalDelay = delay + ((long) COUNT_UP_STEPS * TICK_INTERVAL);
+        // ── 全確定 → ホールド表示 ──
+        long finalDelay = delay + ((long) totalSteps * TICK_PER_STEP) + 1L;
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (!player.isOnline()) return;
 
-            String finalAmount = ChatColor.YELLOW.toString() + ChatColor.BOLD
-                    + "+" + ChipManager.formatAmount(amount) + " E";
+            StringBuilder finalSub = new StringBuilder();
+            finalSub.append(confirmed).append(ChatColor.BOLD).append(amountText);
+            if (suffix != null) {
+                finalSub.append(" ").append(ChatColor.RESET).append(suffix);
+            }
 
-            String subtitle = extraLine != null
-                    ? finalAmount + "  " + extraLine
-                    : finalAmount;
-
-            player.sendTitle(
-                    titleText,
-                    subtitle,
-                    FADE_IN, FINAL_HOLD_TICKS, FADE_OUT);
-
-            // 確定サウンド
-            player.playSound(player.getLocation(), sound, 0.8f, 1.2f);
+            player.sendTitle(title, finalSub.toString(), 3, HOLD_TICKS, FADE_OUT);
+            player.playSound(player.getLocation(), doneSound, 0.8f, 1.2f);
         }, finalDelay);
     }
 
+    /** フェードアウト（tick） */
+    private static final int FADE_OUT = 12;
+
     /**
-     * カウントアップ中の表示金額を計算する。
+     * 指定ステップにおけるサブタイトルテキストを構築する。
      *
-     * <p>最初はランダムに大きく振れ、ステップが進むにつれ正解に収束する。
+     * @param original      元テキスト
+     * @param digitIndices  シャッフル対象の文字位置配列
+     * @param lockedDigits  左から確定済みの桁数
+     * @param confirmedCol  確定文字の色
+     * @param unconfirmedCol 未確定文字の色
+     * @return フォーマット済みテキスト
      */
-    private static long calculateStepAmount(long target, int step, int maxSteps) {
-        if (step >= maxSteps - 1) return target;
+    private static String render(String original, int[] digitIndices,
+                                  int lockedDigits, ChatColor confirmedCol,
+                                  ChatColor unconfirmedCol) {
+        char[] chars = original.toCharArray();
+        StringBuilder sb = new StringBuilder();
 
-        double progress = (double) step / (maxSteps - 1);
-        // イージング: 最初は大きく振れ、後半で収束
-        double eased = progress * progress;
+        // 確定済みの桁のインデックスをセットに入れる
+        boolean[] isConfirmed = new boolean[chars.length];
+        for (int d = 0; d < Math.min(lockedDigits, digitIndices.length); d++) {
+            isConfirmed[digitIndices[d]] = true;
+        }
 
-        // 振れ幅（残りの不確実性）
-        double uncertainty = 1.0 - eased;
-        double randomFactor = 0.5 + Math.random() * 1.0; // 0.5〜1.5倍
-        long deviation = (long) (target * uncertainty * randomFactor * 0.5);
+        // 全桁がシャッフル対象かを判定する配列
+        boolean[] isDigitPos = new boolean[chars.length];
+        for (int idx : digitIndices) {
+            isDigitPos[idx] = true;
+        }
 
-        long result = target + (Math.random() > 0.5 ? deviation : -deviation);
-        return Math.max(0, result);
+        for (int i = 0; i < chars.length; i++) {
+            if (isDigitPos[i]) {
+                if (isConfirmed[i]) {
+                    // 確定済み → 明るい色で実際の文字
+                    sb.append(confirmedCol).append(chars[i]);
+                } else {
+                    // 未確定 → 暗い色でランダムグリフ
+                    sb.append(unconfirmedCol);
+                    sb.append(GLYPHS.charAt(RNG.nextInt(GLYPHS.length())));
+                }
+            } else {
+                // 固定文字（カンマ、スペース、符号、E）
+                sb.append(ChatColor.DARK_GRAY).append(chars[i]);
+            }
+        }
+
+        return sb.toString();
     }
 
     /**
-     * ステップに応じた表示テキストを構築する。
-     *
-     * <p>確定前は灰色・スクランブル風、確定に近づくと黄色に変化。
+     * テキスト中の数字（0-9）の位置インデックスを左から順に返す。
      */
-    private static String buildStepText(long displayAmount, int step, int maxSteps) {
-        double progress = (double) step / (maxSteps - 1);
-        String formatted = ChipManager.formatAmount(displayAmount);
-
-        if (progress < 0.3) {
-            // 初期: 暗い色、揺れている印象
-            return ChatColor.DARK_GRAY.toString() + "+" + formatted + " E";
-        } else if (progress < 0.6) {
-            // 中間: 灰色
-            return ChatColor.GRAY.toString() + "+" + formatted + " E";
-        } else if (progress < 0.9) {
-            // 後半: 白に近づく
-            return ChatColor.WHITE.toString() + "+" + formatted + " E";
-        } else {
-            // ほぼ確定: 黄色
-            return ChatColor.YELLOW.toString() + "+" + formatted + " E";
+    private static int[] findDigitIndices(String text) {
+        int count = 0;
+        for (char c : text.toCharArray()) {
+            if (Character.isDigit(c)) count++;
         }
+        int[] result = new int[count];
+        int idx = 0;
+        for (int i = 0; i < text.length(); i++) {
+            if (Character.isDigit(text.charAt(i))) {
+                result[idx++] = i;
+            }
+        }
+        return result;
     }
 }
