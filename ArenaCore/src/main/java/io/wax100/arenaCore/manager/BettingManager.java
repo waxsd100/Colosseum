@@ -489,6 +489,13 @@ public class BettingManager {
 
                     // タイトルアニメーション
                     PayoutAnimation.playWinnerPayout(plugin, player, payout, originalBet, 10L);
+
+                    // ダブルアップ選択を提示
+                    DoubleUpManager doubleUp = plugin.getDoubleUpManager();
+                    if (doubleUp != null && doubleUp.offerChoice(playerId, payout, originalBet, winningTeam)) {
+                        // ダブルアップ選択待ち — 配当はまだ配布しない
+                        continue;
+                    }
                 } else {
                     plugin.getLogger().warning("オフラインプレイヤーへの配当をVault経由で入金: " + playerId + " / " + payout + " E");
                 }
@@ -514,6 +521,12 @@ public class BettingManager {
                     player.sendMessage("");
 
                     PayoutAnimation.playLoserConfiscation(plugin, player, bet.amount(), 10L);
+
+                    // ダブルアップ保留中なら没収
+                    DoubleUpManager doubleUp = plugin.getDoubleUpManager();
+                    if (doubleUp != null && doubleUp.hasActiveStreak(player.getUniqueId())) {
+                        doubleUp.confiscateOnLoss(player.getUniqueId());
+                    }
                 }
             }
         }
@@ -759,6 +772,16 @@ public class BettingManager {
                 plugin.getLogger().severe("Vault経済APIが利用不可: プレイヤー " + playerId + " への " + amount + " E が喪失しました");
             }
         }
+    }
+
+    /**
+     * 外部（DoubleUpManager等）から呼び出し可能な配布メソッド。
+     *
+     * @param playerId 配布先プレイヤーのUUID
+     * @param amount   配布額
+     */
+    public void distributeAmountPublic(UUID playerId, long amount) {
+        distributeAmount(playerId, amount);
     }
 
     /**

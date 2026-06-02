@@ -16,6 +16,10 @@ commands:
     description: ベット情報コマンド
     usage: /bet <odds|info>
     permission: arena.bet
+  doubleup:
+    description: ダブルアップ選択コマンド（内部用）
+    usage: /doubleup <continue|stop>
+    permission: arena.bet
 
 permissions:
   arena.admin:

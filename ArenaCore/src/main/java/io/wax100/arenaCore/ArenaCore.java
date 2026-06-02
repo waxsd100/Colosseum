@@ -2,6 +2,7 @@ package io.wax100.arenaCore;
 
 import io.wax100.arenaCore.command.ArenaCommand;
 import io.wax100.arenaCore.command.BetCommand;
+import io.wax100.arenaCore.command.DoubleUpCommand;
 import io.wax100.arenaCore.listener.ArenaBettingListener;
 import io.wax100.arenaCore.listener.ArenaFightListener;
 import io.wax100.arenaCore.listener.ArenaTeamAreaListener;
@@ -11,6 +12,7 @@ import io.wax100.arenaCore.manager.AreaStore;
 import io.wax100.arenaCore.manager.ArenaManager;
 import io.wax100.arenaCore.manager.ArenaPresetStore;
 import io.wax100.arenaCore.manager.BettingManager;
+import io.wax100.arenaCore.manager.DoubleUpManager;
 import io.wax100.arenaCore.manager.RegionManager;
 import io.wax100.arenaCore.manager.TerrainManager;
 import io.wax100.arenaCore.manager.JackpotManager;
@@ -50,6 +52,7 @@ public final class ArenaCore extends JavaPlugin {
     private AreaStore areaStore;
     private PayoutDistributor payoutDistributor;
     private JackpotManager jackpotManager;
+    private DoubleUpManager doubleUpManager;
     private WinCondition winCondition;
 
     // ── 分配デフォルト定数 ──
@@ -98,11 +101,20 @@ public final class ArenaCore extends JavaPlugin {
         terrainManager = new TerrainManager(this);
         presetStore = new ArenaPresetStore(getDataFolder(), getLogger());
         areaStore = new AreaStore(getDataFolder(), getLogger());
+        doubleUpManager = new DoubleUpManager(this);
         arenaManager = new ArenaManager(this, bettingManager, regionManager, terrainManager);
 
         // コマンド登録
         registerCommand("arena", new ArenaCommand(this));
         registerCommand("bet", new BetCommand(this));
+
+        // DoubleUp コマンド登録
+        PluginCommand doubleUpCmd = getCommand("doubleup");
+        if (doubleUpCmd != null) {
+            DoubleUpCommand handler = new DoubleUpCommand(this);
+            doubleUpCmd.setExecutor(handler);
+            doubleUpCmd.setTabCompleter(handler);
+        }
 
         // リスナー登録
         getServer().getPluginManager().registerEvents(new ArenaBettingListener(this), this);
@@ -119,6 +131,7 @@ public final class ArenaCore extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (doubleUpManager != null) doubleUpManager.shutdown();
         if (arenaManager != null) arenaManager.shutdown();
         getLogger().info("ArenaCore が無効化されました。");
     }
@@ -210,4 +223,5 @@ public final class ArenaCore extends JavaPlugin {
     public TerrainManager getTerrainManager() { return terrainManager; }
     public ArenaPresetStore getPresetStore() { return presetStore; }
     public AreaStore getAreaStore() { return areaStore; }
+    public DoubleUpManager getDoubleUpManager() { return doubleUpManager; }
 }

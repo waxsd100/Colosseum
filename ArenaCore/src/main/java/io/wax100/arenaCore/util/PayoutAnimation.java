@@ -10,7 +10,7 @@ import org.bukkit.plugin.Plugin;
 import java.util.Random;
 
 /**
- * Hitman風の支払いアニメーション。
+ * 支払いアニメーション。
  *
  * <p>サブタイトルに金額を表示し、各桁がランダム文字で高速シャッフルした後、
  * 左から順に1文字ずつ確定していく演出を行う。

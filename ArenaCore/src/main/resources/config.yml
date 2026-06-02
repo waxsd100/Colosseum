@@ -54,3 +54,8 @@ terrain-restore:
   post-match-blocks-per-tick: 10
   # 復元エフェクト (パーティクル + 効果音, 試合中のみ)
   effects: true
+
+# ── ダブルアップ（パーレー） ──
+double-up:
+  enabled: true                     # ダブルアップ機能の有効/無効
+  min-amount: 100                   # ダブルアップ提示の最低配当額
