@@ -293,7 +293,7 @@ public class TerrainManager {
             plugin.getLogger().warning(ArenaMessages.MSG_TERRAIN_NO_FIELD);
             return;
         }
-        sessionName = session.getName();
+        sessionName = session.getId().toString();
         restoreQueue.clear();
         tickCounter = 0;
         state = State.TRACKING;

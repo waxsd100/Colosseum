@@ -20,6 +20,9 @@ import java.util.*;
  */
 public class ArenaSession {
 
+    /** セッション内部ID（WorldGuard・Schematic等で使用） */
+    private final UUID id;
+    /** セッション表示名（日本語可） */
     private final String name;
     private final List<String> teamNames;
     private final Map<String, List<UUID>> teams;
@@ -63,6 +66,7 @@ public class ArenaSession {
      * @throws NullPointerException name または teamNames が null の場合
      */
     public ArenaSession(String name, List<String> teamNames) {
+        this.id = UUID.randomUUID();
         this.name = Objects.requireNonNull(name, "name must not be null");
         Objects.requireNonNull(teamNames, "teamNames must not be null");
         this.teamNames = new ArrayList<>(teamNames);
@@ -82,6 +86,9 @@ public class ArenaSession {
 
     // ── 基本情報 ──
 
+    /** セッション内部ID（UUID）を返す。 */
+    public UUID getId() { return id; }
+    /** セッション表示名を返す。 */
     public String getName() { return name; }
     public ArenaState getState() { return state; }
 
