@@ -104,11 +104,13 @@ public class BettingManager {
         ChatColor teamColor = session.getTeamColor(teamName);
         long total = session.getBet(player.getUniqueId(), teamName).amount();
 
-        player.sendTitle(
-                teamColor.toString() + ChatColor.BOLD + teamName,
-                ChatColor.GREEN + "+" + ChipManager.formatAmount(chipValue) + " E"
-                        + ChatColor.GRAY + "  (合計: " + ChipManager.formatAmount(total) + " E)",
-                5, 30, 10);
+        // アクションバー: ベット通知
+        player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
+                TextComponent.fromLegacyText(
+                        teamColor.toString() + ChatColor.BOLD + teamName
+                        + ChatColor.RESET + ChatColor.GREEN + " +" + ChipManager.formatAmount(chipValue) + " E"
+                        + ChatColor.GRAY + "  (合計: " + ChipManager.formatAmount(total) + " E)"));
+        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.5f, 1.5f);
 
         return true;
     }
@@ -160,15 +162,16 @@ public class BettingManager {
         // 視覚エフェクト: 回収演出
         playChipBreakEffect(location);
 
-        // サブタイトル表示
+        // アクションバー: 回収通知
         Bet remainingBet = session.getBet(player.getUniqueId(), chipInfo.teamName());
         String remaining = (remainingBet != null && remainingBet.amount() > 0)
                 ? ChatColor.GRAY + "  (残: " + ChipManager.formatAmount(remainingBet.amount()) + " E)"
                 : "";
-        player.sendTitle(
-                ChatColor.YELLOW.toString() + ChatColor.BOLD + "↩ BET CANCEL",
-                ChatColor.YELLOW + "-" + ChipManager.formatAmount(chipInfo.chipValue()) + " E" + remaining,
-                5, 30, 10);
+        player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
+                TextComponent.fromLegacyText(
+                        ChatColor.YELLOW.toString() + ChatColor.BOLD + "↩ "
+                        + ChatColor.RESET + ChatColor.YELLOW + "-" + ChipManager.formatAmount(chipInfo.chipValue()) + " E" + remaining));
+        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.5f, 0.8f);
     }
 
     /**
@@ -515,38 +518,8 @@ public class BettingManager {
                             + ChipManager.formatAmount(profit) + " E");
                     player.sendMessage("");
 
-                    // サブタイトル: 計算式をステップ表示（各30tick = 1.5秒）
-                    int stepDuration = 30;
-                    int step = 0;
-
-                    scheduleSubtitle(player, stepDuration * step++,
-                            ChatColor.GOLD.toString() + ChatColor.BOLD + "🎉 PAYOUT",
-                            ChatColor.GRAY + "Total Pool  " + ChatColor.WHITE + ChipManager.formatAmount(totalPool) + " E",
-                            stepDuration);
-
-                    scheduleSubtitle(player, stepDuration * step++,
-                            ChatColor.GOLD.toString() + ChatColor.BOLD + "🎉 PAYOUT",
-                            ChatColor.GRAY + "Winner Pool  " + ChatColor.WHITE + ChipManager.formatAmount(winningPool) + " E",
-                            stepDuration);
-
-                    scheduleSubtitle(player, stepDuration * step++,
-                            ChatColor.GOLD.toString() + ChatColor.BOLD + "🎉 PAYOUT",
-                            ChatColor.GRAY + "Odds  " + ChatColor.AQUA + "×" + String.format("%.2f", odds),
-                            stepDuration);
-
-                    scheduleSubtitle(player, stepDuration * step++,
-                            ChatColor.GOLD.toString() + ChatColor.BOLD + "🎉 PAYOUT",
-                            ChatColor.WHITE + ChipManager.formatAmount(originalBet)
-                                    + ChatColor.GRAY + " × "
-                                    + ChatColor.AQUA + String.format("%.2f", odds)
-                                    + ChatColor.GRAY + " = "
-                                    + ChatColor.YELLOW + "???",
-                            stepDuration);
-
-                    int holdTicks = stepDuration * step; // サブタイトル表示完了まで
-
-                    // notifyDelta: holdTicks間シャッフル維持 → サブタイトル終了後にロックイン
-                    notifyBalanceDelta(player, payout, holdTicks);
+                    // actionbarシャッフル → ロックインで配当額表示
+                    notifyBalanceDelta(player, payout, 0);
                 } else {
                     distributeAmount(playerId, payout);
                     plugin.getLogger().warning("オフラインプレイヤーへの配当をVault経由で入金: " + playerId + " / " + payout + " E");
@@ -593,24 +566,6 @@ public class BettingManager {
                 Bukkit.getScheduler().runTaskLater(plugin, () -> {
                     if (!player.isOnline()) return;
 
-                    int step = 0;
-
-                    // Step 1: 没収額表示
-                    scheduleSubtitle(player, stepDuration * step++,
-                            ChatColor.RED.toString() + ChatColor.BOLD + "💀 HEDGE LOSS",
-                            ChatColor.GRAY + "Losing Bet  " + ChatColor.RED + "-"
-                                    + ChipManager.formatAmount(lossAmount) + " E",
-                            stepDuration);
-
-                    // Step 2: 差し引き結果
-                    // 勝ち配当（payout）はdistributeWinnerBetPayoutsで既に計算済み
-                    // ここではベット額の差のみ表示（実際の配当はオッズによる）
-                    scheduleSubtitle(player, stepDuration * step++,
-                            ChatColor.AQUA.toString() + ChatColor.BOLD + "📊 NET RESULT",
-                            ChatColor.GRAY + "Won Bet " + ChatColor.GREEN + ChipManager.formatAmount(winBet) + " E"
-                                    + ChatColor.GRAY + " | Lost " + ChatColor.RED + ChipManager.formatAmount(lossAmount) + " E",
-                            stepDuration + 10);
-
                     // チャット通知
                     player.sendMessage("");
                     player.sendMessage(ArenaMessages.PREFIX + ChatColor.AQUA + "📊 ヘッジベット結果:");
@@ -622,8 +577,7 @@ public class BettingManager {
                             + ChatColor.GRAY + " → 没収");
                     player.sendMessage("");
 
-                    int holdTicks = stepDuration * step;
-                    notifyBalanceDelta(player, -lossAmount, holdTicks);
+                    notifyBalanceDelta(player, -lossAmount, 0);
                 }, winnerAnimationTicks + 20);
             } else {
                 // ── 負けのみ: 従来通り即時 ──
@@ -634,20 +588,8 @@ public class BettingManager {
                         + ChatColor.RED + " は没収されました。");
                 player.sendMessage("");
 
-                int step = 0;
-
-                scheduleSubtitle(player, stepDuration * step++,
-                        ChatColor.RED.toString() + ChatColor.BOLD + "💀 CONFISCATED",
-                        ChatColor.GRAY + "Your Bet  " + ChatColor.YELLOW + ChipManager.formatAmount(lossAmount) + " E",
-                        stepDuration);
-
-                scheduleSubtitle(player, stepDuration * step++,
-                        ChatColor.RED.toString() + ChatColor.BOLD + "💀 CONFISCATED",
-                        ChatColor.RED + "-" + ChipManager.formatAmount(lossAmount) + " E",
-                        stepDuration);
-
-                int holdTicks = stepDuration * step;
-                notifyBalanceDelta(player, -lossAmount, holdTicks);
+                // actionbarで没収額表示
+                notifyBalanceDelta(player, -lossAmount, 0);
 
                 // ダブルアップ保留中なら没収
                 DoubleUpManager doubleUp = plugin.getDoubleUpManager();
@@ -992,14 +934,5 @@ public class BettingManager {
         display.notifyDelta(player, amount, sound, holdTicks);
     }
 
-    /**
-     * 遅延付きでサブタイトルを表示する。
-     */
-    private void scheduleSubtitle(Player player, long delayTicks,
-                                   String title, String subtitle, int stayTicks) {
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            if (!player.isOnline()) return;
-            player.sendTitle(title, subtitle, 5, stayTicks, 5);
-        }, delayTicks);
-    }
+
 }

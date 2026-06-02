@@ -157,12 +157,6 @@ public class DoubleUpManager {
                     + ChatColor.GREEN + ChipManager.formatAmount(state.getEffectiveAmount()) + " E");
             player.sendMessage("");
 
-            player.sendTitle(
-                    ChatColor.GOLD.toString() + ChatColor.BOLD + "▲ DOUBLE UP",
-                    ChatColor.AQUA + "×" + newStreak + " STREAK"
-                            + ChatColor.DARK_GRAY + "  ┃  "
-                            + ChatColor.YELLOW + ChipManager.formatAmount(state.heldAmount()) + " E",
-                    5, 40, 10);
             player.playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 0.4f, 1.5f);
         }
     }
@@ -233,12 +227,6 @@ public class DoubleUpManager {
                     + ChatColor.RED + " lost");
             player.sendMessage("");
 
-            player.sendTitle(
-                    ChatColor.DARK_RED.toString() + ChatColor.BOLD + "✖ DOUBLE UP FAILED",
-                    ChatColor.RED + "-" + ChipManager.formatAmount(lostAmount) + " E"
-                            + ChatColor.DARK_GRAY + "  ┃  "
-                            + ChatColor.GRAY + "×" + state.streakCount() + " streak",
-                    5, 60, 15);
             player.playSound(player.getLocation(), Sound.ENTITY_WITHER_DEATH, 0.3f, 0.5f);
         }
     }
@@ -412,13 +400,6 @@ public class DoubleUpManager {
         player.sendMessage("  " + ChatColor.DARK_GRAY + "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         player.sendMessage("");
 
-        // タイトル
-        player.sendTitle(
-                ChatColor.GOLD.toString() + ChatColor.BOLD + "DOUBLE UP?",
-                ChatColor.YELLOW + ChipManager.formatAmount(payoutAmount) + " E"
-                        + ChatColor.DARK_GRAY + "  ┃  "
-                        + ChatColor.GRAY + TIMEOUT_SECONDS + "s",
-                5, 60, 5);
         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.8f, 1.0f);
     }
 
