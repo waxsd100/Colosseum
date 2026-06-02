@@ -16,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * アクションバーに所持金をリアルタイム表示するタスク。
  *
  * <p>全オンラインプレイヤーに対して定期的に現在の所持金をアクションバーへ表示する。
- * 残高変動を検知すると差額のシャッフルアニメーションをタイトルに再生する。
+ * 残高変動を検知すると差額をアクションバー上に一定時間表示する。
  */
 public class BalanceDisplay implements Runnable {
 
@@ -26,18 +26,27 @@ public class BalanceDisplay implements Runnable {
     /** 表示更新間隔（tick）— 10tick = 0.5秒 */
     private static final long INTERVAL_TICKS = 10L;
 
+    /** 差額表示の持続時間（tick） */
+    private static final int DELTA_DISPLAY_TICKS = 40; // 2秒間
+
     /** 前回の残高を記録（変動検知用） */
     private final Map<UUID, Long> previousBalances = new ConcurrentHashMap<>();
 
-    /** アニメーション中の差額表示テキスト（一時的にアクションバーに表示） */
+    /** アクションバーの差額表示データ */
     private final Map<UUID, DeltaDisplay> activeDelta = new ConcurrentHashMap<>();
 
-    /** アニメーション表示の残りtick */
-    private static final int DELTA_DISPLAY_TICKS = 40; // 2秒間
+    // ── カラーパレット ──
+    private static final ChatColor C_SEPARATOR = ChatColor.DARK_GRAY;
+    private static final ChatColor C_LABEL     = ChatColor.of("#AAAAAA");
+    private static final ChatColor C_BALANCE   = ChatColor.of("#FFD700"); // ゴールド
+    private static final ChatColor C_CHIPS     = ChatColor.of("#55FFAA"); // ミントグリーン
+    private static final ChatColor C_UNIT      = ChatColor.of("#CCAA00"); // ダークゴールド
+    private static final ChatColor C_PLUS      = ChatColor.of("#00FF88"); // 明るいグリーン
+    private static final ChatColor C_MINUS     = ChatColor.of("#FF5555"); // 明るいレッド
 
-    /** タイトルアニメーションを再生する変動額の最小閾値 */
-    private static final long DELTA_ANIMATION_THRESHOLD = 100L;
-
+    /**
+     * @param plugin ChipPlugin インスタンス
+     */
     public BalanceDisplay(ChipPlugin plugin) {
         this.plugin = plugin;
     }
@@ -78,18 +87,9 @@ public class BalanceDisplay implements Runnable {
             if (prev != null && prev != totalWealth) {
                 long delta = totalWealth - prev;
                 activeDelta.put(uuid, new DeltaDisplay(delta, DELTA_DISPLAY_TICKS));
-
-                // タイトルアニメーション（大きい変動のみ）
-                if (Math.abs(delta) >= DELTA_ANIMATION_THRESHOLD) {
-                    if (delta > 0) {
-                        PayoutAnimation.playIncome(plugin, player, delta, 0L);
-                    } else {
-                        PayoutAnimation.playExpense(plugin, player, Math.abs(delta), 0L);
-                    }
-                }
             }
 
-            // アクションバー構築
+            // アクションバー送信
             String text = buildActionBar(balance, chipValue, uuid);
             player.spigot().sendMessage(
                     ChatMessageType.ACTION_BAR,
@@ -107,18 +107,19 @@ public class BalanceDisplay implements Runnable {
     private String buildActionBar(long balance, long chipValue, UUID uuid) {
         StringBuilder sb = new StringBuilder();
 
-        sb.append(ChatColor.DARK_GRAY).append("┃ ");
-        sb.append(ChatColor.GRAY).append("Balance ");
-        sb.append(ChatColor.WHITE).append(ChatColor.BOLD)
+        // ┃ 💰 Balance  12,500 E ┃
+        sb.append(C_SEPARATOR).append("┃ ");
+        sb.append(C_LABEL).append("💰 ");
+        sb.append(C_BALANCE).append(ChatColor.BOLD)
           .append(ChipManager.formatAmount(balance));
-        sb.append(ChatColor.RESET).append(ChatColor.YELLOW).append(" E");
+        sb.append(ChatColor.RESET).append(C_UNIT).append(" E");
 
         // 差額表示
         DeltaDisplay delta = activeDelta.get(uuid);
         if (delta != null) {
             if (delta.remaining > 0) {
                 String sign = delta.amount > 0 ? "+" : "";
-                ChatColor color = delta.amount > 0 ? ChatColor.GREEN : ChatColor.RED;
+                ChatColor color = delta.amount > 0 ? C_PLUS : C_MINUS;
                 sb.append(" ").append(color).append(ChatColor.BOLD)
                   .append(sign).append(ChipManager.formatAmount(delta.amount));
                 delta.remaining -= INTERVAL_TICKS;
@@ -127,11 +128,12 @@ public class BalanceDisplay implements Runnable {
             }
         }
 
-        sb.append(ChatColor.DARK_GRAY).append("  ┃  ");
-        sb.append(ChatColor.GRAY).append("Chips ");
-        sb.append(ChatColor.GREEN).append(ChipManager.formatAmount(chipValue));
-        sb.append(ChatColor.YELLOW).append(" E");
-        sb.append(ChatColor.DARK_GRAY).append(" ┃");
+        // ┃ 🎰 Chips  3,000 E ┃
+        sb.append(ChatColor.RESET).append(C_SEPARATOR).append("  ┃  ");
+        sb.append(C_LABEL).append("🎰 ");
+        sb.append(C_CHIPS).append(ChipManager.formatAmount(chipValue));
+        sb.append(C_UNIT).append(" E");
+        sb.append(C_SEPARATOR).append(" ┃");
 
         return sb.toString();
     }
