@@ -797,7 +797,11 @@ public class ArenaManager {
             return;
         }
 
-        // チーム全滅通知
+        // チーム全滅通知（Mobが生存していれば全滅ではない）
+        if (activeSession.isMobTeam(team) && activeSession.hasAliveMobs(team)) {
+            // Mobチームでモンスターがまだ生きている → チームは存続
+            return;
+        }
         List<UUID> teamMembers = activeSession.getTeamMembers(team);
         boolean teamEliminated = true;
         for (UUID member : teamMembers) {
@@ -806,7 +810,8 @@ public class ArenaManager {
                 break;
             }
         }
-        if (teamEliminated) {
+        if (teamEliminated && !(activeSession.isMobTeam(team) && activeSession.hasAliveMobs(team))) {
+            activeSession.markTeamEliminated(team);
             ChatColor teamColor = activeSession.getTeamColor(team);
             Bukkit.broadcastMessage(ArenaMessages.PREFIX + teamColor + ChatColor.BOLD
                     + team + ChatColor.RESET + ChatColor.RED + " が全滅しました！");
@@ -869,10 +874,26 @@ public class ArenaManager {
      * @return オフセットが適用された新しい座標
      */
     private Location applyTeleportOffset(Location base) {
-        return base.clone().add(
+        Location loc = base.clone().add(
                 (Math.random() - TP_SPREAD_RANGE) * TP_SPREAD_MULTIPLIER,
                 0,
                 (Math.random() - TP_SPREAD_RANGE) * TP_SPREAD_MULTIPLIER);
+        // 安全なTP先を探す: 足元と頭の位置がソリッドでないこと
+        org.bukkit.World world = loc.getWorld();
+        if (world != null) {
+            int baseY = loc.getBlockY();
+            // 足元か頭がブロックに埋まっている場合、上方向に安全な場所を探す
+            for (int dy = 0; dy <= 5; dy++) {
+                Location check = loc.clone();
+                check.setY(baseY + dy);
+                if (!check.getBlock().getType().isSolid()
+                        && !check.clone().add(0, 1, 0).getBlock().getType().isSolid()) {
+                    loc.setY(baseY + dy);
+                    return loc;
+                }
+            }
+        }
+        return loc;
     }
 
     /**

@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -558,41 +559,63 @@ public class BettingManager {
 
     /**
      * 負けたベッターに没収通知を送信する。
+     *
+     * <p>勝ちチームにもベットしているプレイヤーは、勝者演出が終わった後に
+     * 没収通知を遅延表示する。
      */
     private void notifyLosers(ArenaSession session, String winningTeam) {
+        // 勝ちチームにもベットしているプレイヤーを特定
+        Set<UUID> winnersWithBets = new java.util.HashSet<>();
+        for (Bet bet : session.getAllBets()) {
+            if (bet.teamName().equals(winningTeam)) {
+                winnersWithBets.add(bet.playerId());
+            }
+        }
+
+        // 勝者演出の所要tick（4ステップ × 30tick）
+        int winnerAnimationTicks = 4 * 30;
+
         for (Bet bet : session.getAllBets()) {
             if (!bet.teamName().equals(winningTeam)) {
                 Player player = Bukkit.getPlayer(bet.playerId());
                 if (player != null && player.isOnline()) {
-                    player.sendMessage("");
-                    player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
-                            + "残念… ベット額 " + ChatColor.YELLOW
-                            + ChipManager.formatAmount(bet.amount()) + " E"
-                            + ChatColor.RED + " は没収されました。");
-                    player.sendMessage("");
+                    // 勝者でもある場合は遅延、そうでなければ即時
+                    int delayTicks = winnersWithBets.contains(bet.playerId()) ? winnerAnimationTicks + 20 : 0;
 
-                    // サブタイトル: 没収演出
-                    int stepDuration = 30;
-                    int step = 0;
+                    final long amount = bet.amount();
+                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                        if (!player.isOnline()) return;
 
-                    scheduleSubtitle(player, stepDuration * step++,
-                            ChatColor.RED.toString() + ChatColor.BOLD + "💀 CONFISCATED",
-                            ChatColor.GRAY + "Your Bet  " + ChatColor.YELLOW + ChipManager.formatAmount(bet.amount()) + " E",
-                            stepDuration);
+                        player.sendMessage("");
+                        player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                                + "残念… ベット額 " + ChatColor.YELLOW
+                                + ChipManager.formatAmount(amount) + " E"
+                                + ChatColor.RED + " は没収されました。");
+                        player.sendMessage("");
 
-                    scheduleSubtitle(player, stepDuration * step++,
-                            ChatColor.RED.toString() + ChatColor.BOLD + "💀 CONFISCATED",
-                            ChatColor.RED + "-" + ChipManager.formatAmount(bet.amount()) + " E",
-                            stepDuration);
+                        // サブタイトル: 没収演出
+                        int stepDuration = 30;
+                        int step = 0;
 
-                    int holdTicks = stepDuration * step;
-                    notifyBalanceDelta(player, -bet.amount(), holdTicks);
+                        scheduleSubtitle(player, stepDuration * step++,
+                                ChatColor.RED.toString() + ChatColor.BOLD + "💀 CONFISCATED",
+                                ChatColor.GRAY + "Your Bet  " + ChatColor.YELLOW + ChipManager.formatAmount(amount) + " E",
+                                stepDuration);
 
-                    // ダブルアップ保留中なら没収
-                    DoubleUpManager doubleUp = plugin.getDoubleUpManager();
-                    if (doubleUp != null && doubleUp.hasActiveStreak(player.getUniqueId())) {
-                        doubleUp.confiscateOnLoss(player.getUniqueId());
-                    }
+                        scheduleSubtitle(player, stepDuration * step++,
+                                ChatColor.RED.toString() + ChatColor.BOLD + "💀 CONFISCATED",
+                                ChatColor.RED + "-" + ChipManager.formatAmount(amount) + " E",
+                                stepDuration);
+
+                        int holdTicks = stepDuration * step;
+                        notifyBalanceDelta(player, -amount, holdTicks);
+
+                        // ダブルアップ保留中なら没収
+                        DoubleUpManager doubleUp = plugin.getDoubleUpManager();
+                        if (doubleUp != null && doubleUp.hasActiveStreak(player.getUniqueId())) {
+                            doubleUp.confiscateOnLoss(player.getUniqueId());
+                        }
+                    }, delayTicks);
                 }
             }
         }
