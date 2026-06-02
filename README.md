@@ -175,9 +175,6 @@ flowchart LR
 | `/arena region <チーム名>` | WE選択範囲をベットエリアに設定 | SETUP |
 | `/arena field set [名前]` | WE選択範囲を戦闘エリアに設定 | SETUP |
 | `/arena field info` | 戦闘エリア情報を表示 | 全状態 |
-| `/arena mob area <チーム> [待機場名]` | Mobチームの待機場を設定 | SETUP |
-| `/arena mob dest <チーム>` | Mobチームの出撃先を設定 | SETUP |
-| `/arena mob list <チーム>` | Mobチームの待機場にいるMob一覧 | SETUP |
 
 #### プリセット
 
