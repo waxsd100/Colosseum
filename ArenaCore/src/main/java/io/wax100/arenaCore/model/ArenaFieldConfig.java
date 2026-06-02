@@ -127,6 +127,19 @@ public record ArenaFieldConfig(
         return (long) (maxX - minX + 1) * (maxY - minY + 1) * (maxZ - minZ + 1);
     }
 
+    /**
+     * フィールド中心座標を返す。
+     *
+     * @param world 対象ワールド
+     * @return フィールド中心の Location
+     */
+    public org.bukkit.Location getCenter(World world) {
+        double cx = (minX + maxX) / 2.0;
+        double cy = (minY + maxY) / 2.0;
+        double cz = (minZ + maxZ) / 2.0;
+        return new org.bukkit.Location(world, cx, cy, cz);
+    }
+
     @Override
     public String toString() {
         return "ArenaFieldConfig{" +

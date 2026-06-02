@@ -540,6 +540,13 @@ public class ArenaSession {
     }
 
     /**
+     * 追跡中のMobマップを返す（読み取り専用）。
+     */
+    public Map<UUID, String> getTrackedMobs() {
+        return Collections.unmodifiableMap(trackedMobs);
+    }
+
+    /**
      * モンスターのチーム名を取得する。
      */
     public String getMobTeam(UUID entityId) {
