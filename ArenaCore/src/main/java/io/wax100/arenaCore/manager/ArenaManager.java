@@ -57,7 +57,7 @@ public class ArenaManager {
 
     // ── デスマッチ投票管理 ──
     private DeathmatchChallenge activeChallenge;
-    private int proposalCount;
+    private int deathmatchProposalCount;
     private BukkitTask voteTimerTask;
 
     // ── 定数 ──
@@ -309,7 +309,7 @@ public class ArenaManager {
         }
 
         activeSession.setState(ArenaState.CLOSED);
-        stopOddsBroadcast();
+        cancelAllTasks();
         plugin.getLogger().info("ベットを締め切りました: " + activeSession.getName());
         return true;
     }
@@ -545,7 +545,7 @@ public class ArenaManager {
                     // entry-fee 徴収 → entryFeePool (後でジャックポットへ)
                     if (entryFee > 0) {
                         economy.withdrawPlayer(fighter, entryFee);
-                        activeSession.addEntryFee(entryFee);
+                        activeSession.addToEntryFeePool(entryFee);
                         fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
                                 + "参加費 " + ChipManager.formatAmount(entryFee) + " E を徴収しました。");
                     }
@@ -563,7 +563,7 @@ public class ArenaManager {
         }
 
         activeSession.setState(ArenaState.ACTIVE);
-        stopOddsBroadcast();
+        cancelAllTasks();
         eliminatedPlayers.clear();
 
         // 地形追跡開始
@@ -665,10 +665,11 @@ public class ArenaManager {
      * 勝者を宣言し、配当処理を行う。
      */
     public boolean declareWinner(String winningTeam) {
+        if (winningTeam == null) return false;
         if (activeSession == null || activeSession.getState() != ArenaState.ACTIVE) return false;
         if (!activeSession.hasTeam(winningTeam)) return false;
 
-        stopOddsBroadcast();
+        cancelAllTasks();
 
         activeSession.setWinningTeam(winningTeam);
         activeSession.setState(ArenaState.FINISHED);
@@ -714,7 +715,7 @@ public class ArenaManager {
         if (activeSession == null) return false;
         boolean wasActive = activeSession.getState() == ArenaState.ACTIVE;
         plugin.getLogger().warning("闘技場セッションがキャンセルされました: " + activeSession.getName());
-        stopOddsBroadcast();
+        cancelAllTasks();
         cancelDeathmatch(); // 投票中ならキャンセル
 
         try {
@@ -876,7 +877,7 @@ public class ArenaManager {
      * <p>オッズ定期送信、ベットタイマー、募集タイマー、投票タイマー、
      * パーティクル表示をすべて停止する。セッション終了時の一括クリーンアップ用。
      */
-    private void stopOddsBroadcast() {
+    private void cancelAllTasks() {
         if (oddsBroadcastTask != null) {
             oddsBroadcastTask.cancel();
             oddsBroadcastTask = null;
@@ -1022,14 +1023,14 @@ public class ArenaManager {
             if (activeSession.getState() != ArenaState.FINISHED) {
                 activeSession.setState(ArenaState.FINISHED);
             }
-            activeSession.clearAllData();
+            activeSession.resetSession();
             activeSession = null;
         }
         eliminatedPlayers.clear();
         regionManager.clearRegions();
         // デスマッチ投票状態をリセット
         activeChallenge = null;
-        proposalCount = 0;
+        deathmatchProposalCount = 0;
         cancelVoteTimer();
     }
 
@@ -1154,7 +1155,7 @@ public class ArenaManager {
     }
 
     public void shutdown() {
-        stopOddsBroadcast();
+        cancelAllTasks();
         cancelVoteTimer();
         terrainManager.cancelAndClear();
         if (activeSession != null) cancelArena();
@@ -1179,7 +1180,7 @@ public class ArenaManager {
      * @return 提案回数
      */
     public int getProposalCount() {
-        return proposalCount;
+        return deathmatchProposalCount;
     }
 
     /**
@@ -1249,7 +1250,7 @@ public class ArenaManager {
         // チャレンジ作成
         activeChallenge = new DeathmatchChallenge(
                 proposer, proposerTeam, perPerson, actualTotalPool, teamSizes);
-        proposalCount++;
+        deathmatchProposalCount++;
 
         // 投票UIブロードキャスト
         DeathmatchSubCommand.broadcastVoteUI(activeSession, activeChallenge, entryFee);
@@ -1339,7 +1340,7 @@ public class ArenaManager {
                     + "✗ デスマッチは却下されました。通常試合で続行します。");
 
             int maxProposals = plugin.getConfig().getInt("deathmatch.max-proposals", 2);
-            int remaining = maxProposals - proposalCount;
+            int remaining = maxProposals - deathmatchProposalCount;
             if (remaining > 0) {
                 Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
                         + "再提案可能（残り" + remaining + "回）");

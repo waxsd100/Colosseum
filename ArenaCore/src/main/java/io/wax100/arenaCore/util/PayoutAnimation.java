@@ -39,6 +39,8 @@ public final class PayoutAnimation {
     private static final int TICK_PER_STEP = 1;
     /** 最終確定表示の持続時間（tick） */
     private static final int HOLD_TICKS = 50;
+    /** フェードアウト（tick） */
+    private static final int FADE_OUT = 12;
 
     private PayoutAnimation() {}
 
@@ -164,9 +166,6 @@ public final class PayoutAnimation {
             player.playSound(player.getLocation(), doneSound, 0.8f, 1.2f);
         }, finalDelay);
     }
-
-    /** フェードアウト（tick） */
-    private static final int FADE_OUT = 12;
 
     /**
      * 指定ステップにおけるサブタイトルテキストを構築する。

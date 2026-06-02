@@ -17,6 +17,7 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -54,7 +55,7 @@ public class DoubleUpManager {
     };
 
     public DoubleUpManager(ArenaCore plugin) {
-        this.plugin = plugin;
+        this.plugin = Objects.requireNonNull(plugin, "plugin");
     }
 
     // ── データクラス ──
@@ -97,6 +98,7 @@ public class DoubleUpManager {
      */
     public boolean offerChoice(UUID playerId, long payoutAmount, long originalBet, String teamName) {
         if (!isEnabled()) return false;
+        if (payoutAmount <= 0) return false;
 
         Player player = Bukkit.getPlayer(playerId);
         if (player == null || !player.isOnline()) return false;
@@ -180,7 +182,7 @@ public class DoubleUpManager {
             totalPayout += existing.getEffectiveAmount();
         }
 
-        plugin.getBettingManager().distributeAmountPublic(playerId, totalPayout);
+        plugin.getBettingManager().payoutToPlayer(playerId, totalPayout);
 
         if (player != null && player.isOnline()) {
             int streak = existing != null ? existing.streakCount() + 1 : 1;
@@ -286,14 +288,7 @@ public class DoubleUpManager {
         return activeStreaks.containsKey(playerId);
     }
 
-    /**
-     * 保留中ストリーク情報を取得する。
-     *
-     * @return ストリーク状態、または null
-     */
-    public DoubleUpState getStreak(UUID playerId) {
-        return activeStreaks.get(playerId);
-    }
+
 
     /**
      * 選択待ち中かどうか。
@@ -323,7 +318,7 @@ public class DoubleUpManager {
         for (Map.Entry<UUID, DoubleUpState> entry : new HashMap<>(activeStreaks).entrySet()) {
             UUID playerId = entry.getKey();
             DoubleUpState state = entry.getValue();
-            plugin.getBettingManager().distributeAmountPublic(playerId, state.getEffectiveAmount());
+            plugin.getBettingManager().payoutToPlayer(playerId, state.getEffectiveAmount());
             Player player = Bukkit.getPlayer(playerId);
             if (player != null && player.isOnline()) {
                 player.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW

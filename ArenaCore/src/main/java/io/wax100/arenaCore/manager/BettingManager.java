@@ -50,9 +50,9 @@ import java.util.UUID;
  */
 public class BettingManager {
 
-    private static final int FIREWORK_FADE_IN = 10;
-    private static final int FIREWORK_STAY = 70;
-    private static final int FIREWORK_FADE_OUT = 20;
+    private static final int TITLE_FADE_IN = 10;
+    private static final int TITLE_STAY = 70;
+    private static final int TITLE_FADE_OUT = 20;
 
     private final ArenaCore plugin;
 
@@ -712,7 +712,7 @@ public class BettingManager {
                 player.sendTitle(
                         ChatColor.GOLD.toString() + ChatColor.BOLD + "🎰 JACKPOT!! 🎰",
                         ChatColor.YELLOW + ChipManager.formatAmount(jackpotAmount) + " E",
-                        FIREWORK_FADE_IN, FIREWORK_STAY, FIREWORK_FADE_OUT
+                        TITLE_FADE_IN, TITLE_STAY, TITLE_FADE_OUT
                 );
                 player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
                 player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
@@ -755,6 +755,7 @@ public class BettingManager {
      * @param amount   配布額
      */
     private void distributeAmount(UUID playerId, long amount) {
+        if (amount <= 0) return;
         ChipManager chipManager = plugin.getChipManager();
         Player player = Bukkit.getPlayer(playerId);
         if (player != null && player.isOnline()) {
@@ -782,7 +783,7 @@ public class BettingManager {
      * @param playerId 配布先プレイヤーのUUID
      * @param amount   配布額
      */
-    public void distributeAmountPublic(UUID playerId, long amount) {
+    public void payoutToPlayer(UUID playerId, long amount) {
         distributeAmount(playerId, amount);
     }
 

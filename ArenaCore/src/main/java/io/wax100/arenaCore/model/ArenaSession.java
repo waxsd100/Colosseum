@@ -53,6 +53,7 @@ public class ArenaSession {
     private final Map<UUID, String> trackedMobs = new HashMap<>();
     /** 全滅済みチーム（Mobチーム等、プレイヤーメンバーがいないチーム用） */
     private final Set<String> eliminatedTeams = new HashSet<>();
+    private ArenaFieldConfig fieldConfig;
     /** チーム別カスタムカラー（未設定時はデフォルトパレットから自動割当） */
     private final Map<String, ChatColor> teamColors = new HashMap<>();
 
@@ -299,7 +300,7 @@ public class ArenaSession {
      * @param fee 加算額（0以上）
      * @throws IllegalArgumentException fee が負の場合
      */
-    public void addEntryFee(long fee) {
+    public void addToEntryFeePool(long fee) {
         if (fee < 0) {
             throw new IllegalArgumentException("fee must not be negative: " + fee);
         }
@@ -456,10 +457,10 @@ public class ArenaSession {
      *
      * @throws IllegalStateException セッションが FINISHED 状態でない場合
      */
-    public void clearAllData() {
+    public void resetSession() {
         if (this.state != ArenaState.FINISHED) {
             throw new IllegalStateException(
-                    "clearAllData() は FINISHED 状態でのみ呼び出せます (現在: " + this.state + ")");
+                    "resetSession() は FINISHED 状態でのみ呼び出せます (現在: " + this.state + ")");
         }
         bets.clear();
         placedChips.clear();
@@ -484,7 +485,6 @@ public class ArenaSession {
 
     // ── 戦闘エリア管理 ──
 
-    private ArenaFieldConfig fieldConfig;
 
     /**
      * 戦闘エリア設定を取得する。
@@ -650,15 +650,6 @@ public class ArenaSession {
             Objects.requireNonNull(teamName, "teamName must not be null");
         }
 
-        /**
-         * 元ブロック素材を返す（null安全版）。
-         *
-         * <p>{@code originalBlock} が {@code null} の場合、{@link Material#AIR} を返す。
-         *
-         * @return 元ブロック素材（非null保証）
-         */
-        public Material getOriginalBlockOrAir() {
-            return originalBlock != null ? originalBlock : Material.AIR;
-        }
+
     }
 }
