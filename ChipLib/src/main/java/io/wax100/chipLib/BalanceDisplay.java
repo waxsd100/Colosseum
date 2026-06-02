@@ -149,14 +149,59 @@ public class BalanceDisplay implements Runnable {
         activeDelta.remove(playerId);
     }
 
+    // ══════════════════════════════════════
+    //  外部通知 API（カジノ・アリーナ用）
+    // ══════════════════════════════════════
+
+    /** 音付き差額表示の持続時間（tick） */
+    private static final int NOTIFY_DISPLAY_TICKS = 60; // 3秒間
+
+    /**
+     * カジノ・アリーナからの残高変動を音付きで通知する。
+     *
+     * <p>アクションバーに目立つ差額表示を出し、効果音を再生する。
+     * 通常の自動検知より長く表示される。
+     *
+     * @param player 対象プレイヤー
+     * @param amount 変動額（正: 収入, 負: 支出）
+     * @param sound  再生する効果音
+     */
+    public void notifyDelta(Player player, long amount, org.bukkit.Sound sound) {
+        UUID uuid = player.getUniqueId();
+        activeDelta.put(uuid, new DeltaDisplay(amount, NOTIFY_DISPLAY_TICKS, true));
+
+        if (sound != null) {
+            player.playSound(player.getLocation(), sound, 1.0f, 1.0f);
+        }
+    }
+
+    /**
+     * カジノ・アリーナからの残高変動を通知する（デフォルト効果音）。
+     *
+     * @param player 対象プレイヤー
+     * @param amount 変動額（正: 収入, 負: 支出）
+     */
+    public void notifyDelta(Player player, long amount) {
+        org.bukkit.Sound sound = amount >= 0
+                ? org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP
+                : org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS;
+        notifyDelta(player, amount, sound);
+    }
+
     /** 差額表示の一時データ */
     private static class DeltaDisplay {
         final long amount;
+        final boolean withSound;
         int remaining;
 
         DeltaDisplay(long amount, int remaining) {
+            this(amount, remaining, false);
+        }
+
+        DeltaDisplay(long amount, int remaining, boolean withSound) {
             this.amount = amount;
             this.remaining = remaining;
+            this.withSound = withSound;
         }
     }
 }

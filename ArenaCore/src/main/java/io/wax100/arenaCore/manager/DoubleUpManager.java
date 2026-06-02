@@ -3,7 +3,8 @@ package io.wax100.arenaCore.manager;
 import io.wax100.arenaCore.ArenaCore;
 import io.wax100.arenaCore.model.ArenaSession;
 import io.wax100.arenaCore.util.ArenaMessages;
-import io.wax100.chipLib.PayoutAnimation;
+import io.wax100.chipLib.BalanceDisplay;
+import io.wax100.chipLib.ChipPlugin;
 import io.wax100.chipLib.ChipManager;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.chat.ClickEvent;
@@ -201,7 +202,7 @@ public class DoubleUpManager {
                     + ChipManager.formatAmount(totalPayout) + " E");
             player.sendMessage("");
 
-            PayoutAnimation.playWinnerPayout(plugin, player, totalPayout, choice.originalBet(), 5L);
+            notifyBalanceDelta(player, totalPayout);
         }
     }
 
@@ -419,5 +420,13 @@ public class DoubleUpManager {
                         + ChatColor.GRAY + TIMEOUT_SECONDS + "s",
                 5, 60, 5);
         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.8f, 1.0f);
+    }
+
+    private void notifyBalanceDelta(Player player, long amount) {
+        ChipPlugin chipPlugin = (ChipPlugin) Bukkit.getPluginManager().getPlugin("ChipLib");
+        if (chipPlugin == null) return;
+        BalanceDisplay display = chipPlugin.getBalanceDisplay();
+        if (display == null) return;
+        display.notifyDelta(player, amount);
     }
 }

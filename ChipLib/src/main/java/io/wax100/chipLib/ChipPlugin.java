@@ -237,6 +237,15 @@ public final class ChipPlugin extends JavaPlugin implements Listener {
     }
 
     /**
+     * 残高表示マネージャーを取得する。
+     *
+     * @return {@link BalanceDisplay} インスタンス
+     */
+    public BalanceDisplay getBalanceDisplay() {
+        return balanceDisplay;
+    }
+
+    /**
      * ハサミ管理ヘルパーを取得する。
      *
      * @return {@link ShearsHelper} インスタンス

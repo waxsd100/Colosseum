@@ -8,7 +8,8 @@ import io.wax100.arenaCore.model.BettingRegion;
 import io.wax100.arenaCore.model.MatchMode;
 import io.wax100.arenaCore.payout.PayoutDistributor;
 import io.wax100.arenaCore.util.ArenaMessages;
-import io.wax100.chipLib.PayoutAnimation;
+import io.wax100.chipLib.BalanceDisplay;
+import io.wax100.chipLib.ChipPlugin;
 import io.wax100.chipLib.Chip;
 import io.wax100.chipLib.ChipManager;
 import org.bukkit.Bukkit;
@@ -368,7 +369,7 @@ public class BettingManager {
                         fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.GREEN
                                 + "💰 最低保証金: " + ChatColor.YELLOW
                                 + ChipManager.formatAmount(guarantee) + " E");
-                        PayoutAnimation.playGuarantee(plugin, fighter, guarantee, 0L);
+                        notifyBalanceDelta(fighter, guarantee);
                     }
                 }
             }
@@ -417,7 +418,7 @@ public class BettingManager {
                 if (fighter != null && fighter.isOnline()) {
                     fighter.sendMessage(ArenaMessages.PREFIX + labelColor
                             + emoji + " " + label + ": " + ChipManager.formatAmount(perFighter) + " E");
-                    PayoutAnimation.playFighterShare(plugin, fighter, perFighter, label, emoji, 5L);
+                    notifyBalanceDelta(fighter, perFighter);
                 }
             }
         }
@@ -496,7 +497,7 @@ public class BettingManager {
                     player.sendMessage("");
 
                     // タイトルアニメーション
-                    PayoutAnimation.playWinnerPayout(plugin, player, payout, originalBet, 10L);
+                    notifyBalanceDelta(player, payout);
                 } else {
                     distributeAmount(playerId, payout);
                     plugin.getLogger().warning("オフラインプレイヤーへの配当をVault経由で入金: " + playerId + " / " + payout + " E");
@@ -522,7 +523,7 @@ public class BettingManager {
                             + ChatColor.RED + " は没収されました。");
                     player.sendMessage("");
 
-                    PayoutAnimation.playLoserConfiscation(plugin, player, bet.amount(), 10L);
+                    notifyBalanceDelta(player, -bet.amount());
 
                     // ダブルアップ保留中なら没収
                     DoubleUpManager doubleUp = plugin.getDoubleUpManager();
@@ -842,5 +843,18 @@ public class BettingManager {
         world.spawnParticle(Particle.CLOUD, center, 8, 0.3, 0.1, 0.3, 0.02);
         world.spawnParticle(Particle.CRIT, center, 5, 0.2, 0.1, 0.2, 0.05);
         world.playSound(center, Sound.ENTITY_ITEM_PICKUP, 0.7f, 1.4f);
+    }
+    /**
+     * ChipLib の BalanceDisplay に音付き差額通知を送る。
+     *
+     * @param player 対象プレイヤー
+     * @param amount 変動額（正: 収入, 負: 支出）
+     */
+    private void notifyBalanceDelta(Player player, long amount) {
+        ChipPlugin chipPlugin = (ChipPlugin) Bukkit.getPluginManager().getPlugin("ChipLib");
+        if (chipPlugin == null) return;
+        BalanceDisplay display = chipPlugin.getBalanceDisplay();
+        if (display == null) return;
+        display.notifyDelta(player, amount);
     }
 }
