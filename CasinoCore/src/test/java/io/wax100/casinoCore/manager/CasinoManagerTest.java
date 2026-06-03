@@ -224,13 +224,13 @@ class CasinoManagerTest {
         }
 
         @Test
-        @DisplayName("切断しても購入記録は残る")
-        void purchaseRecordRemainsAfterDisconnect() {
+        @DisplayName("切断すると購入記録はクリアされる")
+        void purchaseRecordClearedAfterDisconnect() {
             casinoManager.addPlayerToCasino(mockPlayer);
             casinoManager.addPlayerToCasino(mockPlayer2);
             casinoManager.recordPurchase(playerId, 5000);
             casinoManager.handlePlayerDisconnect(mockPlayer);
-            assertEquals(5000, casinoManager.getSessionPurchases(playerId));
+            assertEquals(0, casinoManager.getSessionPurchases(playerId));
         }
 
         @Test

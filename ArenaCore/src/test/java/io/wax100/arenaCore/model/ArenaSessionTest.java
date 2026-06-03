@@ -563,17 +563,17 @@ class ArenaSessionTest {
 
         @Test
         @DisplayName("参加費を加算できる")
-        void addEntryFee_accumulates() {
-            session.addEntryFee(1000L);
+        void addToEntryFeePool_accumulates() {
+            session.addToEntryFeePool(1000L);
             assertEquals(1000L, session.getEntryFeePool());
         }
 
         @Test
         @DisplayName("複数回加算すると合計が返る")
         void multipleAdds_returnSum() {
-            session.addEntryFee(500L);
-            session.addEntryFee(300L);
-            session.addEntryFee(200L);
+            session.addToEntryFeePool(500L);
+            session.addToEntryFeePool(300L);
+            session.addToEntryFeePool(200L);
             assertEquals(1000L, session.getEntryFeePool());
         }
 
@@ -587,7 +587,7 @@ class ArenaSessionTest {
         @DisplayName("負の参加費はIllegalArgumentExceptionをスローする")
         void negativeFee_throwsIAE() {
             assertThrows(IllegalArgumentException.class,
-                    () -> session.addEntryFee(-1L));
+                    () -> session.addToEntryFeePool(-1L));
         }
     }
 
@@ -854,9 +854,9 @@ class ArenaSessionTest {
             session.addTeamMember(TEAM_RED, redPlayer1);
             session.addTeamMember(TEAM_RED, redPlayer2);
             session.addTeamMember(TEAM_BLUE, bluePlayer1);
-            session.addEntryFee(100L);
-            session.addEntryFee(100L);
-            session.addEntryFee(100L);
+            session.addToEntryFeePool(100L);
+            session.addToEntryFeePool(100L);
+            session.addToEntryFeePool(100L);
 
             // Transition to betting
             session.setState(ArenaState.RECRUITING);
@@ -914,19 +914,19 @@ class ArenaSessionTest {
     }
 
     // ========================================================================
-    // clearAllData
+    // resetSession
     // ========================================================================
 
     @Nested
-    @DisplayName("clearAllData - セッションデータクリア")
-    class ClearAllDataTest {
+    @DisplayName("resetSession - セッションデータクリア")
+    class ResetSessionTest {
 
         @Test
         @DisplayName("FINISHED以外の状態でIllegalStateExceptionをスローする")
         void nonFinishedState_throwsISE() {
             // SETUP 状態で呼び出し
             assertThrows(IllegalStateException.class,
-                    () -> session.clearAllData());
+                    () -> session.resetSession());
         }
 
         @Test
@@ -936,10 +936,10 @@ class ArenaSessionTest {
             session.addTeamMember(TEAM_RED, player);
             session.addOrUpdateBet(UUID.randomUUID(), TEAM_RED, 100L);
             session.addScore(TEAM_RED, 5);
-            session.addEntryFee(500L);
+            session.addToEntryFeePool(500L);
 
             session.setState(ArenaState.FINISHED);
-            assertDoesNotThrow(() -> session.clearAllData());
+            assertDoesNotThrow(() -> session.resetSession());
 
             // クリア後の状態を確認
             assertTrue(session.getAllBets().isEmpty());

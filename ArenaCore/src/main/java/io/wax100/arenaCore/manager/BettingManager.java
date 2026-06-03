@@ -315,6 +315,9 @@ public class BettingManager {
         // ── 負けた人への通知 ──
         notifyLosers(session, winningTeam);
 
+        // ── オフライン結果を一括保存 ──
+        flushOfflineResults();
+
         // ── entry-fee をジャックポットに積立 ──
         long entryFeePool = session.getEntryFeePool();
         if (entryFeePool > 0 && jackpot != null) {
@@ -470,10 +473,11 @@ public class BettingManager {
                 long payout = entry.getValue();
                 totalPayout += payout;
 
+                Bet playerBet = session.getBet(playerId, winningTeam);
+                long originalBet = playerBet != null ? playerBet.amount() : 0;
+
                 Player player = Bukkit.getPlayer(playerId);
                 if (player != null && player.isOnline()) {
-                    Bet playerBet = session.getBet(playerId, winningTeam);
-                    long originalBet = playerBet != null ? playerBet.amount() : 0;
                     long profit = payout - originalBet;
 
                     // ダブルアップ選択を提示（配布前に判定）
@@ -509,8 +513,10 @@ public class BettingManager {
                     // actionbarシャッフル → ロックインで配当額表示
                     notifyBalanceDelta(player, payout, 0);
                 } else {
-                    distributeAmount(playerId, payout);
-                    plugin.getLogger().warning("オフラインプレイヤーへの配当をVault経由で入金: " + playerId + " / " + payout + " E");
+                    if (!recordOfflineResult(playerId, originalBet, payout)) {
+                        distributeAmount(playerId, payout);
+                        plugin.getLogger().warning("オフラインプレイヤーへの配当をVault経由で入金: " + playerId + " / " + payout + " E");
+                    }
                 }
             }
         }
@@ -541,7 +547,10 @@ public class BettingManager {
             if (bet.teamName().equals(winningTeam)) continue;
 
             Player player = Bukkit.getPlayer(bet.playerId());
-            if (player == null || !player.isOnline()) continue;
+            if (player == null || !player.isOnline()) {
+                recordOfflineResult(bet.playerId(), bet.amount(), 0);
+                continue;
+            }
 
             final long lossAmount = bet.amount();
             boolean isBothSideBettor = winnerPayoutMap.containsKey(bet.playerId());
@@ -846,6 +855,35 @@ public class BettingManager {
      */
     public void payoutToPlayer(UUID playerId, long amount) {
         distributeAmount(playerId, amount);
+    }
+
+    /**
+     * オフラインプレイヤーのベット結果を {@code OfflinePayoutManager} に記録する。
+     *
+     * <p>CasinoCore が有効な場合のみ記録し、無効な場合は {@code false} を返す。
+     * ディスクへの書き込みは {@link #flushOfflineResults()} で一括実行する。
+     *
+     * @param playerId  プレイヤーの UUID
+     * @param betAmount ベット額
+     * @param wonAmount 配当額（負けた場合は 0）
+     * @return 記録できた場合は {@code true}
+     */
+    private boolean recordOfflineResult(UUID playerId, long betAmount, long wonAmount) {
+        if (!plugin.getServer().getPluginManager().isPluginEnabled("CasinoCore")) return false;
+        org.bukkit.plugin.Plugin p = plugin.getServer().getPluginManager().getPlugin("CasinoCore");
+        if (!(p instanceof io.wax100.casinoCore.CasinoCore casino)) return false;
+        casino.getOfflinePayoutManager().addOfflineResult(playerId, betAmount, wonAmount);
+        return true;
+    }
+
+    /**
+     * {@code OfflinePayoutManager} の dirty データをディスクに書き込む。
+     */
+    private void flushOfflineResults() {
+        if (!plugin.getServer().getPluginManager().isPluginEnabled("CasinoCore")) return;
+        org.bukkit.plugin.Plugin p = plugin.getServer().getPluginManager().getPlugin("CasinoCore");
+        if (!(p instanceof io.wax100.casinoCore.CasinoCore casino)) return;
+        casino.getOfflinePayoutManager().flush();
     }
 
     /**

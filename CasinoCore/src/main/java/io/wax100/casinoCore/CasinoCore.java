@@ -5,6 +5,7 @@ import io.wax100.bindingCurseLib.BindingCurseManager;
 import io.wax100.casinoCore.command.CasinoCommand;
 import io.wax100.casinoCore.listener.CasinoListener;
 import io.wax100.casinoCore.manager.CasinoManager;
+import io.wax100.casinoCore.manager.OfflinePayoutManager;
 import io.wax100.chipLib.ChipManager;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.command.PluginCommand;
@@ -47,6 +48,10 @@ public final class CasinoCore extends JavaPlugin {
      * 束縛の呪いアイテム所有者管理マネージャ
      */
     private BindingCurseManager bindingCurseManager;
+    /**
+     * オフライン中のベット結果を管理するマネージャ
+     */
+    private OfflinePayoutManager offlinePayoutManager;
 
     /**
      * プラグイン有効化時の初期化処理。
@@ -83,6 +88,7 @@ public final class CasinoCore extends JavaPlugin {
         }
 
         casinoManager = new CasinoManager(this, bindingCurseManager);
+        offlinePayoutManager = new OfflinePayoutManager(this);
 
         registerCommand("casino", new CasinoCommand(this));
         getServer().getPluginManager().registerEvents(new CasinoListener(this), this);
@@ -174,5 +180,14 @@ public final class CasinoCore extends JavaPlugin {
      */
     public CasinoManager getCasinoManager() {
         return casinoManager;
+    }
+
+    /**
+     * オフライン配当管理マネージャを取得する。
+     *
+     * @return OfflinePayoutManager
+     */
+    public OfflinePayoutManager getOfflinePayoutManager() {
+        return offlinePayoutManager;
     }
 }

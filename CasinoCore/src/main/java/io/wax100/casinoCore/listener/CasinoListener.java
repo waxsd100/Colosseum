@@ -14,6 +14,7 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.EventPriority;
 import org.bukkit.inventory.ItemStack;
 
 /**
@@ -95,12 +96,18 @@ public class CasinoListener implements Listener {
     /**
      * カジノ参加中のプレイヤーがログアウトした際の後処理を行う。
      *
-     * <p>ゲームモードの復元、カジノシザースの回収、{@code casinoPlayers} からの除外を行う。
-     * チップは換金せず保持する（再ログイン後に管理者が手動で対応可能）。
+     * <p>手持ちチップの金額を戦績に記録した後、ゲームモードの復元、
+     * カジノシザースの回収、{@code casinoPlayers} からの除外を行う。
+     * チップの換金（Vault への入金）は ChipLib の {@code onPlayerQuit}（NORMAL 優先度）で行われる。
+     * 既にベットしている場合、ベットは有効のまま保持され、
+     * 次回ログイン時に {@link io.wax100.casinoCore.manager.OfflinePayoutManager} が結果を清算する。
+     *
+     * <p>このハンドラは {@link EventPriority#LOWEST} で登録されているため、
+     * ChipLib がチップを消去する前に {@code calculateTotalValue} を実行できる。
      *
      * @param event プレイヤー退出イベント
      */
-    @EventHandler
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
         if (!plugin.getCasinoManager().isPlayerInCasino(player.getUniqueId())) return;
@@ -116,7 +123,7 @@ public class CasinoListener implements Listener {
      *
      * @param event プレイヤーキックイベント
      */
-    @EventHandler
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerKick(PlayerKickEvent event) {
         Player player = event.getPlayer();
         if (!plugin.getCasinoManager().isPlayerInCasino(player.getUniqueId())) return;

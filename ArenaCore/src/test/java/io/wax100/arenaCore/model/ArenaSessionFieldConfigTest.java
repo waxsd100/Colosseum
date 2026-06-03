@@ -73,25 +73,25 @@ class ArenaSessionFieldConfigTest {
     }
 
     // ========================================================================
-    // clearAllData
+    // resetSession
     // ========================================================================
 
     @Nested
-    @DisplayName("clearAllData")
-    class ClearAllDataTest {
+    @DisplayName("resetSession")
+    class ResetSessionTest {
 
         @Test
-        @DisplayName("clearAllData後にfieldConfigがnullになる")
-        void clearAllData_resetsFieldConfig() {
+        @DisplayName("resetSession後にfieldConfigがnullになる")
+        void resetSession_resetsFieldConfig() {
             session.setFieldConfig(ArenaFieldConfig.of("world", 0, 0, 0, 100, 64, 100));
 
-            // clearAllDataを呼ぶにはFINISHED状態が必要
+            // resetSessionを呼ぶにはFINISHED状態が必要
             session.setState(ArenaState.RECRUITING);
             session.setState(ArenaState.BETTING);
             session.setState(ArenaState.CLOSED);
             session.setState(ArenaState.ACTIVE);
             session.setState(ArenaState.FINISHED);
-            session.clearAllData();
+            session.resetSession();
 
             assertNull(session.getFieldConfig());
         }

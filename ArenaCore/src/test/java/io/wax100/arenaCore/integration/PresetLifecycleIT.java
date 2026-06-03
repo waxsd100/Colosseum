@@ -118,7 +118,7 @@ class PresetLifecycleIT {
             original.setState(ArenaState.CLOSED);
             original.setState(ArenaState.ACTIVE);
             original.setState(ArenaState.FINISHED);
-            original.clearAllData();
+            original.resetSession();
 
             // 新しい ArenaManager でクリーンな状態から復元
             BettingManager bettingManager2 = mock(BettingManager.class);
@@ -314,7 +314,7 @@ class PresetLifecycleIT {
                     current.setState(ArenaState.CLOSED);
                     current.setState(ArenaState.ACTIVE);
                     current.setState(ArenaState.FINISHED);
-                    current.clearAllData();
+                    current.resetSession();
                     // リフレクションを避けるため、新しい ArenaManager を使用
                 }
 
