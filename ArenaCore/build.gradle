@@ -29,6 +29,7 @@ dependencies {
     testImplementation("org.mockito:mockito-junit-jupiter:${mockitoVersion}")
     testImplementation("com.github.MilkBowl:VaultAPI:${vaultApiVersion}")
     testImplementation("com.sk89q.worldedit:worldedit-bukkit:${worldEditVersion}")
+    testImplementation("com.sk89q.worldguard:worldguard-bukkit:${worldGuardVersion}")
     testImplementation(project(':ChipLib'))
     testImplementation(project(':CasinoCore'))
 }

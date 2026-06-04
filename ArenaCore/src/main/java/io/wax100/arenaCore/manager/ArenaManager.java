@@ -117,9 +117,8 @@ public class ArenaManager {
         for (var entry : data.teamAreaConfigs().entrySet()) {
             session.setTeamAreaConfig(entry.getKey(), entry.getValue());
         }
-        for (String mob : data.mobTeams()) {
-            session.markAsMobTeam(mob);
-        }
+        // mobTeams はプリセットから復元しない。
+        // openBetting() 時に待機場のエンティティを走査して自動検出する。
         for (var entry : data.bettingRegions().entrySet()) {
             regionManager.registerBettingRegion(entry.getKey(), entry.getValue());
         }

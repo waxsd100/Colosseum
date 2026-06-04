@@ -140,9 +140,9 @@ class PresetLifecycleIT {
             assertEquals(List.of("Warriors", "Monsters"), restored.getTeamNames());
             assertEquals(ArenaState.SETUP, restored.getState());
 
-            // Mobチーム
+            // Mobチーム — プリセットからは復元しない（openBetting時に自動検出）
             assertFalse(restored.isMobTeam("Warriors"));
-            assertTrue(restored.isMobTeam("Monsters"));
+            assertFalse(restored.isMobTeam("Monsters"));
 
             // フィールド
             ArenaFieldConfig field = restored.getFieldConfig();

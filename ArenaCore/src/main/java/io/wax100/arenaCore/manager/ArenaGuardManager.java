@@ -53,7 +53,14 @@ public class ArenaGuardManager {
      */
     public ArenaGuardManager(Plugin plugin) {
         this.plugin = plugin;
-        this.worldGuardAvailable = Bukkit.getPluginManager().getPlugin("WorldGuard") != null;
+        boolean available;
+        try {
+            Class.forName("com.sk89q.worldguard.WorldGuard");
+            available = plugin.getServer().getPluginManager().getPlugin("WorldGuard") != null;
+        } catch (ClassNotFoundException e) {
+            available = false;
+        }
+        this.worldGuardAvailable = available;
         if (!worldGuardAvailable) {
             plugin.getLogger().info("WorldGuard が見つかりません。プレイヤー入退場制御は無効です。");
         }
