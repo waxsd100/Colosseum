@@ -405,6 +405,38 @@ class ArenaSessionMultiTeamTest {
             assertEquals(2, session.getMobCount(TEAM_B));  // Mob数
             assertEquals(3, session.getEffectiveTeamSize(TEAM_B)); // 合計
         }
+
+        @Test
+        @DisplayName("getVisiblePlayerCountは待機場未設定時にgetTeamSizeにフォールバックする")
+        void getVisiblePlayerCount_noArea_fallsBackToTeamSize() {
+            session.addTeamMember(TEAM_A, UUID.randomUUID());
+            session.addTeamMember(TEAM_A, UUID.randomUUID());
+
+            // 待機場未設定 → getTeamSize と同じ値
+            assertEquals(2, session.getVisiblePlayerCount(TEAM_A));
+        }
+
+        @Test
+        @DisplayName("getVisiblePlayerCountはACTIVE時にgetTeamSizeを返す")
+        void getVisiblePlayerCount_active_returnsTeamSize() {
+            session.addTeamMember(TEAM_A, UUID.randomUUID());
+            session.addTeamMember(TEAM_A, UUID.randomUUID());
+            session.addTeamMember(TEAM_A, UUID.randomUUID());
+
+            session.setState(ArenaState.RECRUITING);
+            session.setState(ArenaState.BETTING);
+            session.setState(ArenaState.CLOSED);
+            session.setState(ArenaState.ACTIVE);
+
+            assertEquals(3, session.getVisiblePlayerCount(TEAM_A));
+        }
+
+        @Test
+        @DisplayName("getVisiblePlayerCountはメンバー未登録時に0を返す")
+        void getVisiblePlayerCount_noMembers_returnsZero() {
+            assertEquals(0, session.getVisiblePlayerCount(TEAM_A));
+            assertEquals(0, session.getVisiblePlayerCount(TEAM_B));
+        }
     }
 
     // ========================================================================
