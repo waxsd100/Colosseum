@@ -145,18 +145,8 @@ public class BetCommand implements CommandExecutor, TabCompleter {
                 + ChatColor.GREEN + " ベット"
                 + ChatColor.GRAY + " (合計: "
                 + ChipManager.formatAmount(total) + " E)";
-        // actionbar 5秒間表示（20tick × 5回 = 100tick = 5秒）
-        new org.bukkit.scheduler.BukkitRunnable() {
-            int remaining = 5;
-            @Override
-            public void run() {
-                if (remaining-- <= 0 || !player.isOnline()) {
-                    cancel();
-                    return;
-                }
-                player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText(msg));
-            }
-        }.runTaskTimer(plugin, 0L, 20L);
+        // カーペット設置と同じ仕組みでアクションバー表示（5秒間）
+        plugin.getBettingManager().showActionBarOverlay(player, msg, 100);
     }
 
     // ── /bet odds ──

@@ -975,7 +975,7 @@ public class BettingManager {
      * @param message 表示メッセージ（色コード込み）
      * @param ticks   表示時間（tick）
      */
-    private void showActionBarOverlay(Player player, String message, int ticks) {
+    public void showActionBarOverlay(Player player, String message, int ticks) {
         ChipPlugin chipPlugin = (ChipPlugin) Bukkit.getPluginManager().getPlugin("ChipLib");
         if (chipPlugin == null) return;
         BalanceDisplay display = chipPlugin.getBalanceDisplay();
