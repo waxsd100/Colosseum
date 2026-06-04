@@ -364,6 +364,47 @@ class ArenaSessionMultiTeamTest {
             assertFalse(session.isMobTeam(TEAM_B));
             assertNull(session.getMobTeam(mob));
         }
+
+        @Test
+        @DisplayName("getMobCountはMobチームでないチームに0を返す")
+        void getMobCount_nonMobTeam_returnsZero() {
+            assertEquals(0, session.getMobCount(TEAM_A));
+        }
+
+        @Test
+        @DisplayName("getMobCountはACTIVE時にtrackedMobsから生存数を返す")
+        void getMobCount_active_returnTrackedCount() {
+            session.markAsMobTeam(TEAM_B);
+            session.trackMob(UUID.randomUUID(), TEAM_B);
+            session.trackMob(UUID.randomUUID(), TEAM_B);
+            session.trackMob(UUID.randomUUID(), TEAM_A); // 別チーム
+
+            session.setState(ArenaState.RECRUITING);
+            session.setState(ArenaState.BETTING);
+            session.setState(ArenaState.CLOSED);
+            session.setState(ArenaState.ACTIVE);
+
+            assertEquals(2, session.getMobCount(TEAM_B));
+            assertEquals(0, session.getMobCount(TEAM_A)); // MobチームでないのでMob追跡なし
+        }
+
+        @Test
+        @DisplayName("getMobCountとgetTeamSizeは独立してカウントされる")
+        void getMobCount_independentOfPlayerCount() {
+            session.markAsMobTeam(TEAM_B);
+            session.addTeamMember(TEAM_B, UUID.randomUUID()); // プレイヤー追加
+            session.trackMob(UUID.randomUUID(), TEAM_B);      // Mob追加
+            session.trackMob(UUID.randomUUID(), TEAM_B);      // Mob追加
+
+            session.setState(ArenaState.RECRUITING);
+            session.setState(ArenaState.BETTING);
+            session.setState(ArenaState.CLOSED);
+            session.setState(ArenaState.ACTIVE);
+
+            assertEquals(1, session.getTeamSize(TEAM_B));  // プレイヤー数
+            assertEquals(2, session.getMobCount(TEAM_B));  // Mob数
+            assertEquals(3, session.getEffectiveTeamSize(TEAM_B)); // 合計
+        }
     }
 
     // ========================================================================
