@@ -866,7 +866,10 @@ public class ArenaManager {
                 declareWinner(winner);
             }
         }
-        activeSession.removeMob(entityId);
+        // declareWinner() がセッションをクリアする可能性があるため再チェック
+        if (activeSession != null) {
+            activeSession.removeMob(entityId);
+        }
     }
 
     /**
