@@ -597,6 +597,22 @@ public class ArenaSession {
     }
 
     /**
+     * チームのMob数のみを返す。
+     *
+     * <p>試合中（ACTIVE）は {@code trackedMobs} から生存数を返す。
+     * それ以前は待機場をスキャンして数える。
+     * Mobチームでない場合は常に 0 を返す。
+     */
+    public int getMobCount(String teamName) {
+        if (!isMobTeam(teamName)) return 0;
+        if (state == ArenaState.ACTIVE) {
+            return getAliveMobCount(teamName);
+        }
+        TeamAreaConfig config = getTeamAreaConfig(teamName);
+        return (config != null) ? config.scanEntities().size() : 0;
+    }
+
+    /**
      * スポーン済みモンスターを追跡登録する。
      */
     public void trackMob(UUID entityId, String teamName) {

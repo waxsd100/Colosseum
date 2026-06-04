@@ -142,8 +142,11 @@ public final class ArenaMessages {
      * @return フォーマット済みラベル
      */
     public static String formatTeamLabel(ArenaSession session, String team) {
-        return session.isMobTeam(team)
-                ? "[MOB] " + session.getEffectiveTeamSize(team) + "体"
-                : session.getTeamSize(team) + "人";
+        int playerCount = session.getTeamSize(team);
+        if (session.isMobTeam(team)) {
+            int mobCount = session.getMobCount(team);
+            return playerCount + "人 / [MOB] " + mobCount + "体";
+        }
+        return playerCount + "人";
     }
 }

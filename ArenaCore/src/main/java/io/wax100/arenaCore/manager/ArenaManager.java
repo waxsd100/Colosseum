@@ -234,20 +234,20 @@ public class ArenaManager {
             ChatColor color = activeSession.getTeamColor(team);
             String label = ArenaMessages.formatTeamLabel(activeSession, team);
 
-            // メンバー名一覧を作成
+            // メンバー名一覧を作成（Mobチームでもプレイヤーがいれば表示）
             StringBuilder members = new StringBuilder();
-            if (activeSession.isMobTeam(team)) {
-                members.append(label);
-            } else {
-                List<UUID> memberIds = activeSession.getTeamMembers(team);
-                for (int i = 0; i < memberIds.size(); i++) {
-                    Player p = Bukkit.getPlayer(memberIds.get(i));
-                    if (p != null) {
-                        if (i > 0) members.append(", ");
-                        members.append(p.getName());
-                    }
+            List<UUID> memberIds = activeSession.getTeamMembers(team);
+            for (int i = 0; i < memberIds.size(); i++) {
+                Player p = Bukkit.getPlayer(memberIds.get(i));
+                if (p != null) {
+                    if (i > 0) members.append(", ");
+                    members.append(p.getName());
                 }
+            }
+            if (members.length() > 0) {
                 members.append(" (").append(label).append(")");
+            } else {
+                members.append(label);
             }
 
             Bukkit.broadcastMessage(ArenaMessages.PREFIX + "  " + color + "■ " + team
