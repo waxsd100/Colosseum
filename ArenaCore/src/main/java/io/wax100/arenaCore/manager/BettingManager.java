@@ -107,7 +107,7 @@ public class BettingManager {
                 teamColor.toString() + ChatColor.BOLD + teamName
                 + ChatColor.RESET + ChatColor.GREEN + " +" + ChipManager.formatAmount(chipValue) + " E"
                 + ChatColor.GRAY + "  (合計: " + ChipManager.formatAmount(total) + " E)",
-                40);
+                100);
         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.5f, 1.5f);
 
         return true;
@@ -158,7 +158,7 @@ public class BettingManager {
         showActionBarOverlay(player,
                 ChatColor.YELLOW.toString() + ChatColor.BOLD + "↩ "
                 + ChatColor.RESET + ChatColor.YELLOW + "-" + ChipManager.formatAmount(chipInfo.chipValue()) + " E" + remaining,
-                40);
+                100);
         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.5f, 0.8f);
     }
 
