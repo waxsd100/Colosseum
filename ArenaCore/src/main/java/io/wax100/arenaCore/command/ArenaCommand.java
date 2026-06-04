@@ -2,6 +2,7 @@ package io.wax100.arenaCore.command;
 
 import io.wax100.arenaCore.ArenaCore;
 import io.wax100.arenaCore.command.sub.*;
+import io.wax100.arenaCore.model.ArenaSession;
 import io.wax100.arenaCore.util.ArenaMessages;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
@@ -19,9 +20,11 @@ import java.util.*;
  */
 public class ArenaCommand implements CommandExecutor, TabCompleter {
 
+    private final ArenaCore plugin;
     private final Map<String, SubCommand> subCommands = new LinkedHashMap<>();
 
     public ArenaCommand(ArenaCore plugin) {
+        this.plugin = plugin;
         subCommands.put("create", new CreateSubCommand(plugin));
         subCommands.put("team", new TeamSubCommand(plugin));
         subCommands.put("area", new AreaSubCommand(plugin));
@@ -59,6 +62,9 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
         // サブコマンド名を除いた残りの引数を渡す
         String[] subArgs = Arrays.copyOfRange(args, 1, args.length);
         sub.execute(sender, subArgs);
+
+        // 次ステップのヒントを表示
+        sendNextStepHint(sender);
         return true;
     }
 
@@ -96,5 +102,19 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "  /arena cancel" + ChatColor.GRAY + " <- 中止（試合中なら引き分け）");
         sender.sendMessage(ChatColor.YELLOW + "  /arena deathmatch <金額|yes|no|cancel|info>" + ChatColor.GRAY + " <- デスマッチ提案・投票");
         sender.sendMessage(ChatColor.YELLOW + "  /arena status");
+    }
+
+    /**
+     * 現在のセッション状態に基づいて、次に打つべきコマンドのヒントを送信する。
+     */
+    private void sendNextStepHint(CommandSender sender) {
+        ArenaSession session = plugin.getArenaManager().hasActiveSession()
+                ? plugin.getArenaManager().getActiveSession()
+                : null;
+        String[] hints = ArenaMessages.getNextStepHint(session);
+        sender.sendMessage("");
+        for (String hint : hints) {
+            sender.sendMessage(ArenaMessages.PREFIX + hint);
+        }
     }
 }

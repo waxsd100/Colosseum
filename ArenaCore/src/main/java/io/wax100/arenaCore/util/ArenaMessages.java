@@ -1,6 +1,7 @@
 package io.wax100.arenaCore.util;
 
 import io.wax100.arenaCore.model.ArenaSession;
+import io.wax100.arenaCore.model.ArenaState;
 import org.bukkit.ChatColor;
 
 /**
@@ -151,5 +152,59 @@ public final class ArenaMessages {
             return playerCount + "人 / [MOB] " + mobCount + "体";
         }
         return playerCount + "人";
+    }
+
+    /**
+     * 現在のフェーズに基づいた「次のステップ」ヒントを返す。
+     *
+     * <p>セッションがない場合は create/load のヒントを返す。
+     *
+     * @param session セッション（nullの場合はセッション作成ヒント）
+     * @return ヒントメッセージ（複数行の場合は改行区切り）
+     */
+    public static String[] getNextStepHint(ArenaSession session) {
+        if (session == null) {
+            return new String[]{
+                    ChatColor.GRAY + "次 → " + ChatColor.YELLOW + "/arena create <名前> <チーム1> <チーム2> ..."
+                            + ChatColor.GRAY + " または " + ChatColor.YELLOW + "/arena preset load <名前>"
+            };
+        }
+        ArenaState state = session.getState();
+        return switch (state) {
+            case SETUP -> new String[]{
+                    ChatColor.GRAY + "次 → " + ChatColor.YELLOW + "/arena field set"
+                            + ChatColor.GRAY + " (戦闘エリア設定)",
+                    ChatColor.GRAY + "     " + ChatColor.YELLOW + "/arena team area <チーム>"
+                            + ChatColor.GRAY + " (待機場設定)",
+                    ChatColor.GRAY + "     " + ChatColor.YELLOW + "/arena open [秒数]"
+                            + ChatColor.GRAY + " (準備完了 → 募集開始)"
+            };
+            case RECRUITING -> new String[]{
+                    ChatColor.GRAY + "次 → " + ChatColor.YELLOW + "/arena lock [秒数]"
+                            + ChatColor.GRAY + " (参加締切 → ベット受付)",
+                    ChatColor.GRAY + "     " + ChatColor.YELLOW + "/arena status"
+                            + ChatColor.GRAY + " (現在の状況確認)"
+            };
+            case BETTING, BLIND -> new String[]{
+                    ChatColor.GRAY + "次 → " + ChatColor.YELLOW + "/arena close"
+                            + ChatColor.GRAY + " (ベット締切)"
+            };
+            case CLOSED -> new String[]{
+                    ChatColor.GRAY + "次 → " + ChatColor.YELLOW + "/arena start"
+                            + ChatColor.GRAY + " (試合開始！)"
+            };
+            case ACTIVE -> new String[]{
+                    ChatColor.GRAY + "次 → " + ChatColor.YELLOW + "/arena win <チーム>"
+                            + ChatColor.GRAY + " (勝利チーム判定)",
+                    ChatColor.GRAY + "     " + ChatColor.YELLOW + "/arena cancel"
+                            + ChatColor.GRAY + " (中止/引き分け)"
+            };
+            case FINISHED -> new String[]{
+                    ChatColor.GRAY + "次 → " + ChatColor.YELLOW + "/arena create ..."
+                            + ChatColor.GRAY + " (新規セッション)",
+                    ChatColor.GRAY + "     " + ChatColor.YELLOW + "/arena preset load <名前>"
+                            + ChatColor.GRAY + " (プリセット読込)"
+            };
+        };
     }
 }
