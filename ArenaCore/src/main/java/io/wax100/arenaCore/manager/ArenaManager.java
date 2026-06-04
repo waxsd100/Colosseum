@@ -234,16 +234,31 @@ public class ArenaManager {
             ChatColor color = activeSession.getTeamColor(team);
             String label = ArenaMessages.formatTeamLabel(activeSession, team);
 
-            // メンバー名一覧を作成（Mobチームでもプレイヤーがいれば表示）
+            // メンバー名一覧を作成（待機場スキャン or 登録済みメンバー）
             StringBuilder members = new StringBuilder();
-            List<UUID> memberIds = activeSession.getTeamMembers(team);
-            for (int i = 0; i < memberIds.size(); i++) {
-                Player p = Bukkit.getPlayer(memberIds.get(i));
-                if (p != null) {
-                    if (i > 0) members.append(", ");
-                    members.append(p.getName());
+            if (activeSession.getState() == ArenaState.ACTIVE
+                    || activeSession.getState() == ArenaState.FINISHED) {
+                // 試合中: 登録済みメンバーから名前取得
+                List<UUID> memberIds = activeSession.getTeamMembers(team);
+                for (int i = 0; i < memberIds.size(); i++) {
+                    Player p = Bukkit.getPlayer(memberIds.get(i));
+                    if (p != null) {
+                        if (i > 0) members.append(", ");
+                        members.append(p.getName());
+                    }
+                }
+            } else {
+                // 試合前: 待機場をスキャンしてプレイヤー名取得
+                TeamAreaConfig config = activeSession.getTeamAreaConfig(team);
+                if (config != null) {
+                    List<Player> playersInArea = config.scanPlayers();
+                    for (int i = 0; i < playersInArea.size(); i++) {
+                        if (i > 0) members.append(", ");
+                        members.append(playersInArea.get(i).getName());
+                    }
                 }
             }
+
             if (members.length() > 0) {
                 members.append(" (").append(label).append(")");
             } else {

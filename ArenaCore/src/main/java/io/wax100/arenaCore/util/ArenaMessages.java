@@ -135,14 +135,17 @@ public final class ArenaMessages {
     }
 
     /**
-     * チーム情報ラベルを生成する（例: "3人" / "[MOB] 5体"）。
+     * チーム情報ラベルを生成する。
+     *
+     * <p>試合前は待機場をリアルタイムスキャンして表示する。
+     * 例: "3人" / "2人 / [MOB] 5体"
      *
      * @param session セッション
      * @param team    チーム名
      * @return フォーマット済みラベル
      */
     public static String formatTeamLabel(ArenaSession session, String team) {
-        int playerCount = session.getTeamSize(team);
+        int playerCount = session.getVisiblePlayerCount(team);
         if (session.isMobTeam(team)) {
             int mobCount = session.getMobCount(team);
             return playerCount + "人 / [MOB] " + mobCount + "体";

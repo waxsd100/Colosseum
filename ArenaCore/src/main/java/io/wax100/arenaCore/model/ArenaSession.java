@@ -258,6 +258,28 @@ public class ArenaSession {
         return members != null ? members.size() : 0;
     }
 
+    /**
+     * チームの「見えているプレイヤー数」を返す。
+     *
+     * <p>試合中（ACTIVE/FINISHED）は登録済みメンバー数を返す。
+     * それ以前は待機場をリアルタイムスキャンして、
+     * 実際にその場にいるプレイヤー数を返す。
+     * 手動登録済みメンバーがいればその数も含める。
+     */
+    public int getVisiblePlayerCount(String teamName) {
+        int registered = getTeamSize(teamName);
+        if (state == ArenaState.ACTIVE || state == ArenaState.FINISHED) {
+            return registered;
+        }
+        // 試合前: 待機場をスキャンして実際にいる人数を返す
+        TeamAreaConfig config = getTeamAreaConfig(teamName);
+        if (config != null) {
+            int inArea = config.scanPlayers().size();
+            return Math.max(registered, inArea);
+        }
+        return registered;
+    }
+
     public boolean isFighter(UUID playerId) {
         for (List<UUID> members : teams.values()) {
             if (members.contains(playerId)) return true;
