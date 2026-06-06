@@ -6,6 +6,8 @@ import io.wax100.chipLib.Chip;
 import io.wax100.chipLib.ChipManager;
 import io.wax100.chipLib.ChipPlugin;
 import io.wax100.chipLib.ranking.RankingManager;
+import io.wax100.chipLib.storage.PlayerStatsSnapshot;
+import io.wax100.chipLib.storage.StorageProvider;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
@@ -66,6 +68,11 @@ public class CasinoManager {
      * データ永続化ストア
      */
     private final CasinoDataStore dataStore;
+
+    /**
+     * ChipLib の StorageProvider。{@code null} の場合は YAML フォールバック。
+     */
+    private StorageProvider storageProvider;
 
     /**
      * セッション中の購入記録 (UUID -> 購入総額)
@@ -408,7 +415,16 @@ public class CasinoManager {
      * @return PlayerStats インスタンス
      */
     public PlayerStats getOrCreateStats(UUID playerId) {
-        return playerStats.computeIfAbsent(playerId, k -> new PlayerStats());
+        return playerStats.computeIfAbsent(playerId, k -> {
+            // StorageProvider から既存の統計を読み込む
+            if (storageProvider != null) {
+                PlayerStatsSnapshot snapshot = storageProvider.loadPlayerStats(k);
+                if (snapshot != null) {
+                    return PlayerStats.fromSnapshot(snapshot);
+                }
+            }
+            return new PlayerStats();
+        });
     }
 
     // ──────────────────────────────────────────────────────
@@ -626,6 +642,20 @@ public class CasinoManager {
     private RankingManager getRankingManager() {
         ChipPlugin chipPlugin = getChipPlugin();
         return chipPlugin != null ? chipPlugin.getRankingManager() : null;
+    }
+
+    /**
+     * StorageProvider を設定する。
+     *
+     * <p>プレイヤー統計の読み書きを StorageProvider に委譲する。
+     * {@code null} の場合は YAML フォールバックとなる。
+     * 内部の {@link CasinoDataStore} にも伝播される。
+     *
+     * @param storageProvider StorageProvider インスタンス（{@code null} 可）
+     */
+    public void setStorageProvider(StorageProvider storageProvider) {
+        this.storageProvider = storageProvider;
+        dataStore.setStorageProvider(storageProvider);
     }
 
 }

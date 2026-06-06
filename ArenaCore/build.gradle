@@ -22,6 +22,7 @@ dependencies {
     compileOnly("com.sk89q.worldguard:worldguard-bukkit:${worldGuardVersion}")
     compileOnly(project(':ChipLib'))
     compileOnly(project(':CasinoCore'))
+    compileOnly("redis.clients:jedis:${jedisVersion}")
 
     testImplementation("org.spigotmc:spigot-api:${spigotApiVersion}")
     testImplementation("org.junit.jupiter:junit-jupiter:${junitVersion}")

@@ -77,7 +77,7 @@ class TerrainRestoreIT {
         when(scheduler.runTaskTimer(eq(plugin), any(Runnable.class), anyLong(), anyLong()))
                 .thenReturn(mockTask);
 
-        terrainManager = new TerrainManager(plugin);
+        terrainManager = new TerrainManager(plugin, new io.wax100.arenaCore.storage.MemoryTerrainStorage());
     }
 
     @AfterEach
@@ -245,7 +245,7 @@ class TerrainRestoreIT {
             disabledConfig.set("terrain-restore.enabled", false);
             when(plugin.getConfig()).thenReturn(disabledConfig);
 
-            TerrainManager disabledTm = new TerrainManager(plugin);
+            TerrainManager disabledTm = new TerrainManager(plugin, new io.wax100.arenaCore.storage.MemoryTerrainStorage());
 
             ArenaSession session = createSessionWithField();
             disabledTm.startTracking(session);

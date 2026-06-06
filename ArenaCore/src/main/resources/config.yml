@@ -59,3 +59,9 @@ terrain-restore:
 double-up:
   enabled: true                     # ダブルアップ機能の有効/無効
   min-amount: 100                   # ダブルアップ提示の最低配当額
+
+# ── ストレージ設定 ──
+# ChipLib の storage.type と連動。redis の場合は地形復元データも Redis に保存される。
+storage:
+  type: yaml
+  redis-prefix: "colosseum"

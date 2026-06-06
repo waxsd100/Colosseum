@@ -7,6 +7,7 @@ dependencies {
     compileOnly("org.spigotmc:spigot-api:${spigotApiVersion}")
     compileOnly("com.github.MilkBowl:VaultAPI:${vaultApiVersion}")
     api("de.tr7zw:item-nbt-api:${nbtApiVersion}")
+    implementation("redis.clients:jedis:${jedisVersion}")
 
     // Nullable/NonNull アノテーション用。IDE の静的解析を強化する。
     compileOnly("org.jetbrains:annotations:${jetbrainsAnnotationsVersion}")
@@ -32,6 +33,9 @@ test {
 shadowJar {
     archiveClassifier.set('')
     relocate 'de.tr7zw.changeme.nbtapi', 'io.wax100.chipLib.nbtapi'
+    relocate 'redis.clients', 'io.wax100.chipLib.redis'
+    relocate 'org.apache.commons.pool2', 'io.wax100.chipLib.pool2'
+    relocate 'org.json', 'io.wax100.chipLib.json'
 }
 
 build.dependsOn shadowJar

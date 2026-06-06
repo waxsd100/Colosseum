@@ -3,6 +3,9 @@ package io.wax100.chipLib;
 import io.wax100.chipLib.command.ChipCommand;
 import io.wax100.chipLib.command.RankingCommand;
 import io.wax100.chipLib.ranking.RankingManager;
+import io.wax100.chipLib.storage.RedisConnectionManager;
+import io.wax100.chipLib.storage.StorageFactory;
+import io.wax100.chipLib.storage.StorageProvider;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.GameMode;
@@ -59,6 +62,11 @@ public final class ChipPlugin extends JavaPlugin implements Listener {
     private RankingManager rankingManager;
 
     /**
+     * ストレージプロバイダー
+     */
+    private StorageProvider storageProvider;
+
+    /**
      * 所持金リアルタイム表示タスク
      */
     private BalanceDisplay balanceDisplay;
@@ -94,9 +102,11 @@ public final class ChipPlugin extends JavaPlugin implements Listener {
             return;
         }
 
+        storageProvider = StorageFactory.create(this);
+
         chipManager = new ChipManager(this);
         shearsHelper = new ShearsHelper(this);
-        rankingManager = new RankingManager(this);
+        rankingManager = new RankingManager(storageProvider);
 
         ChipCommand chipCommand = new ChipCommand(this);
         PluginCommand cmd = getCommand("chip");
@@ -139,7 +149,9 @@ public final class ChipPlugin extends JavaPlugin implements Listener {
         }
         if (rankingManager != null) {
             rankingManager.stopAutoSave();
-            rankingManager.saveData();
+        }
+        if (storageProvider != null) {
+            storageProvider.shutdown();
         }
         getLogger().info("ChipLib が無効化されました。");
     }
@@ -234,6 +246,28 @@ public final class ChipPlugin extends JavaPlugin implements Listener {
      */
     public RankingManager getRankingManager() {
         return rankingManager;
+    }
+
+    /**
+     * ストレージプロバイダーを取得する。
+     *
+     * @return {@link StorageProvider} インスタンス
+     */
+    public StorageProvider getStorageProvider() {
+        return storageProvider;
+    }
+
+    /**
+     * Redis 接続マネージャを取得する。
+     *
+     * <p>ストレージタイプが {@code "redis"} でない場合や、Redis 接続に失敗した場合は
+     * {@code null} を返す。ArenaCore のテレインストレージなど外部モジュールが
+     * Redis 接続を共有するために使用する。
+     *
+     * @return {@link RedisConnectionManager} インスタンス、または {@code null}
+     */
+    public RedisConnectionManager getRedisConnectionManager() {
+        return StorageFactory.getRedisConnectionManager();
     }
 
     /**

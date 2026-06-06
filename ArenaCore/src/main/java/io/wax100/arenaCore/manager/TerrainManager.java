@@ -18,6 +18,9 @@ import com.sk89q.worldedit.session.ClipboardHolder;
 import io.wax100.arenaCore.ArenaCore;
 import io.wax100.arenaCore.model.ArenaFieldConfig;
 import io.wax100.arenaCore.model.ArenaSession;
+import io.wax100.arenaCore.storage.BlockRestoreEntry;
+import io.wax100.arenaCore.storage.MemoryTerrainStorage;
+import io.wax100.arenaCore.storage.TerrainStorageProvider;
 import io.wax100.arenaCore.util.ArenaMessages;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -34,9 +37,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.Deque;
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * 3段階地形復元マネージャ。
@@ -50,6 +53,8 @@ import java.util.Objects;
  *
  * <p>クラッシュ復旧は {@code .active} マーカーファイルと
  * {@code .schem} ファイルの組み合わせで実現する。
+ * Redis ストレージ使用時は {@link TerrainStorageProvider#getPendingSessions()} も
+ * クラッシュ復旧の情報源として活用する。
  */
 public class TerrainManager {
 
@@ -73,7 +78,7 @@ public class TerrainManager {
 
     // ── データ ──
 
-    private final Deque<RestoreEntry> restoreQueue = new ArrayDeque<>();
+    private final TerrainStorageProvider terrainStorage;
     private BukkitTask duringMatchTask;
     private BukkitTask flushTask;
     private ArenaFieldConfig fieldConfig;
@@ -92,23 +97,6 @@ public class TerrainManager {
 
     private final ArenaCore plugin;
 
-    // ── 内部クラス ──
-
-    /**
-     * 復元対象の情報を保持するデータクラス。
-     */
-    static final class RestoreEntry {
-        final Location location;
-        final BlockData originalData;
-        final long restoreAtTick;
-
-        RestoreEntry(Location location, BlockData originalData, long restoreAtTick) {
-            this.location = location;
-            this.originalData = originalData;
-            this.restoreAtTick = restoreAtTick;
-        }
-    }
-
     // ══════════════════════════════════════
     //  初期化
     // ══════════════════════════════════════
@@ -116,10 +104,12 @@ public class TerrainManager {
     /**
      * TerrainManager を初期化する。
      *
-     * @param plugin ArenaCore プラグインインスタンス
+     * @param plugin          ArenaCore プラグインインスタンス
+     * @param terrainStorage  地形復元ストレージプロバイダ
      */
-    public TerrainManager(ArenaCore plugin) {
+    public TerrainManager(ArenaCore plugin, TerrainStorageProvider terrainStorage) {
         this.plugin = Objects.requireNonNull(plugin, "plugin must not be null");
+        this.terrainStorage = Objects.requireNonNull(terrainStorage, "terrainStorage must not be null");
         loadConfig();
 
         // WorldEdit 存在チェック
@@ -294,7 +284,7 @@ public class TerrainManager {
             return;
         }
         sessionName = session.getId().toString();
-        restoreQueue.clear();
+        terrainStorage.clearSession(sessionName);
         tickCounter = 0;
         state = State.TRACKING;
 
@@ -315,7 +305,7 @@ public class TerrainManager {
     /**
      * ブロック破壊を記録する。
      *
-     * <p>TRACKING 状態かつフィールド範囲内の場合のみキューに追加する。
+     * <p>TRACKING 状態かつフィールド範囲内の場合のみストレージに追加する。
      *
      * @param loc      破壊されたブロックの座標
      * @param original 破壊前のブロックデータ
@@ -323,7 +313,11 @@ public class TerrainManager {
     public void recordBreak(Location loc, BlockData original) {
         if (!isTrackable(loc)) return;
 
-        restoreQueue.add(new RestoreEntry(loc, original, tickCounter + duringMatchDelay));
+        terrainStorage.recordBlockChange(sessionName,
+                loc.getWorld().getName(),
+                loc.getBlockX(), loc.getBlockY(), loc.getBlockZ(),
+                original.getAsString(),
+                tickCounter + duringMatchDelay);
         ensureDuringMatchTask();
     }
 
@@ -339,7 +333,11 @@ public class TerrainManager {
         if (!isTrackable(loc)) return;
 
         // Long.MAX_VALUE → Stage 1 では処理されず、Stage 2 の flush で一括復元
-        restoreQueue.add(new RestoreEntry(loc, previousData, Long.MAX_VALUE));
+        terrainStorage.recordBlockChange(sessionName,
+                loc.getWorld().getName(),
+                loc.getBlockX(), loc.getBlockY(), loc.getBlockZ(),
+                previousData.getAsString(),
+                Long.MAX_VALUE);
     }
 
     /** TRACKING 中かつフィールド範囲内かを判定する。 */
@@ -360,18 +358,17 @@ public class TerrainManager {
     }
 
     /**
-     * 試合中の復元処理。delay が経過したエントリを1個ずつ復元する。
-     * キューが空になったらタスクを停止する。
+     * 試合中の復元処理。delay が経過したエントリを復元する。
+     * ストレージが空になったらタスクを停止する。
      */
     private void processDuringMatch() {
-        while (!restoreQueue.isEmpty()) {
-            RestoreEntry entry = restoreQueue.peek();
-            if (entry.restoreAtTick > tickCounter) break;
-            restoreQueue.poll();
+        List<BlockRestoreEntry> readyEntries =
+                terrainStorage.pollReadyEntries(sessionName, tickCounter);
+        for (BlockRestoreEntry entry : readyEntries) {
             restoreSingleBlock(entry);
         }
-        // キューが空になったらタスク停止
-        if (restoreQueue.isEmpty() && duringMatchTask != null) {
+        // ストレージが空になったらタスク停止
+        if (terrainStorage.isEmpty(sessionName) && duringMatchTask != null) {
             duringMatchTask.cancel();
             duringMatchTask = null;
         }
@@ -382,14 +379,17 @@ public class TerrainManager {
      *
      * @param entry 復元エントリ
      */
-    private void restoreSingleBlock(RestoreEntry entry) {
+    private void restoreSingleBlock(BlockRestoreEntry entry) {
+        World world = Bukkit.getWorld(entry.worldName());
         // ワールドがアンロードされている場合はスキップ
-        if (entry.location.getWorld() == null) return;
+        if (world == null) return;
 
-        Block block = entry.location.getBlock();
-        if (!block.getBlockData().equals(entry.originalData)) {
-            block.setBlockData(entry.originalData, false);
-            if (effects) playEffect(entry.location, entry.originalData);
+        Location loc = new Location(world, entry.x(), entry.y(), entry.z());
+        BlockData originalData = Bukkit.createBlockData(entry.blockDataString());
+        Block block = loc.getBlock();
+        if (!block.getBlockData().equals(originalData)) {
+            block.setBlockData(originalData, false);
+            if (effects) playEffect(loc, originalData);
         }
     }
 
@@ -413,12 +413,16 @@ public class TerrainManager {
         state = State.FLUSHING;
         Bukkit.broadcastMessage(ArenaMessages.MSG_TERRAIN_FLUSHING);
 
-        // 設置ブロックを先頭に → 高速破壊で先に処理
-        reorderPlacedBlocksFirst();
+        // MemoryTerrainStorage の場合は設置ブロックを先頭に並べ替える
+        if (terrainStorage instanceof MemoryTerrainStorage memoryStorage) {
+            memoryStorage.reorderPlacedBlocksFirst(sessionName);
+        }
+        // Redis の場合は Sorted Set が score 順（設置ブロック = Double.MAX_VALUE が末尾）のため、
+        // ZPOPMIN で自然に score 昇順で取り出される。並べ替え不要。
 
-        // Stage 2: 設置ブロック高速破壊 → 破壊ブロック高速復元 → Stage 3
+        // Stage 2: 高速復元 → Stage 3
         flushTask = new TerrainRestoreTask(
-                restoreQueue, this, postMatchBlocksPerTick, effects)
+                terrainStorage, this, sessionName, postMatchBlocksPerTick, effects)
                 .runTaskTimer(plugin, postMatchDelay, 1L);
     }
 
@@ -434,22 +438,6 @@ public class TerrainManager {
         }
     }
 
-    /** 設置ブロック（MAX_VALUE）をキュー先頭に並べ替える。 */
-    private void reorderPlacedBlocksFirst() {
-        Deque<RestoreEntry> placed = new ArrayDeque<>();
-        Deque<RestoreEntry> broken = new ArrayDeque<>();
-        for (RestoreEntry entry : restoreQueue) {
-            if (entry.restoreAtTick == Long.MAX_VALUE) {
-                placed.add(entry);
-            } else {
-                broken.add(entry);
-            }
-        }
-        restoreQueue.clear();
-        restoreQueue.addAll(placed);
-        restoreQueue.addAll(broken);
-    }
-
     /**
      * Stage 2（高速復元）完了時に {@link TerrainRestoreTask} から呼ばれる。
      *
@@ -462,11 +450,13 @@ public class TerrainManager {
         // .active マーカー削除
         deleteActiveMarker(sessionName);
 
+        // ストレージのセッションデータをクリア
+        terrainStorage.clearSession(sessionName);
+
         // 状態クリア
         state = State.IDLE;
         fieldConfig = null;
         sessionName = null;
-        restoreQueue.clear();
 
         Bukkit.broadcastMessage(ArenaMessages.MSG_TERRAIN_COMPLETE);
     }
@@ -481,50 +471,62 @@ public class TerrainManager {
      * <p>onEnable から {@code runTaskLater(1L)} で呼ばれる。
      * {@code arenas/} ディレクトリの {@code .active} ファイルを走査し、
      * 対応する {@code .schem} が存在すればペーストして復旧する。
+     *
+     * <p>Redis ストレージ使用時は {@link TerrainStorageProvider#getPendingSessions()} で
+     * アクティブセッションを追加チェックし、Redis 側のデータもクリアする。
      */
     public void checkCrashRecovery() {
         File arenasDir = new File(plugin.getDataFolder(), "arenas");
-        if (!arenasDir.exists()) return;
+        if (!arenasDir.exists()) arenasDir.mkdirs();
 
+        // ── .active ファイルベースの復旧 ──
         File[] activeFiles = arenasDir.listFiles(
                 (dir, name) -> name.endsWith(".active"));
-        if (activeFiles == null) return;
+        if (activeFiles != null) {
+            for (File activeFile : activeFiles) {
+                YamlConfiguration yaml =
+                        YamlConfiguration.loadConfiguration(activeFile);
+                String arenaName = yaml.getString("arena");
+                String worldName = yaml.getString("world");
 
-        for (File activeFile : activeFiles) {
-            YamlConfiguration yaml =
-                    YamlConfiguration.loadConfiguration(activeFile);
-            String arenaName = yaml.getString("arena");
-            String worldName = yaml.getString("world");
+                if (arenaName == null || worldName == null) {
+                    plugin.getLogger().warning(
+                            "不正な.activeファイルを削除: " + activeFile.getName());
+                    activeFile.delete();
+                    continue;
+                }
 
-            if (arenaName == null || worldName == null) {
-                plugin.getLogger().warning(
-                        "不正な.activeファイルを削除: " + activeFile.getName());
+                World world = Bukkit.getWorld(worldName);
+                if (world == null) {
+                    plugin.getLogger().warning(
+                            "クラッシュ復旧スキップ (ワールド未ロード): "
+                            + worldName);
+                    continue; // .active は残す（次回再試行）
+                }
+
+                File schemFile = new File(arenasDir, arenaName + ".schem");
+                if (!schemFile.exists()) {
+                    plugin.getLogger().warning(
+                            "クラッシュ復旧: Schematic未発見のためスキップ: "
+                            + arenaName);
+                    activeFile.delete();
+                    continue;
+                }
+
+                plugin.getLogger().info(
+                        "クラッシュ復旧開始: " + arenaName + " (" + worldName + ")");
+                pasteSchematic(arenaName, worldName);
                 activeFile.delete();
-                continue;
+                plugin.getLogger().info("クラッシュ復旧完了: " + arenaName);
             }
+        }
 
-            World world = Bukkit.getWorld(worldName);
-            if (world == null) {
-                plugin.getLogger().warning(
-                        "クラッシュ復旧スキップ (ワールド未ロード): "
-                        + worldName);
-                continue; // .active は残す（次回再試行）
-            }
-
-            File schemFile = new File(arenasDir, arenaName + ".schem");
-            if (!schemFile.exists()) {
-                plugin.getLogger().warning(
-                        "クラッシュ復旧: Schematic未発見のためスキップ: "
-                        + arenaName);
-                activeFile.delete();
-                continue;
-            }
-
+        // ── Redis ストレージの保留セッションをクリア ──
+        Set<String> pendingSessions = terrainStorage.getPendingSessions();
+        for (String pendingSessionId : pendingSessions) {
             plugin.getLogger().info(
-                    "クラッシュ復旧開始: " + arenaName + " (" + worldName + ")");
-            pasteSchematic(arenaName, worldName);
-            activeFile.delete();
-            plugin.getLogger().info("クラッシュ復旧完了: " + arenaName);
+                    "Redis 保留セッションをクリア: " + pendingSessionId);
+            terrainStorage.clearSession(pendingSessionId);
         }
     }
 
@@ -590,7 +592,9 @@ public class TerrainManager {
             flushTask.cancel();
             flushTask = null;
         }
-        restoreQueue.clear();
+        if (sessionName != null) {
+            terrainStorage.clearSession(sessionName);
+        }
         fieldConfig = null;
         sessionName = null;
         tickCounter = 0;

@@ -1,6 +1,7 @@
 package io.wax100.casinoCore.manager;
 
 import io.wax100.casinoCore.CasinoCore;
+import io.wax100.chipLib.storage.StorageProvider;
 import io.wax100.chipLib.ChipManager;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
@@ -37,6 +38,11 @@ public class OfflinePayoutManager implements Listener {
     private final File file;
     private FileConfiguration config;
     private boolean dirty;
+
+    /**
+     * ChipLib の StorageProvider。{@code null} の場合は YAML フォールバック。
+     */
+    private StorageProvider storageProvider;
 
     public OfflinePayoutManager(CasinoCore plugin) {
         this.plugin = plugin;
@@ -82,6 +88,10 @@ public class OfflinePayoutManager implements Listener {
      * @param wonAmount 配当額（負けた場合は 0）
      */
     public void addOfflineResult(UUID playerId, long betAmount, long wonAmount) {
+        if (storageProvider != null) {
+            storageProvider.addOfflineResult(playerId, betAmount, wonAmount);
+            return;
+        }
         String path = playerId.toString();
         long currentBet = config.getLong(path + ".bet", 0L);
         long currentWon = config.getLong(path + ".won", 0L);
@@ -97,21 +107,34 @@ public class OfflinePayoutManager implements Listener {
      * ベッター数分のファイル I/O を 1 回に削減する。
      */
     public void flush() {
+        if (storageProvider != null) {
+            storageProvider.flush();
+            return;
+        }
         save();
     }
 
     @EventHandler(priority = EventPriority.NORMAL)
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        String path = player.getUniqueId().toString();
-        if (!config.contains(path)) return;
 
-        long betAmount = config.getLong(path + ".bet", 0L);
-        long wonAmount = config.getLong(path + ".won", 0L);
+        long betAmount;
+        long wonAmount;
 
-        config.set(path, null);
-        dirty = true;
-        save();
+        if (storageProvider != null) {
+            long[] result = storageProvider.getAndClearOfflineResult(player.getUniqueId());
+            if (result == null) return;
+            betAmount = result[0];
+            wonAmount = result[1];
+        } else {
+            String path = player.getUniqueId().toString();
+            if (!config.contains(path)) return;
+            betAmount = config.getLong(path + ".bet", 0L);
+            wonAmount = config.getLong(path + ".won", 0L);
+            config.set(path, null);
+            dirty = true;
+            save();
+        }
 
         // ログイン処理完了後にメッセージを送信（3秒後）
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
@@ -161,5 +184,17 @@ public class OfflinePayoutManager implements Listener {
                         .recordCashout(wonAmount, 0);
             }
         }, 60L);
+    }
+
+    /**
+     * StorageProvider を設定する。
+     *
+     * <p>{@code null} でない場合、オフライン配当データの読み書きは
+     * StorageProvider に委譲される。{@code null} の場合は YAML フォールバック。
+     *
+     * @param storageProvider StorageProvider インスタンス（{@code null} 可）
+     */
+    public void setStorageProvider(StorageProvider storageProvider) {
+        this.storageProvider = storageProvider;
     }
 }

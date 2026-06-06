@@ -65,7 +65,7 @@ class PresetLifecycleIT {
         when(plugin.getConfig()).thenReturn(config);
 
         regionManager = new RegionManager(false);
-        terrainManager = new TerrainManager(plugin);
+        terrainManager = new TerrainManager(plugin, new io.wax100.arenaCore.storage.MemoryTerrainStorage());
         BettingManager bettingManager = mock(BettingManager.class);
 
         arenaManager = new ArenaManager(plugin, bettingManager, regionManager, terrainManager);

@@ -7,6 +7,7 @@ import io.wax100.casinoCore.listener.CasinoListener;
 import io.wax100.casinoCore.manager.CasinoManager;
 import io.wax100.casinoCore.manager.OfflinePayoutManager;
 import io.wax100.chipLib.ChipManager;
+import io.wax100.chipLib.storage.StorageProvider;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.RegisteredServiceProvider;
@@ -89,6 +90,14 @@ public final class CasinoCore extends JavaPlugin {
 
         casinoManager = new CasinoManager(this, bindingCurseManager);
         offlinePayoutManager = new OfflinePayoutManager(this);
+
+        // StorageProvider を各マネージャに注入
+        StorageProvider storageProvider = chipPlugin.getStorageProvider();
+        if (storageProvider != null) {
+            casinoManager.setStorageProvider(storageProvider);
+            offlinePayoutManager.setStorageProvider(storageProvider);
+            getLogger().info("StorageProvider が有効です。Redis 連携モードで起動します。");
+        }
 
         registerCommand("casino", new CasinoCommand(this));
         getServer().getPluginManager().registerEvents(new CasinoListener(this), this);

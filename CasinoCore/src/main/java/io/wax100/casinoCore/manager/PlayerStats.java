@@ -1,5 +1,6 @@
 package io.wax100.casinoCore.manager;
 
+import io.wax100.chipLib.storage.PlayerStatsSnapshot;
 import org.bukkit.configuration.ConfigurationSection;
 
 import java.time.LocalDateTime;
@@ -237,4 +238,55 @@ public class PlayerStats {
         }
         return ps;
     }
+
+    // ── StorageProvider 連携 ──
+
+    /**
+     * {@link PlayerStatsSnapshot} から {@link PlayerStats} を復元する。
+     *
+     * <p>StorageProvider（Redis / YAML）から取得したスナップショットを
+     * CasinoCore 内部の PlayerStats インスタンスに変換する。
+     *
+     * @param snapshot 変換元のスナップショット
+     * @return 復元された PlayerStats インスタンス
+     */
+    public static PlayerStats fromSnapshot(PlayerStatsSnapshot snapshot) {
+        PlayerStats ps = new PlayerStats();
+        ps.name = snapshot.name();
+        ps.totalSessions = snapshot.totalSessions();
+        ps.totalPurchases = snapshot.totalPurchases();
+        ps.totalCashouts = snapshot.totalCashouts();
+        ps.netProfit = snapshot.netProfit();
+        ps.wins = snapshot.wins();
+        ps.losses = snapshot.losses();
+        ps.draws = snapshot.draws();
+        ps.biggestWin = snapshot.biggestWin();
+        ps.biggestLoss = snapshot.biggestLoss();
+        if (snapshot.firstPlayed() != null) {
+            try { ps.firstPlayed = LocalDateTime.parse(snapshot.firstPlayed(), FORMATTER); }
+            catch (Exception ignored) {}
+        }
+        if (snapshot.lastPlayed() != null) {
+            try { ps.lastPlayed = LocalDateTime.parse(snapshot.lastPlayed(), FORMATTER); }
+            catch (Exception ignored) {}
+        }
+        return ps;
+    }
+
+    /**
+     * この {@link PlayerStats} を {@link PlayerStatsSnapshot} に変換する。
+     *
+     * <p>StorageProvider への書き込み時に使用される。
+     *
+     * @return 変換されたスナップショット
+     */
+    public PlayerStatsSnapshot toSnapshot() {
+        return new PlayerStatsSnapshot(
+            name, totalSessions, totalPurchases, totalCashouts,
+            netProfit, wins, losses, draws, biggestWin, biggestLoss,
+            firstPlayed != null ? firstPlayed.format(FORMATTER) : null,
+            lastPlayed != null ? lastPlayed.format(FORMATTER) : null
+        );
+    }
 }
+

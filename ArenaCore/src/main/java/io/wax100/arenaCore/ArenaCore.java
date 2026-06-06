@@ -15,6 +15,9 @@ import io.wax100.arenaCore.manager.BettingManager;
 import io.wax100.arenaCore.manager.DoubleUpManager;
 import io.wax100.arenaCore.manager.RegionManager;
 import io.wax100.arenaCore.manager.TerrainManager;
+import io.wax100.arenaCore.storage.MemoryTerrainStorage;
+import io.wax100.arenaCore.storage.RedisTerrainStorage;
+import io.wax100.arenaCore.storage.TerrainStorageProvider;
 import io.wax100.arenaCore.manager.JackpotManager;
 import io.wax100.arenaCore.payout.PayoutDistributor;
 import io.wax100.arenaCore.wincondition.LastTeamStandingCondition;
@@ -53,6 +56,7 @@ public final class ArenaCore extends JavaPlugin {
     private PayoutDistributor payoutDistributor;
     private JackpotManager jackpotManager;
     private DoubleUpManager doubleUpManager;
+    private TerrainStorageProvider terrainStorage;
     private WinCondition winCondition;
 
     // ── 分配デフォルト定数 ──
@@ -95,10 +99,13 @@ public final class ArenaCore extends JavaPlugin {
             getLogger().info("WorldEdit が見つかりません。手動チーム分けのみ使用可能です。");
         }
 
+        // 地形復元ストレージの選択
+        terrainStorage = createTerrainStorage();
+
         // マネージャ初期化
         regionManager = new RegionManager(worldEditAvailable);
         bettingManager = new BettingManager(this);
-        terrainManager = new TerrainManager(this);
+        terrainManager = new TerrainManager(this, terrainStorage);
         presetStore = new ArenaPresetStore(getDataFolder(), getLogger());
         areaStore = new AreaStore(getDataFolder(), getLogger());
         doubleUpManager = new DoubleUpManager(this);
@@ -133,7 +140,43 @@ public final class ArenaCore extends JavaPlugin {
     public void onDisable() {
         if (doubleUpManager != null) doubleUpManager.shutdown();
         if (arenaManager != null) arenaManager.shutdown();
+        if (terrainStorage != null) terrainStorage.shutdown();
         getLogger().info("ArenaCore が無効化されました。");
+    }
+
+    /**
+     * config に基づいて地形復元ストレージプロバイダを生成する。
+     *
+     * <p>{@code storage.type} が {@code "redis"} の場合、ChipLib の
+     * {@code RedisConnectionManager} を取得して Redis ストレージを使用する。
+     * 取得に失敗した場合はインメモリにフォールバックする。
+     *
+     * @return 選択された {@link TerrainStorageProvider}
+     */
+    private TerrainStorageProvider createTerrainStorage() {
+        String storageType = getConfig().getString("storage.type", "yaml");
+        if ("redis".equalsIgnoreCase(storageType)) {
+            Plugin chipLibPlugin = getServer().getPluginManager().getPlugin("ChipLib");
+            if (chipLibPlugin instanceof io.wax100.chipLib.ChipPlugin chipPlugin) {
+                try {
+                    var redisMgr = chipPlugin.getRedisConnectionManager();
+                    if (redisMgr != null && redisMgr.isAvailable()) {
+                        String prefix = getConfig().getString("storage.redis-prefix", "colosseum");
+                        getLogger().info("地形復元ストレージ: Redis");
+                        return new RedisTerrainStorage(redisMgr, prefix);
+                    } else {
+                        getLogger().warning("Redis 接続不可 — インメモリストレージにフォールバック");
+                    }
+                } catch (NoSuchMethodError e) {
+                    // ChipLib が getRedisConnectionManager() を未実装の場合
+                    getLogger().warning("ChipLib が RedisConnectionManager 未対応 — インメモリストレージにフォールバック");
+                }
+            } else {
+                getLogger().warning("ChipLib が見つかりません — インメモリストレージにフォールバック");
+            }
+        }
+        getLogger().info("地形復元ストレージ: インメモリ");
+        return new MemoryTerrainStorage();
     }
 
     /**

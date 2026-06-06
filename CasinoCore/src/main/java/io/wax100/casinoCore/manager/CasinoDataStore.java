@@ -1,6 +1,8 @@
 package io.wax100.casinoCore.manager;
 
 import io.wax100.casinoCore.CasinoCore;
+import io.wax100.chipLib.storage.PlayerStatsSnapshot;
+import io.wax100.chipLib.storage.StorageProvider;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.configuration.ConfigurationSection;
@@ -42,6 +44,11 @@ public class CasinoDataStore {
      * ファイル I/O 用の専用ロックオブジェクト
      */
     private final Object fileLock = new Object();
+
+    /**
+     * ChipLib の StorageProvider。{@code null} の場合は YAML フォールバック。
+     */
+    private StorageProvider storageProvider;
 
     /**
      * コンストラクタ。
@@ -164,6 +171,18 @@ public class CasinoDataStore {
      * @param playerStats 読み込み先のマップ
      */
     public void loadPlayerStats(Map<UUID, PlayerStats> playerStats) {
+        // StorageProvider が有効な場合はそちらから読み込む
+        if (storageProvider != null) {
+            Map<UUID, PlayerStatsSnapshot> snapshots = storageProvider.loadAllPlayerStats();
+            if (snapshots != null) {
+                for (Map.Entry<UUID, PlayerStatsSnapshot> entry : snapshots.entrySet()) {
+                    playerStats.put(entry.getKey(), PlayerStats.fromSnapshot(entry.getValue()));
+                }
+            }
+            return;
+        }
+
+        // YAML フォールバック
         ConfigurationSection playersSection = dataConfig.getConfigurationSection("players");
         if (playersSection == null) return;
         for (String key : playersSection.getKeys(false)) {
@@ -213,9 +232,17 @@ public class CasinoDataStore {
         saveGameModes(runtime, savedGameModes);
 
         // プレイヤー統計
-        for (Map.Entry<UUID, PlayerStats> entry : playerStats.entrySet()) {
-            ConfigurationSection playerSec = copy.createSection("players." + entry.getKey().toString());
-            entry.getValue().saveTo(playerSec);
+        if (storageProvider != null) {
+            // StorageProvider が有効な場合はそちらへ保存
+            for (Map.Entry<UUID, PlayerStats> entry : playerStats.entrySet()) {
+                storageProvider.savePlayerStats(entry.getKey(), entry.getValue().toSnapshot());
+            }
+        } else {
+            // YAML フォールバック
+            for (Map.Entry<UUID, PlayerStats> entry : playerStats.entrySet()) {
+                ConfigurationSection playerSec = copy.createSection("players." + entry.getKey().toString());
+                entry.getValue().saveTo(playerSec);
+            }
         }
 
         if (async && Bukkit.getServer() != null && plugin.isEnabled()) {
@@ -267,5 +294,17 @@ public class CasinoDataStore {
                 }
             }
         }
+    }
+
+    /**
+     * StorageProvider を設定する。
+     *
+     * <p>{@code null} でない場合、プレイヤー統計の読み書きは
+     * StorageProvider に委譲される。{@code null} の場合は YAML フォールバック。
+     *
+     * @param storageProvider StorageProvider インスタンス（{@code null} 可）
+     */
+    public void setStorageProvider(StorageProvider storageProvider) {
+        this.storageProvider = storageProvider;
     }
 }

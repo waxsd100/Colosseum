@@ -1,5 +1,7 @@
 package io.wax100.chipLib.ranking;
 
+import io.wax100.chipLib.storage.StorageProvider;
+import io.wax100.chipLib.storage.YamlStorageProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -37,6 +39,7 @@ class RankingManagerTest {
     @Mock
     private JavaPlugin plugin;
 
+    private StorageProvider storageProvider;
     private RankingManager rankingManager;
 
     @BeforeEach
@@ -44,7 +47,8 @@ class RankingManagerTest {
         when(plugin.getDataFolder()).thenReturn(tempDir);
         when(plugin.getLogger()).thenReturn(Logger.getLogger("RankingManagerTest"));
         when(plugin.isEnabled()).thenReturn(false); // 同期保存を強制
-        rankingManager = new RankingManager(plugin);
+        storageProvider = new YamlStorageProvider(plugin, tempDir);
+        rankingManager = new RankingManager(storageProvider);
     }
 
     // ── カテゴリ別ランキング ──
@@ -214,10 +218,11 @@ class RankingManagerTest {
             UUID p2 = UUID.randomUUID();
             rankingManager.updateRanking("casino", p1, 5000);
             rankingManager.updateRanking("arena", p2, -3000);
-            rankingManager.saveData(); // ダーティフラグ方式のため明示的に保存
+            storageProvider.flush();
 
-            // 新しい RankingManager で再読み込み
-            RankingManager newManager = new RankingManager(plugin);
+            // 新しい StorageProvider + RankingManager で再読み込み
+            StorageProvider newProvider = new YamlStorageProvider(plugin, tempDir);
+            RankingManager newManager = new RankingManager(newProvider);
             var casinoRanking = newManager.getSortedRanking("casino", 10);
             var arenaRanking = newManager.getSortedRanking("arena", 10);
 
@@ -234,7 +239,7 @@ class RankingManagerTest {
         @DisplayName("ranking_data.yml が作成される")
         void dataFileIsCreated() {
             rankingManager.updateRanking("casino", UUID.randomUUID(), 1000);
-            rankingManager.saveData(); // ダーティフラグ方式のため明示的に保存
+            storageProvider.flush();
 
             File dataFile = new File(tempDir, "ranking_data.yml");
             assertTrue(dataFile.exists());

@@ -4,3 +4,18 @@
 
 # チップの最大購入額（自動分割モード時, 0 = 無制限）
 max-buy: 1000000
+
+# ── ストレージ設定 ──
+storage:
+  # yaml (デフォルト) / redis
+  type: yaml
+  redis:
+    host: localhost
+    port: 6379
+    password: ""
+    database: 0
+    pool:
+      max-total: 8
+      max-idle: 4
+    prefix: "colosseum"
+    yaml-flush-interval: 5
