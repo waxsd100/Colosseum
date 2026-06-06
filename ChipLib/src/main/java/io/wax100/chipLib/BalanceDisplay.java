@@ -5,13 +5,18 @@ import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -44,6 +49,9 @@ public class BalanceDisplay implements Runnable {
     private final Map<UUID, DeltaDisplay> activeDelta = new ConcurrentHashMap<>();
     private final Map<UUID, OverlayMessage> activeOverlay = new ConcurrentHashMap<>();
 
+    /** アクションバー表示を非表示にしているプレイヤーのセット */
+    private final Set<UUID> hiddenPlayers = Collections.newSetFromMap(new ConcurrentHashMap<>());
+
     // ── カラーパレット ──
     private static final ChatColor C_SEPARATOR = ChatColor.DARK_GRAY;
     private static final ChatColor C_LABEL     = ChatColor.of("#AAAAAA");
@@ -54,12 +62,16 @@ public class BalanceDisplay implements Runnable {
     private static final ChatColor C_MINUS     = ChatColor.of("#FF5555");
     private static final ChatColor C_SHUFFLE   = ChatColor.of("#888888");
 
+    /** 表示トグル設定を永続化するための PDC キー */
+    private final NamespacedKey displayKey;
+
     /**
      * @param chipPlugin ChipPlugin インスタンス
      */
     public BalanceDisplay(ChipPlugin chipPlugin) {
         this.chipPlugin = chipPlugin;
         this.plugin = chipPlugin;
+        this.displayKey = new NamespacedKey(chipPlugin, "balance_display_hidden");
     }
 
     public void start() {
@@ -96,11 +108,13 @@ public class BalanceDisplay implements Runnable {
                 }
             }
 
-            // アクションバー送信
-            String text = buildActionBar(balance, chipValue, uuid);
-            player.spigot().sendMessage(
-                    ChatMessageType.ACTION_BAR,
-                    TextComponent.fromLegacyText(text));
+            // 非表示プレイヤーはアクションバー送信をスキップ
+            if (!hiddenPlayers.contains(uuid)) {
+                String text = buildActionBar(balance, chipValue, uuid);
+                player.spigot().sendMessage(
+                        ChatMessageType.ACTION_BAR,
+                        TextComponent.fromLegacyText(text));
+            }
         }
 
         previousBalances.keySet().removeIf(uuid -> Bukkit.getPlayer(uuid) == null);
@@ -253,6 +267,58 @@ public class BalanceDisplay implements Runnable {
         previousBalances.remove(playerId);
         activeDelta.remove(playerId);
         activeOverlay.remove(playerId);
+        // hiddenPlayers はクリアしない（PDC に永続化されているため、再ログイン時に復元される）
+        hiddenPlayers.remove(playerId);
+    }
+
+    /**
+     * プレイヤーのログイン時に PDC から表示設定を読み込み、キャッシュに反映する。
+     *
+     * @param player 対象プレイヤー
+     */
+    public void loadPlayer(Player player) {
+        PersistentDataContainer pdc = player.getPersistentDataContainer();
+        byte hidden = pdc.getOrDefault(displayKey, PersistentDataType.BYTE, (byte) 0);
+        if (hidden == 1) {
+            hiddenPlayers.add(player.getUniqueId());
+        } else {
+            hiddenPlayers.remove(player.getUniqueId());
+        }
+    }
+
+    /**
+     * アクションバー表示の ON/OFF をトグルする。
+     *
+     * <p>トグル結果はプレイヤーの PDC に保存され、再ログイン時に復元される。
+     *
+     * @param playerId 対象プレイヤーの UUID
+     * @return トグル後に表示が ON の場合 {@code true}、OFF の場合 {@code false}
+     */
+    public boolean toggleDisplay(UUID playerId) {
+        Player player = Bukkit.getPlayer(playerId);
+        if (hiddenPlayers.remove(playerId)) {
+            // 非表示→表示に切り替え
+            if (player != null) {
+                player.getPersistentDataContainer().set(displayKey, PersistentDataType.BYTE, (byte) 0);
+            }
+            return true;
+        } else {
+            hiddenPlayers.add(playerId);
+            if (player != null) {
+                player.getPersistentDataContainer().set(displayKey, PersistentDataType.BYTE, (byte) 1);
+            }
+            return false;
+        }
+    }
+
+    /**
+     * プレイヤーのアクションバー表示が現在 ON かどうかを返す。
+     *
+     * @param playerId 対象プレイヤーの UUID
+     * @return 表示中の場合 {@code true}
+     */
+    public boolean isDisplayVisible(UUID playerId) {
+        return !hiddenPlayers.contains(playerId);
     }
 
     /**

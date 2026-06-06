@@ -1,6 +1,7 @@
 package io.wax100.chipLib;
 
 import io.wax100.chipLib.command.ChipCommand;
+import io.wax100.chipLib.command.MoneyCommand;
 import io.wax100.chipLib.command.RankingCommand;
 import io.wax100.chipLib.ranking.RankingManager;
 import io.wax100.chipLib.storage.RedisConnectionManager;
@@ -13,6 +14,7 @@ import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.RegisteredServiceProvider;
@@ -126,6 +128,14 @@ public final class ChipPlugin extends JavaPlugin implements Listener {
             getLogger().warning("コマンド 'ranking' がplugin.ymlに定義されていません。");
         }
 
+        MoneyCommand moneyCommand = new MoneyCommand(this);
+        PluginCommand moneyCmd = getCommand("money");
+        if (moneyCmd != null) {
+            moneyCmd.setExecutor(moneyCommand);
+        } else {
+            getLogger().warning("コマンド 'money' がplugin.ymlに定義されていません。");
+        }
+
         // イベントリスナー登録（PlayerQuitEvent でメモリリーク防止）
         getServer().getPluginManager().registerEvents(this, this);
 
@@ -183,6 +193,20 @@ public final class ChipPlugin extends JavaPlugin implements Listener {
 
         // allowedPlayers からも削除
         allowedPlayers.remove(playerId);
+    }
+
+    /**
+     * プレイヤーログイン時の初期化処理。
+     *
+     * <p>PDC に保存されたアクションバー表示設定を復元する。
+     *
+     * @param event プレイヤーログインイベント
+     */
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        if (balanceDisplay != null) {
+            balanceDisplay.loadPlayer(event.getPlayer());
+        }
     }
 
     /**

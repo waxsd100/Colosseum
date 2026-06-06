@@ -15,6 +15,10 @@ commands:
     description: ランキング表示コマンド
     usage: /ranking [casino|arena|total]
     permission: ranking.use
+  money:
+    description: アクションバーの所持金表示を切り替え
+    usage: /money
+    permission: money.use
 
 permissions:
   chip.use:
@@ -22,4 +26,7 @@ permissions:
     default: true
   ranking.use:
     description: ランキングコマンドの使用権限
+    default: true
+  money.use:
+    description: 所持金表示の切り替え権限
     default: true
