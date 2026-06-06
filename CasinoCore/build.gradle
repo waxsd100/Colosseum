@@ -15,6 +15,7 @@ dependencies {
     compileOnly("org.spigotmc:spigot-api:${spigotApiVersion}")
     compileOnly("com.github.MilkBowl:VaultAPI:${vaultApiVersion}")
     compileOnly(project(':ChipLib'))
+    implementation("de.tr7zw:item-nbt-api:${nbtApiVersion}")
     implementation("com.github.waxsd100:BindingCurseLib:${bindingCurseLibVersion}")
 
     testImplementation("org.spigotmc:spigot-api:${spigotApiVersion}")
