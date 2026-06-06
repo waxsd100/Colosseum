@@ -33,6 +33,8 @@ dependencies {
     testImplementation("com.sk89q.worldguard:worldguard-bukkit:${worldGuardVersion}")
     testImplementation(project(':ChipLib'))
     testImplementation(project(':CasinoCore'))
+    testImplementation("redis.clients:jedis:${jedisVersion}")
+    testImplementation("com.github.fppt:jedis-mock:${jedisMockVersion}")
 }
 
 test {

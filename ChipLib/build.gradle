@@ -17,6 +17,8 @@ dependencies {
     testImplementation("org.mockito:mockito-core:${mockitoVersion}")
     testImplementation("org.mockito:mockito-junit-jupiter:${mockitoVersion}")
     testImplementation("org.spigotmc:spigot-api:${spigotApiVersion}")
+    testImplementation("redis.clients:jedis:${jedisVersion}")
+    testImplementation("com.github.fppt:jedis-mock:${jedisMockVersion}")
 }
 
 repositories {
