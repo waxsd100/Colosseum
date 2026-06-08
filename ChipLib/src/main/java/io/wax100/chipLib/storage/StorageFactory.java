@@ -16,7 +16,7 @@ import java.util.Objects;
  * <h2>設定例</h2>
  * <pre>
  * storage:
- *   type: yaml          # yaml (デフォルト) / redis
+ *   type: redis          # redis (デフォルト) / yaml
  *   redis:
  *     host: localhost
  *     port: 6379
@@ -48,7 +48,7 @@ public final class StorageFactory {
     /**
      * プラグインの設定に基づいてストレージプロバイダーを生成する。
      *
-     * <p>{@code storage.type} が {@code "redis"} の場合は
+     * <p>{@code storage.type} が {@code "redis"}（デフォルト）の場合は
      * {@link RedisBackedStorageProvider} を生成し、それ以外は
      * {@link YamlStorageProvider} を返す。
      *
@@ -63,14 +63,14 @@ public final class StorageFactory {
     public static StorageProvider create(@NotNull JavaPlugin plugin) {
         Objects.requireNonNull(plugin, "plugin");
 
-        String type = plugin.getConfig().getString("storage.type", "yaml");
+        String type = plugin.getConfig().getString("storage.type", "redis");
 
-        if ("redis".equalsIgnoreCase(type)) {
-            return createRedisProvider(plugin);
+        if (!"redis".equalsIgnoreCase(type)) {
+            plugin.getLogger().info("ストレージタイプ: YAML");
+            return new YamlStorageProvider(plugin, plugin.getDataFolder());
         }
 
-        plugin.getLogger().info("ストレージタイプ: YAML");
-        return new YamlStorageProvider(plugin, plugin.getDataFolder());
+        return createRedisProvider(plugin);
     }
 
     /**

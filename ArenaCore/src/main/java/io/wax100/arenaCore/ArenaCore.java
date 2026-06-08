@@ -147,21 +147,21 @@ public final class ArenaCore extends JavaPlugin {
     /**
      * config に基づいて地形復元ストレージプロバイダを生成する。
      *
-     * <p>{@code storage.type} が {@code "redis"} の場合、ChipLib の
+     * <p>{@code storage.type} が {@code "redis"}（デフォルト）の場合、ChipLib の
      * {@code RedisConnectionManager} を取得して Redis ストレージを使用する。
      * 取得に失敗した場合はインメモリにフォールバックする。
      *
      * @return 選択された {@link TerrainStorageProvider}
      */
     private TerrainStorageProvider createTerrainStorage() {
-        String storageType = getConfig().getString("storage.type", "yaml");
+        String storageType = getConfig().getString("storage.type", "redis");
         if ("redis".equalsIgnoreCase(storageType)) {
             Plugin chipLibPlugin = getServer().getPluginManager().getPlugin("ChipLib");
             if (chipLibPlugin instanceof io.wax100.chipLib.ChipPlugin chipPlugin) {
                 try {
                     var redisMgr = chipPlugin.getRedisConnectionManager();
                     if (redisMgr != null && redisMgr.isAvailable()) {
-                        String prefix = getConfig().getString("storage.redis-prefix", "colosseum");
+                        String prefix = getConfig().getString("storage.redis.prefix", "colosseum");
                         getLogger().info("地形復元ストレージ: Redis");
                         return new RedisTerrainStorage(redisMgr, prefix);
                     } else {

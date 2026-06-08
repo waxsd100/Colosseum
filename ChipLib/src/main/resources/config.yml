@@ -7,8 +7,8 @@ max-buy: 1000000
 
 # ── ストレージ設定 ──
 storage:
-  # yaml (デフォルト) / redis
-  type: yaml
+  # redis (デフォルト) / yaml — Redis 接続失敗時は自動的に yaml にフォールバック
+  type: redis
   redis:
     host: localhost
     port: 6379
