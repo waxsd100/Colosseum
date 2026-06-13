@@ -38,9 +38,9 @@ jobs:
           MODULE="${VERSION##*-}"     # arena
           VERSION="${VERSION%-*}"     # 26.6.14
 
-          # バージョン形式バリデーション (YY.M.D or YY.M.D.N)
-          if ! echo "${VERSION}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$'; then
-            echo "::error::Invalid version format: ${VERSION} (expected YY.M.D or YY.M.D.N)"
+          # バージョン形式バリデーション (YY.M.D.N — N は 0 始まりの連番)
+          if ! echo "${VERSION}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Invalid version format: ${VERSION} (expected YY.M.D.N)"
             exit 1
           fi
 
