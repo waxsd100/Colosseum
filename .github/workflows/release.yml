@@ -31,10 +31,18 @@ jobs:
         id: tag
         run: |
           TAG="${GITHUB_REF_NAME}"
-          # v3.0.0-casino → VERSION=3.0.0, MODULE=casino
-          VERSION="${TAG#v}"          # 3.0.0-casino
-          MODULE="${VERSION##*-}"     # casino
-          VERSION="${VERSION%-*}"     # 3.0.0
+          # タグ形式: v{YY.M.D}-{module} または v{YY.M.D.N}-{module}
+          # 例: v26.6.14-arena → VERSION=26.6.14, MODULE=arena
+          # 例: v26.6.14.1-casino → VERSION=26.6.14.1, MODULE=casino
+          VERSION="${TAG#v}"          # 26.6.14-arena
+          MODULE="${VERSION##*-}"     # arena
+          VERSION="${VERSION%-*}"     # 26.6.14
+
+          # バージョン形式バリデーション (YY.M.D or YY.M.D.N)
+          if ! echo "${VERSION}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$'; then
+            echo "::error::Invalid version format: ${VERSION} (expected YY.M.D or YY.M.D.N)"
+            exit 1
+          fi
 
           case "${MODULE}" in
             casino)
@@ -66,7 +74,7 @@ jobs:
 
           echo "### Parsed Tag" >> "$GITHUB_STEP_SUMMARY"
           echo "| Key | Value |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|-----|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-----|-------| " >> "$GITHUB_STEP_SUMMARY"
           echo "| Tag | ${TAG} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Module | ${PROJECT} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Version | ${VERSION} |" >> "$GITHUB_STEP_SUMMARY"
