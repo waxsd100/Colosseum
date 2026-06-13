@@ -43,6 +43,9 @@ test {
 
 shadowJar {
     archiveClassifier.set('')
+    relocate 'redis.clients', 'io.wax100.chipLib.redis'
+    relocate 'org.apache.commons.pool2', 'io.wax100.chipLib.pool2'
+    relocate 'org.json', 'io.wax100.chipLib.json'
 }
 
 build.dependsOn shadowJar
