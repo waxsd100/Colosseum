@@ -407,7 +407,7 @@ public class YamlStorageProvider implements StorageProvider {
         for (Map.Entry<UUID, PlayerStatsSnapshot> entry : playerStats.entrySet()) {
             String prefix = "stats." + entry.getKey().toString();
             PlayerStatsSnapshot s = entry.getValue();
-            config.set(prefix + ".name", s.name());
+            config.set(prefix + ".name", s.name() != null ? s.name() : "");
             config.set(prefix + ".totalSessions", s.totalSessions());
             config.set(prefix + ".totalPurchases", s.totalPurchases());
             config.set(prefix + ".totalCashouts", s.totalCashouts());

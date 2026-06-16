@@ -59,6 +59,8 @@ public class ArenaSession {
     private ArenaFieldConfig fieldConfig;
     /** チーム別カスタムカラー（未設定時はデフォルトパレットから自動割当） */
     private final Map<String, ChatColor> teamColors = new HashMap<>();
+    /** セッション固有のゲームルール設定 */
+    private ArenaConfig arenaConfig;
 
     /**
      * @param name      セッション名（null不可）
@@ -83,6 +85,24 @@ public class ArenaSession {
         }
     }
 
+
+    // ── セッション設定 ──
+
+    /**
+     * セッション固有のゲームルール設定を返す。
+     *
+     * @return ゲームルール設定。未設定の場合は {@code null}
+     */
+    public ArenaConfig getArenaConfig() { return arenaConfig; }
+
+    /**
+     * セッション固有のゲームルール設定を設定する。
+     *
+     * @param arenaConfig ゲームルール設定（null不可）
+     */
+    public void setArenaConfig(ArenaConfig arenaConfig) {
+        this.arenaConfig = Objects.requireNonNull(arenaConfig, "arenaConfig must not be null");
+    }
 
     // ── 基本情報 ──
 
@@ -730,6 +750,20 @@ public class ArenaSession {
             }
         }
         return playerSize;
+    }
+
+    /**
+     * 全チームのプレイヤー戦闘員（Mobチーム除く）の合計人数を返す。
+     *
+     * @return プレイヤー戦闘員の合計人数
+     */
+    public int getPlayerFighterCount() {
+        int count = 0;
+        for (String team : teamNames) {
+            if (isMobTeam(team)) continue;
+            count += getTeamSize(team);
+        }
+        return count;
     }
 
     @Override

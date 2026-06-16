@@ -5,6 +5,7 @@ import io.wax100.arenaCore.command.sub.DeathmatchSubCommand;
 import io.wax100.arenaCore.event.ArenaBettingCloseEvent;
 import io.wax100.arenaCore.event.ArenaBettingOpenEvent;
 import io.wax100.arenaCore.event.ArenaWinnerDeclaredEvent;
+import io.wax100.arenaCore.model.ArenaConfig;
 import io.wax100.arenaCore.model.ArenaSession;
 import io.wax100.arenaCore.model.ArenaState;
 import io.wax100.arenaCore.model.DeathmatchChallenge;
@@ -17,6 +18,11 @@ import io.wax100.casinoCore.CasinoCore;
 import io.wax100.chipLib.ChipManager;
 import io.wax100.chipLib.ChipPlugin;
 import io.wax100.chipLib.ranking.RankingManager;
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.ClickEvent;
+import net.md_5.bungee.api.chat.HoverEvent;
+import net.md_5.bungee.api.chat.TextComponent;
+import net.md_5.bungee.api.chat.hover.content.Text;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -62,9 +68,16 @@ public class ArenaManager {
     private int deathmatchProposalCount;
     private BukkitTask voteTimerTask;
 
+    // ── 参加費応答管理 ──
+    /** 参加費不足プレイヤーの応答状態（null=未回答, true=借金, false=辞退） */
+    private final Map<UUID, Boolean> pendingFeeResponses = new LinkedHashMap<>();
+    private BukkitTask feeTimeoutTask;
+
     // ── 定数 ──
     private static final int VOTE_TIMEOUT_SECONDS = 20;
     private static final int[] VOTE_PROGRESS_NOTIFY_AT = {15, 10, 5};
+    /** 参加費応答のタイムアウト（秒） */
+    private static final int FEE_RESPONSE_TIMEOUT_SECONDS = 30;
 
     public ArenaManager(ArenaCore plugin, BettingManager bettingManager,
                         RegionManager regionManager, TerrainManager terrainManager) {
@@ -91,6 +104,7 @@ public class ArenaManager {
             return null;
         }
         activeSession = new ArenaSession(name, teamNames);
+        activeSession.setArenaConfig(new ArenaConfig(plugin.getConfig()));
         eliminatedPlayers.clear();
         regionManager.clearRegions();
 
@@ -125,6 +139,9 @@ public class ArenaManager {
         for (var colorEntry : data.teamColors().entrySet()) {
             session.setTeamColor(colorEntry.getKey(), colorEntry.getValue());
             ensureScoreboardTeam(colorEntry.getKey());
+        }
+        if (data.arenaConfig() != null) {
+            session.setArenaConfig(data.arenaConfig());
         }
         return session;
     }
@@ -184,6 +201,10 @@ public class ArenaManager {
 
         activeSession.setState(ArenaState.RECRUITING);
         plugin.getLogger().info("参加者募集を開始しました: " + activeSession.getName());
+
+        // プリセット自動保存
+        plugin.getPresetStore().save(activeSession.getName(), activeSession, regionManager);
+        plugin.getLogger().info("プリセットを自動保存しました: " + activeSession.getName());
 
         // 全オンラインプレイヤーにチップ使用を許可
         ChipPlugin chipPlugin = getChipPlugin();
@@ -515,65 +536,107 @@ public class ArenaManager {
 
         // ── 参加費・DM参加費の所持金チェック＆徴収 ──
         Economy economy = plugin.getEconomy();
-        long entryFee = plugin.getConfig().getLong("entry-fee", 0);
+        long entryFee = activeSession.getArenaConfig().getEntryFee();
         boolean isDeathmatch = activeSession.getMatchMode() == MatchMode.DEATHMATCH;
         long dmFeePerPerson = isDeathmatch ? activeSession.getDeathmatchEntryFee() : 0;
-        long requiredPerPerson = entryFee + dmFeePerPerson;
 
-        // 残高チェック（entry-fee > 0 またはデスマッチの場合）
-        if (requiredPerPerson > 0 && economy != null) {
-            List<String> shortFighters = new ArrayList<>();
-            for (String team : activeSession.getTeamNames()) {
-                if (activeSession.isMobTeam(team)) continue;
-                for (UUID fighterId : activeSession.getTeamMembers(team)) {
-                    Player fighter = Bukkit.getPlayer(fighterId);
-                    if (fighter == null) continue;
-                    double balance = economy.getBalance(fighter);
-                    if (balance < requiredPerPerson) {
-                        String detail = "必要: " + ChipManager.formatAmount(requiredPerPerson) + " E";
-                        if (entryFee > 0 && dmFeePerPerson > 0) {
-                            detail += " [参加費" + ChipManager.formatAmount(entryFee)
-                                    + "+DM" + ChipManager.formatAmount(dmFeePerPerson) + "]";
+        if (economy != null) {
+            // ── DM参加費: 借金許容（警告のみ） ──
+            if (dmFeePerPerson > 0) {
+                for (String team : activeSession.getTeamNames()) {
+                    if (activeSession.isMobTeam(team)) continue;
+                    for (UUID fighterId : activeSession.getTeamMembers(team)) {
+                        Player fighter = Bukkit.getPlayer(fighterId);
+                        if (fighter == null) continue;
+                        double balance = economy.getBalance(fighter);
+                        if (balance < dmFeePerPerson) {
+                            long shortage = dmFeePerPerson - (long) balance;
+                            fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                                    + "⚠ DM参加費が " + ChipManager.formatAmount(shortage)
+                                    + " E 不足しています。借金として徴収します。");
+                            Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                                    + "⚠ " + fighter.getName() + " はDM参加費を借金して参加します。");
                         }
-                        detail += " / 所持: " + ChipManager.formatAmount((long) balance) + " E";
-                        shortFighters.add(fighter.getName() + " (" + detail + ")");
                     }
                 }
             }
-            if (!shortFighters.isEmpty()) {
-                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED
-                        + "⚠ 以下の闘技者の所持金が不足しています:");
-                for (String info : shortFighters) {
-                    Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED + "  - " + info);
-                }
-                return false;
-            }
 
-            // ── 参加費徴収 ──
-            for (String team : activeSession.getTeamNames()) {
-                if (activeSession.isMobTeam(team)) continue;
-                for (UUID fighterId : activeSession.getTeamMembers(team)) {
-                    Player fighter = Bukkit.getPlayer(fighterId);
-                    if (fighter == null) continue;
-
-                    // entry-fee 徴収 → entryFeePool (後でジャックポットへ)
-                    if (entryFee > 0) {
-                        economy.withdrawPlayer(fighter, entryFee);
-                        activeSession.addToEntryFeePool(entryFee);
-                        fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
-                                + "参加費 " + ChipManager.formatAmount(entryFee) + " E を徴収しました。");
-                    }
-
-                    // DM参加費 徴収 → deathmatchPool
-                    if (dmFeePerPerson > 0) {
-                        economy.withdrawPlayer(fighter, dmFeePerPerson);
-                        activeSession.setDeathmatchPool(
-                                activeSession.getDeathmatchPool() + dmFeePerPerson);
-                        fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
-                                + "DM参加費 " + ChipManager.formatAmount(dmFeePerPerson) + " E を徴収しました。");
+            // ── 参加費: 不足者には借金/辞退の選択肢を提示 ──
+            if (entryFee > 0) {
+                List<UUID> shortPlayers = new ArrayList<>();
+                for (String team : activeSession.getTeamNames()) {
+                    if (activeSession.isMobTeam(team)) continue;
+                    for (UUID fighterId : activeSession.getTeamMembers(team)) {
+                        Player fighter = Bukkit.getPlayer(fighterId);
+                        if (fighter == null) continue;
+                        double balance = economy.getBalance(fighter);
+                        if (balance < entryFee) {
+                            shortPlayers.add(fighterId);
+                        }
                     }
                 }
+
+                if (!shortPlayers.isEmpty()) {
+                    // 応答待ちマップをセットアップ
+                    pendingFeeResponses.clear();
+                    for (UUID playerId : shortPlayers) {
+                        pendingFeeResponses.put(playerId, null);
+                    }
+
+                    // 各プレイヤーにクリック可能な選択肢を送信
+                    for (UUID playerId : shortPlayers) {
+                        Player fighter = Bukkit.getPlayer(playerId);
+                        if (fighter == null) continue;
+                        long balance = (long) economy.getBalance(fighter);
+                        long shortage = entryFee - balance;
+
+                        fighter.sendMessage("");
+                        fighter.sendMessage(ArenaMessages.SEPARATOR);
+                        fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                                + "⚠ 参加費が " + ChipManager.formatAmount(shortage) + " E 不足しています！");
+                        fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY
+                                + "必要: " + ChipManager.formatAmount(entryFee) + " E"
+                                + " / 所持: " + ChipManager.formatAmount(balance) + " E");
+                        fighter.sendMessage("");
+
+                        // [借金して参加] ボタン
+                        TextComponent borrowBtn = new TextComponent("§c§l[借金して参加]");
+                        borrowBtn.setClickEvent(new ClickEvent(
+                                ClickEvent.Action.RUN_COMMAND, "/arena _fee borrow"));
+                        borrowBtn.setHoverEvent(new HoverEvent(
+                                HoverEvent.Action.SHOW_TEXT,
+                                new Text("§e" + ChipManager.formatAmount(shortage)
+                                        + " E を借金して参加します")));
+
+                        TextComponent space = new TextComponent("  ");
+
+                        // [辞退する] ボタン
+                        TextComponent withdrawBtn = new TextComponent("§a§l[辞退する]");
+                        withdrawBtn.setClickEvent(new ClickEvent(
+                                ClickEvent.Action.RUN_COMMAND, "/arena _fee withdraw"));
+                        withdrawBtn.setHoverEvent(new HoverEvent(
+                                HoverEvent.Action.SHOW_TEXT,
+                                new Text("§7チームから離脱します")));
+
+                        fighter.spigot().sendMessage(borrowBtn, space, withdrawBtn);
+                        fighter.sendMessage("");
+                        fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY
+                                + FEE_RESPONSE_TIMEOUT_SECONDS + "秒以内に選択してください。未回答の場合は自動辞退になります。");
+                        fighter.sendMessage(ArenaMessages.SEPARATOR);
+                    }
+
+                    // 全体通知
+                    Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                            + "⏳ 参加費不足の闘技者がいるため、回答を待っています...");
+
+                    // タイムアウトタイマー
+                    scheduleFeeTimeout();
+                    return false;
+                }
             }
+
+            // ── 参加費・DM参加費を徴収 ──
+            collectFees(entryFee, dmFeePerPerson);
         }
 
         activeSession.setState(ArenaState.ACTIVE);
@@ -597,6 +660,305 @@ public class ArenaManager {
 
         // バニラ Scoreboard Team と連携
         registerScoreboardTeams();
+
+        return true;
+    }
+
+    /**
+     * 参加費・DM参加費を全闘技者から徴収する。
+     *
+     * <p>借金（マイナス残高）を許容して徴収を行う。
+     *
+     * @param entryFee       参加費（0の場合はスキップ）
+     * @param dmFeePerPerson DM参加費（0の場合はスキップ）
+     */
+    private void collectFees(long entryFee, long dmFeePerPerson) {
+        Economy economy = plugin.getEconomy();
+        if (economy == null || activeSession == null) return;
+
+        for (String team : activeSession.getTeamNames()) {
+            if (activeSession.isMobTeam(team)) continue;
+            for (UUID fighterId : activeSession.getTeamMembers(team)) {
+                Player fighter = Bukkit.getPlayer(fighterId);
+                if (fighter == null) continue;
+
+                // entry-fee 徴収 → entryFeePool (後でジャックポットへ)
+                if (entryFee > 0) {
+                    economy.withdrawPlayer(fighter, entryFee);
+                    activeSession.addToEntryFeePool(entryFee);
+                    fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                            + "参加費 " + ChipManager.formatAmount(entryFee) + " E を徴収しました。");
+                }
+
+                // DM参加費 徴収 → deathmatchPool
+                if (dmFeePerPerson > 0) {
+                    economy.withdrawPlayer(fighter, dmFeePerPerson);
+                    activeSession.setDeathmatchPool(
+                            activeSession.getDeathmatchPool() + dmFeePerPerson);
+                    fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                            + "DM参加費 " + ChipManager.formatAmount(dmFeePerPerson) + " E を徴収しました。");
+                }
+            }
+        }
+    }
+
+    /**
+     * 参加費応答待ちマップを返す。
+     *
+     * @return 応答待ちマップ（UUID → 応答状態）
+     */
+    public Map<UUID, Boolean> getPendingFeeResponses() {
+        return pendingFeeResponses;
+    }
+
+    /**
+     * 参加費不足プレイヤーの応答を処理する。
+     *
+     * <p>借金を選んだ場合はそのまま参加、辞退を選んだ場合はチームから離脱する。
+     * 全員の応答が揃ったら試合開始処理を再開する。
+     *
+     * @param playerId プレイヤーUUID
+     * @param borrow   true=借金して参加, false=辞退
+     */
+    public void handleFeeResponse(UUID playerId, boolean borrow) {
+        if (!pendingFeeResponses.containsKey(playerId)) return;
+        if (pendingFeeResponses.get(playerId) != null) return; // 既に回答済み
+
+        pendingFeeResponses.put(playerId, borrow);
+        Player player = Bukkit.getPlayer(playerId);
+        String playerName = player != null ? player.getName() : playerId.toString();
+
+        if (borrow) {
+            if (player != null) {
+                player.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                        + "借金して参加します。");
+            }
+            Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                    + "✓ " + playerName + " は借金して参加します。");
+        } else {
+            // チームから離脱
+            if (activeSession != null) {
+                String team = activeSession.getPlayerTeam(playerId);
+                if (team != null) {
+                    activeSession.removeTeamMember(team, playerId);
+                }
+            }
+            if (player != null) {
+                player.sendMessage(ArenaMessages.PREFIX + ChatColor.GREEN
+                        + "試合から辞退しました。");
+            }
+            Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED
+                    + "✗ " + playerName + " は辞退しました。");
+        }
+
+        // 全員回答済みか確認
+        boolean allResponded = pendingFeeResponses.values().stream()
+                .allMatch(Objects::nonNull);
+        if (allResponded) {
+            cancelFeeTimeout();
+            processAfterFeeResponses();
+        }
+    }
+
+    /**
+     * 全員の参加費応答が揃った後の処理を実行する。
+     *
+     * <p>辞退によりチームが0人になった場合は引き分けを宣言する。
+     * それ以外の場合は参加費を徴収して試合を開始する。
+     */
+    private void processAfterFeeResponses() {
+        if (activeSession == null) return;
+
+        // 0人チームがあるか確認
+        boolean hasEmptyTeam = false;
+        for (String team : activeSession.getTeamNames()) {
+            if (activeSession.isMobTeam(team)) continue;
+            if (activeSession.getTeamMembers(team).isEmpty()) {
+                ChatColor teamColor = activeSession.getTeamColor(team);
+                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED
+                        + "⚠ " + teamColor + team + ChatColor.RED
+                        + " の闘技者が全員辞退しました。");
+                hasEmptyTeam = true;
+            }
+        }
+
+        pendingFeeResponses.clear();
+
+        if (hasEmptyTeam) {
+            declareDraw();
+            return;
+        }
+
+        // 参加費を徴収して試合再開
+        Economy economy = plugin.getEconomy();
+        if (economy != null) {
+            long entryFee = activeSession.getArenaConfig().getEntryFee();
+            boolean isDeathmatch = activeSession.getMatchMode() == MatchMode.DEATHMATCH;
+            long dmFeePerPerson = isDeathmatch ? activeSession.getDeathmatchEntryFee() : 0;
+            collectFees(entryFee, dmFeePerPerson);
+        }
+
+        // startMatch の残り処理を実行
+        activeSession.setState(ArenaState.ACTIVE);
+        cancelAllTasks();
+        eliminatedPlayers.clear();
+        terrainManager.startTracking(activeSession);
+        guardManager.lockField(activeSession);
+        Bukkit.getPluginManager().callEvent(new ArenaBettingCloseEvent(activeSession));
+        plugin.getLogger().info("試合を開始しました: " + activeSession.getName());
+        scanAndTeleportPlayers();
+        scanAndTeleportMobs();
+        registerScoreboardTeams();
+
+        // StartSubCommand 相当の開始アナウンス
+        Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
+        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED + ChatColor.BOLD + "試合開始！");
+        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW + "ベットは締め切りました！");
+        Bukkit.broadcastMessage("");
+        bettingManager.broadcastOdds(activeSession);
+        Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
+    }
+
+    /**
+     * 参加費応答のタイムアウトタイマーを開始する。
+     *
+     * <p>未回答のプレイヤーは自動的に辞退扱いになる。
+     */
+    private void scheduleFeeTimeout() {
+        cancelFeeTimeout();
+        final int[] remaining = {FEE_RESPONSE_TIMEOUT_SECONDS};
+
+        feeTimeoutTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (pendingFeeResponses.isEmpty()) {
+                cancelFeeTimeout();
+                return;
+            }
+
+            int r = remaining[0];
+
+            if (r <= 0) {
+                // 未回答者を自動辞退
+                for (Map.Entry<UUID, Boolean> entry : new ArrayList<>(pendingFeeResponses.entrySet())) {
+                    if (entry.getValue() == null) {
+                        handleFeeResponse(entry.getKey(), false);
+                    }
+                }
+                cancelFeeTimeout();
+                return;
+            }
+
+            // 残り10秒, 5秒で通知
+            if (r == 10 || r == 5) {
+                for (UUID playerId : pendingFeeResponses.keySet()) {
+                    if (pendingFeeResponses.get(playerId) != null) continue;
+                    Player player = Bukkit.getPlayer(playerId);
+                    if (player != null) {
+                        player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + ChatColor.BOLD
+                                + "残り " + r + "秒" + ChatColor.RESET + ChatColor.GRAY
+                                + " で未回答の場合は自動辞退になります！");
+                    }
+                }
+            }
+
+            remaining[0]--;
+        }, 0L, 20L);
+    }
+
+    /**
+     * 参加費応答タイムアウトタイマーをキャンセルする。
+     */
+    private void cancelFeeTimeout() {
+        if (feeTimeoutTask != null) {
+            feeTimeoutTask.cancel();
+            feeTimeoutTask = null;
+        }
+    }
+
+    /**
+     * セッションの設定に基づいて勝利条件を解決する。
+     *
+     * <p>セッションに {@link ArenaConfig} が設定されている場合はその勝利条件を使用し、
+     * 未設定の場合はグローバル設定にフォールバックする。
+     *
+     * @return 解決された {@link WinCondition}
+     */
+    private WinCondition resolveWinCondition() {
+        if (activeSession != null && activeSession.getArenaConfig() != null) {
+            String type = activeSession.getArenaConfig().getWinCondition();
+            return switch (type) {
+                case "manual" -> new io.wax100.arenaCore.wincondition.ManualDeclarationCondition();
+                case "score" -> new io.wax100.arenaCore.wincondition.ScoreCondition(
+                        activeSession.getArenaConfig().getScoreTarget());
+                default -> new io.wax100.arenaCore.wincondition.LastTeamStandingCondition();
+            };
+        }
+        return plugin.getWinCondition();
+    }
+
+    /**
+     * 引き分けを宣言し、全額返金する。
+     *
+     * <p>ベット・参加費・DM参加費を全額返金し、セッションを終了する。
+     * チームが0人になった場合や、全チーム同時全滅時に呼び出される。
+     */
+    public boolean declareDraw() {
+        if (activeSession == null) return false;
+        plugin.getLogger().info("引き分け宣言: " + activeSession.getName());
+
+        boolean wasActive = activeSession.getState() == ArenaState.ACTIVE;
+        cancelAllTasks();
+        cancelFeeTimeout();
+        guardManager.unlockField();
+        cancelDeathmatch();
+
+        Bukkit.broadcastMessage("");
+        Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
+        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW + ChatColor.BOLD
+                + "⚖ 引き分け！");
+        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
+                + "全ベット額・参加費を返金します。");
+        Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
+        Bukkit.broadcastMessage("");
+
+        try {
+            bettingManager.refundAll(activeSession);
+            terrainManager.finishAndFlush();
+            activeSession.setState(ArenaState.FINISHED);
+
+            // 参加費返金
+            Economy economy = plugin.getEconomy();
+            if (economy != null) {
+                long entryFeePool = activeSession.getEntryFeePool();
+                long dmPool = activeSession.getDeathmatchPool();
+                int totalPlayerFighters = activeSession.getPlayerFighterCount();
+                long entryFeePerPerson = totalPlayerFighters > 0 ? entryFeePool / totalPlayerFighters : 0;
+                long dmFeePerPerson = totalPlayerFighters > 0 ? dmPool / totalPlayerFighters : 0;
+
+                for (String team : activeSession.getTeamNames()) {
+                    if (activeSession.isMobTeam(team)) continue;
+                    for (UUID playerId : activeSession.getTeamMembers(team)) {
+                        long refund = entryFeePerPerson + dmFeePerPerson;
+                        if (refund > 0) {
+                            OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerId);
+                            economy.depositPlayer(offlinePlayer, refund);
+
+                            Player onlinePlayer = Bukkit.getPlayer(playerId);
+                            if (onlinePlayer != null && onlinePlayer.isOnline()) {
+                                onlinePlayer.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                                        + "参加費 " + ChipManager.formatAmount(refund) + " E を返金しました。");
+                            }
+                        }
+                    }
+                }
+            }
+
+            cleanupMobs();
+            if (wasActive) {
+                cashoutAllPlayers();
+            }
+        } finally {
+            cleanupSession();
+        }
 
         return true;
     }
@@ -808,11 +1170,32 @@ public class ArenaManager {
 
         eliminatedPlayers.add(playerId);
 
-        WinCondition winCondition = plugin.getWinCondition();
+        WinCondition winCondition = resolveWinCondition();
         String winner = winCondition.checkWinOnDeath(activeSession, playerId, eliminatedPlayers);
 
         if (winner != null) {
             declareWinner(winner);
+            return;
+        }
+
+        // 勝者なし（0チーム生存）→ 自動引き分け判定
+        boolean anyTeamAlive = false;
+        for (String t : activeSession.getTeamNames()) {
+            if (activeSession.isTeamEliminated(t)) continue;
+            if (activeSession.isMobTeam(t) && activeSession.hasAliveMobs(t)) {
+                anyTeamAlive = true;
+                break;
+            }
+            for (UUID member : activeSession.getTeamMembers(t)) {
+                if (!eliminatedPlayers.contains(member)) {
+                    anyTeamAlive = true;
+                    break;
+                }
+            }
+            if (anyTeamAlive) break;
+        }
+        if (!anyTeamAlive) {
+            declareDraw();
             return;
         }
 
@@ -860,7 +1243,7 @@ public class ArenaManager {
             Bukkit.broadcastMessage(ArenaMessages.PREFIX + teamColor + ChatColor.BOLD
                     + team + ChatColor.RESET + ChatColor.RED + " のモンスターが全滅しました！");
 
-            WinCondition winCondition = plugin.getWinCondition();
+            WinCondition winCondition = resolveWinCondition();
             String winner = winCondition.checkWinOnDeath(activeSession, entityId, eliminatedPlayers);
             if (winner != null) {
                 declareWinner(winner);
@@ -1067,6 +1450,9 @@ public class ArenaManager {
         ChipPlugin chipPlugin = getChipPlugin();
         if (chipPlugin != null) chipPlugin.clearAllAllowed();
         if (activeSession != null) {
+            // 闘技者を待機場へ帰還させる
+            teleportFightersToWaitingArea();
+
             if (activeSession.getState() != ArenaState.FINISHED) {
                 activeSession.setState(ArenaState.FINISHED);
             }
@@ -1079,6 +1465,38 @@ public class ArenaManager {
         activeChallenge = null;
         deathmatchProposalCount = 0;
         cancelVoteTimer();
+    }
+
+    /**
+     * 全闘技者を各チームの待機場中心へテレポートさせる。
+     *
+     * <p>試合終了時に {@link #cleanupSession()} から呼び出される。
+     * 待機場エリアの中心座標をTP先として使用する。
+     */
+    private void teleportFightersToWaitingArea() {
+        if (activeSession == null) return;
+
+        for (String team : activeSession.getTeamNames()) {
+            if (activeSession.isMobTeam(team)) continue;
+            TeamAreaConfig areaConfig = activeSession.getTeamAreaConfig(team);
+            if (areaConfig == null) continue;
+
+            // 待機場エリアの中心座標を計算
+            World world = Bukkit.getWorld(areaConfig.worldName());
+            if (world == null) continue;
+
+            double centerX = (areaConfig.minX() + areaConfig.maxX()) / 2.0 + 0.5;
+            double centerY = areaConfig.minY() + 1.0; // 床の1ブロック上
+            double centerZ = (areaConfig.minZ() + areaConfig.maxZ()) / 2.0 + 0.5;
+            Location waitingLoc = new Location(world, centerX, centerY, centerZ);
+
+            for (UUID memberId : activeSession.getTeamMembers(team)) {
+                Player player = Bukkit.getPlayer(memberId);
+                if (player != null && player.isOnline()) {
+                    player.teleport(waitingLoc);
+                }
+            }
+        }
     }
 
     /**
@@ -1267,7 +1685,7 @@ public class ArenaManager {
         if (perPerson <= 0) return "1人あたりの参加費が0になります。金額を大きくしてください。";
 
         // 通常参加費
-        long entryFee = plugin.getConfig().getLong("entry-fee", 0);
+        long entryFee = activeSession.getArenaConfig().getEntryFee();
         long requiredPerPerson = perPerson + entryFee;
 
         // 全闘技者の所持金チェック

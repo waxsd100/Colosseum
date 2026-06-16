@@ -365,7 +365,9 @@ public class BettingManager {
      * 最低保証金を全闘技者に支給する。
      */
     private void distributeGuarantee(ArenaSession session) {
-        long guarantee = plugin.getConfig().getLong("fighter-guarantee", 100);
+        long guarantee = (session.getArenaConfig() != null)
+                        ? session.getArenaConfig().getFighterGuarantee()
+                        : plugin.getConfig().getLong("fighter-guarantee", 100);
         if (guarantee > 0) {
             for (String teamName : session.getTeamNames()) {
                 for (UUID fighterId : session.getTeamMembers(teamName)) {

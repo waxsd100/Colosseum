@@ -1,5 +1,6 @@
 package io.wax100.arenaCore.manager;
 
+import io.wax100.arenaCore.model.ArenaConfig;
 import io.wax100.arenaCore.model.ArenaFieldConfig;
 import io.wax100.arenaCore.model.ArenaSession;
 import io.wax100.arenaCore.model.TeamAreaConfig;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -43,6 +45,9 @@ class ArenaPresetStoreTest {
         when(session.getTeamAreaConfig("Red")).thenReturn(
                 new TeamAreaConfig("world", 10, 0, 10, 20, 5, 20));
         when(session.getTeamAreaConfig("Blue")).thenReturn(null);
+        ArenaConfig arenaConfig = new ArenaConfig(500L, "score", 10, 200L);
+        when(session.getArenaConfig()).thenReturn(arenaConfig);
+        when(session.getTeamColors()).thenReturn(Map.of());
         return session;
     }
 
@@ -158,6 +163,24 @@ class ArenaPresetStoreTest {
             assertNull(store.load("original")); // 元の名前では見つからない
             assertNotNull(store.load("custom_name")); // カスタム名で見つかる
             assertEquals("custom_name", store.load("custom_name").name());
+        }
+
+        @Test
+        @DisplayName("ArenaConfigが保存・復元される")
+        void arenaConfig_savedAndLoaded() {
+            ArenaFieldConfig field = ArenaFieldConfig.of("world", 0, 0, 0, 100, 64, 100);
+            ArenaSession session = mockSession("config_test", field);
+            RegionManager rm = mockRegionManager();
+
+            store.save("config_test", session, rm);
+
+            ArenaPresetStore.PresetData data = store.load("config_test");
+            assertNotNull(data);
+            assertNotNull(data.arenaConfig());
+            assertEquals(500L, data.arenaConfig().getEntryFee());
+            assertEquals("score", data.arenaConfig().getWinCondition());
+            assertEquals(10, data.arenaConfig().getScoreTarget());
+            assertEquals(200L, data.arenaConfig().getFighterGuarantee());
         }
     }
 

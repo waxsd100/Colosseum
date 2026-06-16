@@ -398,7 +398,7 @@ public class RedisBackedStorageProvider implements StorageProvider {
      */
     private Map<String, String> serializeStats(PlayerStatsSnapshot s) {
         Map<String, String> map = new HashMap<>();
-        map.put("name", s.name());
+        map.put("name", s.name() != null ? s.name() : "");
         map.put("totalSessions", String.valueOf(s.totalSessions()));
         map.put("totalPurchases", String.valueOf(s.totalPurchases()));
         map.put("totalCashouts", String.valueOf(s.totalCashouts()));

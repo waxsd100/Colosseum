@@ -947,4 +947,71 @@ class ArenaSessionTest {
             assertEquals(0, session.getTeamMembers(TEAM_RED).size());
         }
     }
+
+    // ========================================================================
+    // ArenaConfig 設定
+    // ========================================================================
+
+    @Nested
+    @DisplayName("ArenaConfig - セッション固有設定")
+    class ArenaConfigTest {
+
+        @Test
+        @DisplayName("初期値はnullである")
+        void initialValue_isNull() {
+            assertNull(session.getArenaConfig());
+        }
+
+        @Test
+        @DisplayName("ArenaConfigを設定・取得できる")
+        void setAndGet() {
+            ArenaConfig config = new ArenaConfig(500L, "manual", 0, 100L);
+            session.setArenaConfig(config);
+            assertNotNull(session.getArenaConfig());
+            assertEquals(500L, session.getArenaConfig().getEntryFee());
+            assertEquals("manual", session.getArenaConfig().getWinCondition());
+        }
+
+        @Test
+        @DisplayName("nullのArenaConfigでNPEが発生する")
+        void nullConfig_throwsNPE() {
+            assertThrows(NullPointerException.class,
+                    () -> session.setArenaConfig(null));
+        }
+    }
+
+    // ========================================================================
+    // getPlayerFighterCount
+    // ========================================================================
+
+    @Nested
+    @DisplayName("getPlayerFighterCount - プレイヤー闘技者数")
+    class PlayerFighterCountTest {
+
+        @Test
+        @DisplayName("メンバーがいない場合は0を返す")
+        void noMembers_returnsZero() {
+            assertEquals(0, session.getPlayerFighterCount());
+        }
+
+        @Test
+        @DisplayName("プレイヤーメンバーの合計を返す")
+        void withMembers_returnsTotal() {
+            session.addTeamMember(TEAM_RED, UUID.randomUUID());
+            session.addTeamMember(TEAM_RED, UUID.randomUUID());
+            session.addTeamMember(TEAM_BLUE, UUID.randomUUID());
+            assertEquals(3, session.getPlayerFighterCount());
+        }
+
+        @Test
+        @DisplayName("Mobチームのメンバーはカウントしない")
+        void mobTeamMembers_excluded() {
+            session.addTeamMember(TEAM_RED, UUID.randomUUID());
+            session.addTeamMember(TEAM_RED, UUID.randomUUID());
+            session.markAsMobTeam(TEAM_BLUE);
+            // Blue is mob team so even if it had members they wouldn't count
+            // But mob teams typically don't have player members
+            assertEquals(2, session.getPlayerFighterCount());
+        }
+    }
 }

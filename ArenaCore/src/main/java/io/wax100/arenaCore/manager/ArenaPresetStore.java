@@ -1,5 +1,6 @@
 package io.wax100.arenaCore.manager;
 
+import io.wax100.arenaCore.model.ArenaConfig;
 import io.wax100.arenaCore.model.ArenaFieldConfig;
 import io.wax100.arenaCore.model.ArenaSession;
 import io.wax100.arenaCore.model.BettingRegion;
@@ -100,6 +101,12 @@ public class ArenaPresetStore {
             }
         }
 
+        // arena-config
+        ArenaConfig arenaConfig = session.getArenaConfig();
+        if (arenaConfig != null) {
+            arenaConfig.toYaml(yaml, "arena-config");
+        }
+
         File file = new File(arenasDir, name + ".yml");
         try {
             yaml.save(file);
@@ -191,8 +198,15 @@ public class ArenaPresetStore {
             }
         }
 
+        // arena-config
+        ArenaConfig arenaConfig = null;
+        ConfigurationSection configSec = yaml.getConfigurationSection("arena-config");
+        if (configSec != null) {
+            arenaConfig = ArenaConfig.fromYaml(configSec);
+        }
+
         return new PresetData(presetName, teamNames, mobTeams,
-                fieldConfig, teamAreaConfigs, bettingRegions, teamColors);
+                fieldConfig, teamAreaConfigs, bettingRegions, teamColors, arenaConfig);
     }
 
     // ══════════════════════════════════════
@@ -243,6 +257,7 @@ public class ArenaPresetStore {
      * @param teamAreaConfigs チーム別待機場設定
      * @param bettingRegions  チーム別ベットエリア設定
      * @param teamColors      チーム別カラー設定
+     * @param arenaConfig     ゲームルール設定（nullable）
      */
     public record PresetData(
             String name,
@@ -251,6 +266,7 @@ public class ArenaPresetStore {
             ArenaFieldConfig fieldConfig,
             Map<String, TeamAreaConfig> teamAreaConfigs,
             Map<String, BettingRegion> bettingRegions,
-            Map<String, ChatColor> teamColors
+            Map<String, ChatColor> teamColors,
+            ArenaConfig arenaConfig
     ) {}
 }

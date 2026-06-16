@@ -55,7 +55,6 @@ public class ArenaBettingListener implements Listener {
         if (!arenaManager.hasActiveSession()) return;
 
         ArenaSession session = arenaManager.getActiveSession();
-        if (session.getState() != ArenaState.BETTING && session.getState() != ArenaState.BLIND) return;
 
         Player player = event.getPlayer();
         ItemStack item = event.getItemInHand();
@@ -63,6 +62,14 @@ public class ArenaBettingListener implements Listener {
         // チップかどうか判定
         ChipManager chipManager = plugin.getChipManager();
         if (chipManager == null || !chipManager.isChip(item)) return;
+
+        // ベット受付外の状態ではチップ設置をキャンセル（アイテム消失防止）
+        if (session.getState() != ArenaState.BETTING && session.getState() != ArenaState.BLIND) {
+            event.setCancelled(true);
+            player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
+                    TextComponent.fromLegacyText(ChatColor.RED + "ベット受付は終了しています！"));
+            return;
+        }
 
         // 戦闘員チェック
         if (session.isFighter(player.getUniqueId())) {

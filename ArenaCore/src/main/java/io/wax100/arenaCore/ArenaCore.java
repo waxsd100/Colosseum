@@ -7,6 +7,7 @@ import io.wax100.arenaCore.listener.ArenaBettingListener;
 import io.wax100.arenaCore.listener.ArenaFightListener;
 import io.wax100.arenaCore.listener.ArenaTeamAreaListener;
 import io.wax100.arenaCore.listener.ArenaTerrainListener;
+import io.wax100.arenaCore.listener.EntryFeeListener;
 import io.wax100.arenaCore.listener.MobAreaProtectionListener;
 import io.wax100.arenaCore.manager.AreaStore;
 import io.wax100.arenaCore.manager.ArenaManager;
@@ -129,6 +130,7 @@ public final class ArenaCore extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new MobAreaProtectionListener(this), this);
         getServer().getPluginManager().registerEvents(new ArenaTerrainListener(terrainManager), this);
         getServer().getPluginManager().registerEvents(new ArenaTeamAreaListener(this), this);
+        getServer().getPluginManager().registerEvents(new EntryFeeListener(this), this);
 
         // クラッシュ復旧チェック（全ワールドロード完了後に実行）
         getServer().getScheduler().runTaskLater(this, terrainManager::checkCrashRecovery, 1L);

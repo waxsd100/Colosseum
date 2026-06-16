@@ -54,7 +54,7 @@ public class CreateSubCommand implements SubCommand {
                 + "闘技場「" + name + "」が開設されました！");
         Bukkit.broadcastMessage("");
 
-        long entryFee = plugin.getConfig().getLong("entry-fee", 0);
+        long entryFee = session.getArenaConfig().getEntryFee();
         if (entryFee > 0) {
             Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
                     + "参加費: " + ChatColor.YELLOW + ChipManager.formatAmount(entryFee) + " E");
@@ -65,6 +65,7 @@ public class CreateSubCommand implements SubCommand {
         Bukkit.broadcastMessage(ChatColor.GRAY + "  1. " + ChatColor.YELLOW + "/arena team add <チーム名>");
         Bukkit.broadcastMessage(ChatColor.GRAY + "  2. " + ChatColor.YELLOW + "/arena team area <チーム> [待機場名]");
         Bukkit.broadcastMessage(ChatColor.GRAY + "  3. " + ChatColor.YELLOW + "/arena field set [名前]");
+        Bukkit.broadcastMessage(ChatColor.GRAY + "  4. " + ChatColor.YELLOW + "/arena config" + ChatColor.GRAY + " <- 設定変更");
         Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
     }
 
