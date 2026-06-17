@@ -7,6 +7,7 @@ import io.wax100.chipLib.ranking.RankingManager;
 import io.wax100.chipLib.storage.RedisConnectionManager;
 import io.wax100.chipLib.storage.StorageFactory;
 import io.wax100.chipLib.storage.StorageProvider;
+import io.wax100.chipLib.util.ChipMessages;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.GameMode;
@@ -199,13 +200,38 @@ public final class ChipPlugin extends JavaPlugin implements Listener {
      * プレイヤーログイン時の初期化処理。
      *
      * <p>PDC に保存されたアクションバー表示設定を復元する。
+     * 初回ログインの場合は所持金表示機能の説明メッセージを送信する。
      *
      * @param event プレイヤーログインイベント
      */
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        if (balanceDisplay != null) {
-            balanceDisplay.loadPlayer(event.getPlayer());
+        if (balanceDisplay == null) return;
+
+        Player player = event.getPlayer();
+        boolean firstLogin = balanceDisplay.loadPlayer(player);
+
+        if (firstLogin) {
+            // 初回ログイン: 20tick (1秒) 後に説明メッセージを送信
+            getServer().getScheduler().runTaskLater(this, () -> {
+                if (!player.isOnline()) return;
+
+                player.sendMessage("");
+                player.sendMessage(ChipMessages.PREFIX
+                        + net.md_5.bungee.api.ChatColor.AQUA + "💰 所持金表示について");
+                player.sendMessage(ChipMessages.PREFIX
+                        + net.md_5.bungee.api.ChatColor.GRAY
+                        + "アクションバーにリアルタイムで所持金を表示できます。");
+                player.sendMessage(ChipMessages.PREFIX
+                        + net.md_5.bungee.api.ChatColor.GRAY
+                        + "表示は現在 " + net.md_5.bungee.api.ChatColor.YELLOW + "OFF"
+                        + net.md_5.bungee.api.ChatColor.GRAY + " です。");
+                player.sendMessage(ChipMessages.PREFIX
+                        + net.md_5.bungee.api.ChatColor.GREEN + "/money"
+                        + net.md_5.bungee.api.ChatColor.GRAY
+                        + " コマンドでいつでも ON/OFF を切り替えられます。");
+                player.sendMessage("");
+            }, 20L);
         }
     }
 

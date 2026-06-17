@@ -249,6 +249,11 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
             player.setGameMode(GameMode.ADVENTURE);
         }
 
+        // 非表示プレイヤーでもチップ購入時は一時的にアクションバーを表示（100tick = 5秒）
+        if (plugin.getBalanceDisplay() != null) {
+            plugin.getBalanceDisplay().peekDisplay(player.getUniqueId(), 100);
+        }
+
         return true;
     }
 

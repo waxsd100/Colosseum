@@ -102,12 +102,46 @@ public class BettingManager {
         ChatColor teamColor = session.getTeamColor(teamName);
         long total = session.getBet(player.getUniqueId(), teamName).amount();
 
-        // actionbarオーバーレイ: ベット通知
-        showActionBarOverlay(player,
-                teamColor.toString() + ChatColor.BOLD + teamName
-                + ChatColor.RESET + ChatColor.GREEN + " +" + ChipManager.formatAmount(chipValue) + " E"
-                + ChatColor.GRAY + "  (合計: " + ChipManager.formatAmount(total) + " E)",
-                100);
+        // 所持金とメインハンドのチップ情報を取得
+        StringBuilder overlay = new StringBuilder();
+        overlay.append(teamColor).append(ChatColor.BOLD).append(teamName)
+               .append(ChatColor.RESET).append(ChatColor.GREEN)
+               .append(" +").append(ChipManager.formatAmount(chipValue)).append(" E")
+               .append(ChatColor.GRAY).append("  (合計: ")
+               .append(ChipManager.formatAmount(total)).append(" E)");
+
+        ChipPlugin chipPlugin = (ChipPlugin) Bukkit.getPluginManager().getPlugin("ChipLib");
+        if (chipPlugin != null) {
+            // 所持金
+            long balance = (long) chipPlugin.getEconomy().getBalance(player);
+            // メインハンドのチップ額面
+            ItemStack mainHand = player.getInventory().getItemInMainHand();
+            long handChipValue = chipPlugin.getChipManager().getChipValue(mainHand);
+            int handAmount = mainHand.getAmount();
+
+            overlay.append(ChatColor.DARK_GRAY).append("  ┃  ");
+            overlay.append(net.md_5.bungee.api.ChatColor.of("#AAAAAA")).append("💰 ");
+            overlay.append(net.md_5.bungee.api.ChatColor.of("#FFD700")).append(ChatColor.BOLD)
+                   .append(ChipManager.formatAmount(balance));
+            overlay.append(ChatColor.RESET).append(net.md_5.bungee.api.ChatColor.of("#CCAA00")).append(" E");
+
+            if (handChipValue > 0) {
+                long handTotal = handChipValue * handAmount;
+                Chip.fromValue(handChipValue).ifPresent(chip -> {
+                    overlay.append(ChatColor.DARK_GRAY).append("  ┃  ");
+                    overlay.append(net.md_5.bungee.api.ChatColor.of("#AAAAAA")).append("✋ ");
+                    overlay.append(chip.getChatColor()).append(ChatColor.BOLD)
+                           .append(ChipManager.formatAmount(handTotal));
+                    overlay.append(ChatColor.RESET).append(net.md_5.bungee.api.ChatColor.of("#CCAA00")).append(" E");
+                    if (handAmount > 1) {
+                        overlay.append(ChatColor.GRAY).append(" (×").append(handAmount).append(")");
+                    }
+                });
+            }
+        }
+
+        // actionbarオーバーレイ: ベット通知（非表示プレイヤーでも一時的に表示）
+        showActionBarOverlay(player, overlay.toString(), 100, true);
         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.5f, 1.5f);
 
         return true;
@@ -158,7 +192,7 @@ public class BettingManager {
         showActionBarOverlay(player,
                 ChatColor.YELLOW.toString() + ChatColor.BOLD + "↩ "
                 + ChatColor.RESET + ChatColor.YELLOW + "-" + ChipManager.formatAmount(chipInfo.chipValue()) + " E" + remaining,
-                100);
+                100, true);
         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.5f, 0.8f);
     }
 
@@ -978,10 +1012,22 @@ public class BettingManager {
      * @param ticks   表示時間（tick）
      */
     public void showActionBarOverlay(Player player, String message, int ticks) {
+        showActionBarOverlay(player, message, ticks, false);
+    }
+
+    /**
+     * BalanceDisplay のオーバーレイに一時メッセージを表示する。
+     *
+     * @param player  対象プレイヤー
+     * @param message 表示メッセージ（色コード込み）
+     * @param ticks   表示時間（tick）
+     * @param peek    非表示プレイヤーに対しても一時的に表示を有効にする場合 {@code true}
+     */
+    public void showActionBarOverlay(Player player, String message, int ticks, boolean peek) {
         ChipPlugin chipPlugin = (ChipPlugin) Bukkit.getPluginManager().getPlugin("ChipLib");
         if (chipPlugin == null) return;
         BalanceDisplay display = chipPlugin.getBalanceDisplay();
         if (display == null) return;
-        display.showOverlay(player, message, ticks);
+        display.showOverlay(player, message, ticks, peek);
     }
 }

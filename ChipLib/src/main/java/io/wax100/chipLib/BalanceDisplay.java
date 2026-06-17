@@ -52,6 +52,9 @@ public class BalanceDisplay implements Runnable {
     /** アクションバー表示を非表示にしているプレイヤーのセット */
     private final Set<UUID> hiddenPlayers = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
+    /** 一時表示（peek）の残りtick。0以下で無効。 */
+    private final Map<UUID, Integer> peekRemaining = new ConcurrentHashMap<>();
+
     // ── カラーパレット ──
     private static final ChatColor C_SEPARATOR = ChatColor.DARK_GRAY;
     private static final ChatColor C_LABEL     = ChatColor.of("#AAAAAA");
@@ -86,6 +89,8 @@ public class BalanceDisplay implements Runnable {
         }
         previousBalances.clear();
         activeDelta.clear();
+        activeOverlay.clear();
+        peekRemaining.clear();
     }
 
     @Override
@@ -108,8 +113,20 @@ public class BalanceDisplay implements Runnable {
                 }
             }
 
-            // 非表示プレイヤーはアクションバー送信をスキップ
-            if (!hiddenPlayers.contains(uuid)) {
+            // 非表示プレイヤーでも peek 中またはオーバーレイ中は表示する
+            boolean hidden = hiddenPlayers.contains(uuid);
+            boolean peeking = false;
+            if (hidden) {
+                Integer peek = peekRemaining.get(uuid);
+                if (peek != null && peek > 0) {
+                    peeking = true;
+                    peekRemaining.put(uuid, peek - (int) INTERVAL_TICKS);
+                } else {
+                    peekRemaining.remove(uuid);
+                }
+            }
+
+            if (!hidden || peeking) {
                 String text = buildActionBar(balance, chipValue, uuid);
                 player.spigot().sendMessage(
                         ChatMessageType.ACTION_BAR,
@@ -120,6 +137,7 @@ public class BalanceDisplay implements Runnable {
         previousBalances.keySet().removeIf(uuid -> Bukkit.getPlayer(uuid) == null);
         activeDelta.keySet().removeIf(uuid -> Bukkit.getPlayer(uuid) == null);
         activeOverlay.keySet().removeIf(uuid -> Bukkit.getPlayer(uuid) == null);
+        peekRemaining.keySet().removeIf(uuid -> Bukkit.getPlayer(uuid) == null);
     }
 
     private String buildActionBar(long balance, long chipValue, UUID uuid) {
@@ -267,6 +285,7 @@ public class BalanceDisplay implements Runnable {
         previousBalances.remove(playerId);
         activeDelta.remove(playerId);
         activeOverlay.remove(playerId);
+        peekRemaining.remove(playerId);
         // hiddenPlayers はクリアしない（PDC に永続化されているため、再ログイン時に復元される）
         hiddenPlayers.remove(playerId);
     }
@@ -274,16 +293,30 @@ public class BalanceDisplay implements Runnable {
     /**
      * プレイヤーのログイン時に PDC から表示設定を読み込み、キャッシュに反映する。
      *
+     * <p>PDC にキーが存在しない場合は初回ログインと判定し、デフォルト OFF（非表示）で
+     * 初期化する。既にキーが存在する場合は保存された設定値に従う。
+     *
      * @param player 対象プレイヤー
+     * @return 初回ログイン（PDC にキーが存在しなかった）の場合 {@code true}
      */
-    public void loadPlayer(Player player) {
+    public boolean loadPlayer(Player player) {
         PersistentDataContainer pdc = player.getPersistentDataContainer();
-        byte hidden = pdc.getOrDefault(displayKey, PersistentDataType.BYTE, (byte) 0);
+
+        if (!pdc.has(displayKey, PersistentDataType.BYTE)) {
+            // 初回ログイン: デフォルト OFF（非表示）で初期化
+            pdc.set(displayKey, PersistentDataType.BYTE, (byte) 1);
+            hiddenPlayers.add(player.getUniqueId());
+            return true;
+        }
+
+        // 既存プレイヤー: 保存された設定に従う
+        byte hidden = pdc.get(displayKey, PersistentDataType.BYTE);
         if (hidden == 1) {
             hiddenPlayers.add(player.getUniqueId());
         } else {
             hiddenPlayers.remove(player.getUniqueId());
         }
+        return false;
     }
 
     /**
@@ -298,6 +331,7 @@ public class BalanceDisplay implements Runnable {
         Player player = Bukkit.getPlayer(playerId);
         if (hiddenPlayers.remove(playerId)) {
             // 非表示→表示に切り替え
+            peekRemaining.remove(playerId);
             if (player != null) {
                 player.getPersistentDataContainer().set(displayKey, PersistentDataType.BYTE, (byte) 0);
             }
@@ -335,6 +369,40 @@ public class BalanceDisplay implements Runnable {
         activeOverlay.put(player.getUniqueId(), new OverlayMessage(message, ticks));
     }
 
+    /**
+     * アクションバーに一時メッセージを表示する（非表示プレイヤーでも一時的に表示する）。
+     *
+     * <p>非表示設定のプレイヤーに対しても peek 表示を有効にしてからオーバーレイを設定する。
+     *
+     * @param player  対象プレイヤー
+     * @param message 表示するメッセージ（色コード込み）
+     * @param ticks   表示時間（tick）
+     * @param peek    非表示プレイヤーに対して一時的に表示を有効にする場合 {@code true}
+     */
+    public void showOverlay(Player player, String message, int ticks, boolean peek) {
+        activeOverlay.put(player.getUniqueId(), new OverlayMessage(message, ticks));
+        if (peek) {
+            peekDisplay(player.getUniqueId(), ticks);
+        }
+    }
+
+    /**
+     * 非表示プレイヤーに対して指定tick数だけアクションバー表示を一時的に有効にする。
+     *
+     * <p>既に表示中のプレイヤーには何もしない。
+     * 非表示プレイヤーのみ一時表示を有効にし、指定tick経過後に自動的に元の非表示状態に戻る。
+     *
+     * @param playerId 対象プレイヤーの UUID
+     * @param ticks    一時表示の期間（tick）
+     */
+    public void peekDisplay(UUID playerId, int ticks) {
+        if (!hiddenPlayers.contains(playerId)) return; // 表示中なら不要
+        Integer current = peekRemaining.get(playerId);
+        if (current == null || current < ticks) {
+            peekRemaining.put(playerId, ticks);
+        }
+    }
+
     // ══════════════════════════════════════
     //  外部通知 API（カジノ・アリーナ用）
     // ══════════════════════════════════════
@@ -353,6 +421,9 @@ public class BalanceDisplay implements Runnable {
         UUID uuid = player.getUniqueId();
         int totalDisplay = holdTicks + NOTIFY_DISPLAY_TICKS;
         activeDelta.put(uuid, new DeltaDisplay(amount, totalDisplay, true, holdTicks));
+
+        // 非表示プレイヤーでも配当アニメーションが見えるように一時表示を有効化
+        peekDisplay(uuid, totalDisplay);
 
         // カチカチ音: holdTicks後からスケジュール
         String amountText = (amount > 0 ? "+" : "") + ChipManager.formatAmount(amount);
