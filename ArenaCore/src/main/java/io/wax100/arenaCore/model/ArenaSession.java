@@ -643,13 +643,16 @@ public class ArenaSession {
      *
      * <p>試合中（ACTIVE）は {@code trackedMobs} から生存数を返す。
      * それ以前は待機場をスキャンして数える。
-     * Mobチームでない場合は常に 0 を返す。
+     * 試合前は {@code isMobTeam} のマークに依存せず、
+     * 待機場にMobがいればその数を返す。
      */
     public int getMobCount(String teamName) {
-        if (!isMobTeam(teamName)) return 0;
         if (state == ArenaState.ACTIVE) {
+            // 試合中: trackedMobs から生存Mob数を取得（マーク済みチームのみ）
+            if (!isMobTeam(teamName)) return 0;
             return getAliveMobCount(teamName);
         }
+        // 試合前: 待機場をリアルタイムスキャン（isMobTeam未マークでも検出）
         TeamAreaConfig config = getTeamAreaConfig(teamName);
         return (config != null) ? config.scanEntities().size() : 0;
     }
@@ -735,19 +738,23 @@ public class ArenaSession {
      *
      * <p>試合中（ACTIVE以降）は {@code trackedMobs} を参照する。
      * それ以前は待機場内のMobをスキャンして数える。
+     * 試合前は {@code isMobTeam} のマークに依存せず、待機場に
+     * Mobがいればその数を加算する。
      */
     public int getEffectiveTeamSize(String teamName) {
         int playerSize = getTeamSize(teamName);
-        if (isMobTeam(teamName)) {
-            if (state == ArenaState.ACTIVE) {
-                // 試合中: trackedMobs から生存Mob数を取得
+        if (state == ArenaState.ACTIVE) {
+            // 試合中: trackedMobs から生存Mob数を取得（マーク済みチームのみ）
+            if (isMobTeam(teamName)) {
                 return playerSize + getAliveMobCount(teamName);
             }
-            // 試合前: 待機場をスキャン
-            TeamAreaConfig config = getTeamAreaConfig(teamName);
-            if (config != null) {
-                return playerSize + config.scanEntities().size();
-            }
+            return playerSize;
+        }
+        // 試合前: 待機場をスキャン（isMobTeam未マークでも検出）
+        TeamAreaConfig config = getTeamAreaConfig(teamName);
+        if (config != null) {
+            int mobCount = config.scanEntities().size();
+            return playerSize + mobCount;
         }
         return playerSize;
     }
