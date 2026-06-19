@@ -346,7 +346,51 @@ public class ArenaManager {
         activeSession.setState(ArenaState.CLOSED);
         cancelAllTasks();
         plugin.getLogger().info("ベットを締め切りました: " + activeSession.getName());
+
+        // ベット終了時にプレイヤーの手持ちチップを自動換金する
+        autoRefundUnspentChips();
+
         return true;
+    }
+
+    /**
+     * ベット締切時に、全オンラインプレイヤーのインベントリにある未使用チップを換金（返金）する。
+     *
+     * <p>チップ回収に伴い、ゲームモード復元・ハサミ回収も行われる。
+     * CasinoCore のセッション購入額も自動換金分だけ相殺し、
+     * 試合終了時の最終損益計算が正しくなるようにする。
+     */
+    private void autoRefundUnspentChips() {
+        try {
+            ChipPlugin chipPlugin = getChipPlugin();
+            if (chipPlugin == null) return;
+
+            Plugin casinoPlugin = Bukkit.getPluginManager().getPlugin("CasinoCore");
+            boolean hasCasino = (casinoPlugin instanceof CasinoCore);
+
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                long chipValue = plugin.getChipManager().calculateTotalValue(p);
+                if (chipValue <= 0) continue;
+
+                // ChipPlugin で換金（チップ回収＋Vault入金＋ゲームモード復元＋ハサミ回収）
+                long cashoutAmount = chipPlugin.cashoutPlayer(p);
+                if (cashoutAmount <= 0) continue;
+
+                // CasinoCore 側の購入額を相殺（最終換金時の利益計算を狂わせないため）
+                if (hasCasino) {
+                    ((CasinoCore) casinoPlugin).getCasinoManager()
+                            .refundPurchase(p.getUniqueId(), cashoutAmount);
+                }
+
+                p.sendMessage(ArenaMessages.PREFIX + ChatColor.GREEN
+                        + "ベット受付が終了したため、手持ちの未使用チップ "
+                        + ChipManager.formatAmount(cashoutAmount) + " E を自動換金しました。");
+                plugin.getLogger().info("自動換金: " + p.getName()
+                        + " / " + ChipManager.formatAmount(cashoutAmount) + " E");
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("自動換金中にエラーが発生: " + e.getMessage());
+        }
     }
 
     /**
@@ -653,6 +697,11 @@ public class ArenaManager {
         Bukkit.getPluginManager().callEvent(new ArenaBettingCloseEvent(activeSession));
         plugin.getLogger().info("試合を開始しました: " + activeSession.getName());
 
+        // 戦闘エリア外脱出監視を開始
+        if (activeSession.getFieldConfig() != null) {
+            plugin.getOutOfBoundsListener().startCountdown();
+        }
+
         // プレイヤー待機場からスキャンして登録＋TP
         scanAndTeleportPlayers();
         // モンスターチームのMobを待機場からスキャンしてTP
@@ -809,6 +858,11 @@ public class ArenaManager {
         scanAndTeleportPlayers();
         scanAndTeleportMobs();
         registerScoreboardTeams();
+
+        // 戦闘エリア外脱出監視を開始
+        if (activeSession.getFieldConfig() != null) {
+            plugin.getOutOfBoundsListener().startCountdown();
+        }
 
         // StartSubCommand 相当の開始アナウンス
         Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
@@ -1465,6 +1519,8 @@ public class ArenaManager {
         activeChallenge = null;
         deathmatchProposalCount = 0;
         cancelVoteTimer();
+        // 戦闘エリア外脱出監視を停止
+        plugin.getOutOfBoundsListener().stopCountdown();
     }
 
     /**

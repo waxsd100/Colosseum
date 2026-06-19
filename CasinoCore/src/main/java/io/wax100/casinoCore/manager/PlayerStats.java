@@ -123,6 +123,17 @@ public class PlayerStats {
     }
 
     /**
+     * 未使用チップの返金時に、累計購入額から減算する。
+     *
+     * @param amount 返金額
+     */
+    public void refundPurchase(long amount) {
+        if (this.totalPurchases != Long.MAX_VALUE) {
+            this.totalPurchases = Math.max(0, this.totalPurchases - amount);
+        }
+    }
+
+    /**
      * 換金結果を記録する。
      *
      * <p>

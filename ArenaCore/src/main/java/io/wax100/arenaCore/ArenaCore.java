@@ -8,6 +8,7 @@ import io.wax100.arenaCore.listener.ArenaFightListener;
 import io.wax100.arenaCore.listener.ArenaTeamAreaListener;
 import io.wax100.arenaCore.listener.ArenaTerrainListener;
 import io.wax100.arenaCore.listener.EntryFeeListener;
+import io.wax100.arenaCore.listener.ArenaOutOfBoundsListener;
 import io.wax100.arenaCore.listener.MobAreaProtectionListener;
 import io.wax100.arenaCore.manager.AreaStore;
 import io.wax100.arenaCore.manager.ArenaManager;
@@ -58,6 +59,7 @@ public final class ArenaCore extends JavaPlugin {
     private JackpotManager jackpotManager;
     private DoubleUpManager doubleUpManager;
     private TerrainStorageProvider terrainStorage;
+    private ArenaOutOfBoundsListener outOfBoundsListener;
     private WinCondition winCondition;
 
     // ── 分配デフォルト定数 ──
@@ -131,6 +133,8 @@ public final class ArenaCore extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new ArenaTerrainListener(terrainManager), this);
         getServer().getPluginManager().registerEvents(new ArenaTeamAreaListener(this), this);
         getServer().getPluginManager().registerEvents(new EntryFeeListener(this), this);
+        outOfBoundsListener = new ArenaOutOfBoundsListener(this);
+        getServer().getPluginManager().registerEvents(outOfBoundsListener, this);
 
         // クラッシュ復旧チェック（全ワールドロード完了後に実行）
         getServer().getScheduler().runTaskLater(this, terrainManager::checkCrashRecovery, 1L);
@@ -269,4 +273,5 @@ public final class ArenaCore extends JavaPlugin {
     public ArenaPresetStore getPresetStore() { return presetStore; }
     public AreaStore getAreaStore() { return areaStore; }
     public DoubleUpManager getDoubleUpManager() { return doubleUpManager; }
+    public ArenaOutOfBoundsListener getOutOfBoundsListener() { return outOfBoundsListener; }
 }

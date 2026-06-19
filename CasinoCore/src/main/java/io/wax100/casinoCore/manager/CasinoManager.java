@@ -327,6 +327,22 @@ public class CasinoManager {
     }
 
     /**
+     * 未使用チップ換金時に、セッション購入額と累計購入額を減算（返金）する。
+     *
+     * @param playerId プレイヤーの UUID
+     * @param amount   返金額
+     */
+    public void refundPurchase(UUID playerId, long amount) {
+        if (!sessionPurchases.containsKey(playerId)) return;
+        long current = sessionPurchases.get(playerId);
+        long newAmount = Math.max(0, current - amount);
+        sessionPurchases.put(playerId, newAmount);
+
+        getOrCreateStats(playerId).refundPurchase(amount);
+        saveData();
+    }
+
+    /**
      * プレイヤーのセッション中の購入総額を取得する。
      *
      * @param playerId プレイヤーの UUID
