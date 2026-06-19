@@ -441,9 +441,11 @@ public class CasinoManager {
             }
             // name を自動解決（null のまま保存されるのを防止）
             PlayerStats stats = new PlayerStats();
-            Player p = Bukkit.getPlayer(k);
-            if (p != null) {
-                stats.recordSessionJoin(p.getName());
+            if (Bukkit.getServer() != null) {
+                Player p = Bukkit.getPlayer(k);
+                if (p != null) {
+                    stats.recordSessionJoin(p.getName());
+                }
             }
             return stats;
         });
