@@ -97,8 +97,8 @@ public class ArenaOutOfBoundsListener implements Listener {
      * カウントダウンタスクを開始する。
      *
      * <p>試合開始時に {@link ArenaManager} から呼び出される。
-     * 1秒ごとにエリア外プレイヤーの残り時間をチェックし、
-     * タイムアウトで脱落処理を行う。
+     * 1秒ごとにエリア外プレイヤー・モンスターの残り時間をチェックし、
+     * 猶予時間超過後は毎秒ダメージを与えて徐々にKillする。
      */
     public void startCountdown() {
         stopCountdown();
@@ -107,6 +107,7 @@ public class ArenaOutOfBoundsListener implements Listener {
 
         int gracePeriod = plugin.getConfig().getInt("out-of-bounds.grace-seconds", 10);
         int mobGracePeriod = plugin.getConfig().getInt("out-of-bounds.mob-grace-seconds", gracePeriod);
+        double damagePercent = plugin.getConfig().getDouble("out-of-bounds.damage-percent-per-second", 10.0);
 
         countdownTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             ArenaManager manager = plugin.getArenaManager();
@@ -123,10 +124,10 @@ public class ArenaOutOfBoundsListener implements Listener {
             long now = System.currentTimeMillis();
 
             // ── プレイヤーのエリア外チェック ──
-            checkPlayersOutOfBounds(manager, session, field, now, gracePeriod);
+            checkPlayersOutOfBounds(manager, session, field, now, gracePeriod, damagePercent);
 
             // ── モンスターのエリア外チェック ──
-            checkMobsOutOfBounds(manager, session, field, now, mobGracePeriod);
+            checkMobsOutOfBounds(manager, session, field, now, mobGracePeriod, damagePercent);
 
         }, 0L, 20L); // 1秒ごと
     }
@@ -148,14 +149,21 @@ public class ArenaOutOfBoundsListener implements Listener {
     /**
      * プレイヤーのエリア外チェックを行う。
      *
-     * @param manager     アリーナマネージャー
-     * @param session     アクティブセッション
-     * @param field       戦闘フィールド設定
-     * @param now         現在時刻（ミリ秒）
-     * @param gracePeriod 猶予秒数
+     * <p>猶予時間内はカウントダウン警告を表示し、
+     * 猶予時間超過後は毎秒ダメージを与えて徐々にKillする。
+     * プレイヤーがダメージで死亡すると {@code PlayerDeathEvent} が発火し、
+     * {@link io.wax100.arenaCore.listener.ArenaFightListener} が脱落処理を行う。
+     *
+     * @param manager       アリーナマネージャー
+     * @param session       アクティブセッション
+     * @param field         戦闘フィールド設定
+     * @param now           現在時刻（ミリ秒）
+     * @param gracePeriod   猶予秒数
+     * @param damagePercent 猶予超過後に毎秒与えるダメージ（最大HPに対する%）
      */
     private void checkPlayersOutOfBounds(ArenaManager manager, ArenaSession session,
-                                         ArenaFieldConfig field, long now, int gracePeriod) {
+                                         ArenaFieldConfig field, long now,
+                                         int gracePeriod, double damagePercent) {
         long graceMs = gracePeriod * 1000L;
 
         Iterator<Map.Entry<UUID, Long>> it = outOfBoundsStart.entrySet().iterator();
@@ -183,28 +191,19 @@ public class ArenaOutOfBoundsListener implements Listener {
             }
 
             long elapsed = now - startTime;
-            int remainingSeconds = (int) Math.ceil((graceMs - elapsed) / 1000.0);
 
             if (elapsed >= graceMs) {
-                // タイムアウト → 脱落
-                it.remove();
+                // ダメージフェーズ: 毎秒、最大HPの一定割合のダメージを与える
+                double damage = player.getMaxHealth() * (damagePercent / 100.0);
+                player.setNoDamageTicks(0);
+                player.damage(Math.max(1.0, damage));
 
-                String team = session.getPlayerTeam(playerId);
-                ChatColor teamColor = team != null
-                        ? session.getTeamColor(team) : ChatColor.WHITE;
-
-                Bukkit.broadcastMessage(ArenaMessages.PREFIX + teamColor + player.getName()
-                        + ChatColor.GRAY + " (" + teamColor + team + ChatColor.GRAY + ")"
-                        + ChatColor.RED + " が戦闘エリア外で失格になりました！");
-
-                // Scoreboard Team から削除
-                if (team != null) {
-                    manager.removeFromScoreboardTeam(team, player);
-                }
-
-                manager.onFighterDeath(playerId);
+                player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
+                        TextComponent.fromLegacyText(
+                                ChatColor.RED + "⚠ 戦闘エリア外！ ダメージを受けています！"));
             } else {
                 // カウントダウン警告（アクションバー）
+                int remainingSeconds = (int) Math.ceil((graceMs - elapsed) / 1000.0);
                 ChatColor urgency = remainingSeconds <= 3 ? ChatColor.RED : ChatColor.YELLOW;
                 player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
                         TextComponent.fromLegacyText(
@@ -218,17 +217,22 @@ public class ArenaOutOfBoundsListener implements Listener {
     /**
      * トラッキング中モンスターのエリア外チェックを行う。
      *
-     * <p>フィールド外にいるMobを検出し、猶予時間後にKillする。
+     * <p>フィールド外にいるMobを検出し、猶予時間超過後は
+     * 毎秒ダメージを与えて徐々にKillする。
      * エリア内に戻った場合は追跡を解除する。
+     * Mobがダメージで死亡すると {@code EntityDeathEvent} が発火し、
+     * {@link io.wax100.arenaCore.listener.ArenaFightListener} がチーム全滅判定を行う。
      *
      * @param manager        アリーナマネージャー
      * @param session        アクティブセッション
      * @param field          戦闘フィールド設定
      * @param now            現在時刻（ミリ秒）
      * @param mobGracePeriod Mob用猶予秒数
+     * @param damagePercent  猶予超過後に毎秒与えるダメージ（最大HPに対する%）
      */
     private void checkMobsOutOfBounds(ArenaManager manager, ArenaSession session,
-                                      ArenaFieldConfig field, long now, int mobGracePeriod) {
+                                      ArenaFieldConfig field, long now,
+                                      int mobGracePeriod, double damagePercent) {
         long graceMs = mobGracePeriod * 1000L;
 
         // 1. トラッキング中の全Mobを走査し、エリア外のMobを記録
@@ -248,7 +252,7 @@ public class ArenaOutOfBoundsListener implements Listener {
             }
         }
 
-        // 2. エリア外Mobのタイムアウト判定
+        // 2. エリア外Mobのチェック
         Iterator<Map.Entry<UUID, Long>> it = mobOutOfBoundsStart.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<UUID, Long> entry = it.next();
@@ -274,20 +278,11 @@ public class ArenaOutOfBoundsListener implements Listener {
             }
 
             long elapsed = now - startTime;
-            if (elapsed >= graceMs) {
-                // タイムアウト → Kill
-                it.remove();
-
-                String team = session.getMobTeam(mobId);
-                ChatColor teamColor = team != null
-                        ? session.getTeamColor(team) : ChatColor.WHITE;
-
-                Bukkit.broadcastMessage(ArenaMessages.PREFIX + teamColor + team
-                        + ChatColor.GRAY + " の " + ChatColor.WHITE + entity.getName()
-                        + ChatColor.RED + " が戦闘エリア外で失格になりました！");
-
-                // LivingEntity を Kill（EntityDeathEvent が発火し onMobDeath が呼ばれる）
-                ((LivingEntity) entity).setHealth(0);
+            if (elapsed >= graceMs && entity instanceof LivingEntity living) {
+                // ダメージフェーズ: 毎秒、最大HPの一定割合のダメージを与える
+                double damage = living.getMaxHealth() * (damagePercent / 100.0);
+                living.setNoDamageTicks(0);
+                living.damage(Math.max(1.0, damage));
             }
         }
     }
