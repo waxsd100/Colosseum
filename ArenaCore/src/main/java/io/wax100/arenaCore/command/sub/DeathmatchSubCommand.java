@@ -246,11 +246,18 @@ public class DeathmatchSubCommand implements SubCommand {
 
         if (challenge == null) {
             if (session.getMatchMode() == MatchMode.DEATHMATCH) {
-                sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GOLD
-                        + "デスマッチ成立済み");
-                sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY
-                        + "参加費: " + ChatColor.YELLOW
-                        + ChipManager.formatAmount(session.getDeathmatchEntryFee()) + " E / 人");
+                if (session.isDeathmatchAllIn()) {
+                    sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + ChatColor.BOLD
+                            + "ALL-IN デスマッチ成立済み");
+                    sender.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                            + "全財産を賭け合い、不足分は借金として徴収されます。");
+                } else {
+                    sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GOLD
+                            + "デスマッチ成立済み");
+                    sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY
+                            + "参加費: " + ChatColor.YELLOW
+                            + ChipManager.formatAmount(session.getDeathmatchEntryFee()) + " E / 人");
+                }
             } else {
                 sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY
                         + "現在デスマッチ提案はありません。");
@@ -266,8 +273,13 @@ public class DeathmatchSubCommand implements SubCommand {
 
         // 投票中の情報表示
         sender.sendMessage(ArenaMessages.SEPARATOR);
-        sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GOLD
-                + "デスマッチ投票中");
+        if (challenge.isAllIn()) {
+            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + ChatColor.BOLD
+                    + "ALL-IN デスマッチ投票中");
+        } else {
+            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GOLD
+                    + "デスマッチ投票中");
+        }
 
         Player proposer = Bukkit.getPlayer(challenge.getProposer());
         String proposerName = proposer != null ? proposer.getName() : "???";

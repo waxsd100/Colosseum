@@ -20,6 +20,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -195,8 +196,8 @@ public class ArenaOutOfBoundsListener implements Listener {
             if (elapsed >= graceMs) {
                 // ダメージフェーズ: 毎秒、最大HPの一定割合のダメージを与える
                 double damage = player.getMaxHealth() * (damagePercent / 100.0);
-                player.setNoDamageTicks(0);
-                player.damage(Math.max(1.0, damage));
+                double newHealth = player.getHealth() - Math.max(1.0, damage);
+                player.setHealth(Math.max(0, newHealth));
 
                 player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
                         TextComponent.fromLegacyText(
@@ -236,7 +237,8 @@ public class ArenaOutOfBoundsListener implements Listener {
         long graceMs = mobGracePeriod * 1000L;
 
         // 1. トラッキング中の全Mobを走査し、エリア外のMobを記録
-        for (Map.Entry<UUID, String> mobEntry : session.getTrackedMobs().entrySet()) {
+        //    スナップショットを取得してイテレート（damage→即死→onMobDeath→removeMobによるConcurrentModificationException対策）
+        for (Map.Entry<UUID, String> mobEntry : new ArrayList<>(session.getTrackedMobs().entrySet())) {
             UUID mobId = mobEntry.getKey();
             Entity entity = Bukkit.getEntity(mobId);
             if (entity == null || entity.isDead() || !(entity instanceof LivingEntity)) {
@@ -281,8 +283,8 @@ public class ArenaOutOfBoundsListener implements Listener {
             if (elapsed >= graceMs && entity instanceof LivingEntity living) {
                 // ダメージフェーズ: 毎秒、最大HPの一定割合のダメージを与える
                 double damage = living.getMaxHealth() * (damagePercent / 100.0);
-                living.setNoDamageTicks(0);
-                living.damage(Math.max(1.0, damage));
+                double newHealth = living.getHealth() - Math.max(1.0, damage);
+                living.setHealth(Math.max(0, newHealth));
             }
         }
     }

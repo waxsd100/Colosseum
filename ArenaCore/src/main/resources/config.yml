@@ -8,11 +8,18 @@ win-condition: last-team-standing
 # 戦闘員の参加費（0 = 無料, Vault経済から徴収）
 entry-fee: 0
 
+# 参加費の設定
+entry-fee-options:
+  timeout-seconds: 30                 # 参加費応答のタイムアウト秒数
+
 # スコア制の場合の勝利キル数（0 = /arena end で手動集計）
 score-target: 0
 
 # ベット受付中にオッズを定期表示する間隔（秒, 0 = 無効, 推奨: 15〜60）
 odds-broadcast-interval: 30
+
+odds:
+  show-percentage: false              # オッズ表示時に確率も表示するか
 
 # ── 天引き分配率（ベッタープールに対する %） ──
 distribution:
@@ -38,6 +45,7 @@ blind:
 deathmatch:
   max-proposals: 2                # 1セッション中の最大DM提案回数
   house-fee-enabled: false        # DMプールにも運営手数料をかけるか
+  house-fee-rate: 5                  # デスマッチプールの手数料率（%）
 
 # ── ベットタイマー ──
 default-betting-duration: 0       # /arena lock 時のデフォルトベット制限時間（秒, 0 = 無制限）

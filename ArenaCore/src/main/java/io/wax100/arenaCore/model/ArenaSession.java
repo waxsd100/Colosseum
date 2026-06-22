@@ -605,6 +605,7 @@ public class ArenaSession {
         matchMode = MatchMode.NORMAL;
         deathmatchPool = 0;
         deathmatchEntryFee = 0;
+        deathmatchAllIn = false;
     }
 
     // ── 戦闘エリア管理 ──

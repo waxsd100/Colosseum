@@ -780,7 +780,8 @@ public class ArenaManager {
             for (UUID fid : activeSession.getTeamMembers(team)) {
                 Player f = Bukkit.getPlayer(fid);
                 if (f == null) continue;
-                teamTotal += Math.max(0, (long) economy.getBalance(f));
+                long balance = Math.max(0, (long) economy.getBalance(f));
+                teamTotal += Math.max(0, balance - entryFee);
             }
             teamBalances.put(team, teamTotal);
         }
@@ -1217,6 +1218,7 @@ public class ArenaManager {
         if (!activeSession.hasTeam(winningTeam)) return false;
 
         cancelAllTasks();
+        cancelFeeTimeout();
         guardManager.unlockField();
 
         activeSession.setWinningTeam(winningTeam);
@@ -1268,6 +1270,7 @@ public class ArenaManager {
         boolean wasActive = activeSession.getState() == ArenaState.ACTIVE;
         plugin.getLogger().warning("闘技場セッションがキャンセルされました: " + activeSession.getName());
         cancelAllTasks();
+        cancelFeeTimeout();
         guardManager.unlockField();
         cancelDeathmatch(); // 投票中ならキャンセル
 
@@ -1628,6 +1631,7 @@ public class ArenaManager {
             activeSession = null;
         }
         eliminatedPlayers.clear();
+        pendingFeeResponses.clear();
         regionManager.clearRegions();
         // デスマッチ投票状態をリセット
         activeChallenge = null;
