@@ -672,7 +672,7 @@ public class BettingManager {
                         Player fighter = Bukkit.getPlayer(fighterId);
                         if (fighter != null && fighter.isOnline()) {
                             fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.GOLD
-                                    + "🔥 デスマッチ報酬: " + ChipManager.formatAmount(perFighter) + " E");
+                                    + "デスマッチ報酬: " + ChipManager.formatAmount(perFighter) + " E");
                         }
                     }
                 }
@@ -685,7 +685,7 @@ public class BettingManager {
 
             if (dmPoolDistributed > 0 || dmHouseFee > 0) {
                 Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GOLD
-                        + "🔥 デスマッチプール: " + ChatColor.YELLOW
+                        + "デスマッチプール: " + ChatColor.YELLOW
                         + ChipManager.formatAmount(dmPool) + " E"
                         + ChatColor.GRAY + " → 勝者闘技者に分配: " + ChatColor.YELLOW
                         + ChipManager.formatAmount(dmPoolDistributed) + " E");

@@ -350,7 +350,7 @@ public class DoubleUpManager {
                 + ChatColor.RESET + ChatColor.DARK_GRAY + "   won");
 
         if (nextStreak > 1) {
-            player.sendMessage("  " + ChatColor.AQUA + "   🔥 ×" + nextStreak
+            player.sendMessage("  " + ChatColor.AQUA + "   ×" + nextStreak
                     + " streak" + ChatColor.DARK_GRAY + "  —  "
                     + ChatColor.GREEN + "bonus ×" + String.format("%.1f", nextMult));
         }

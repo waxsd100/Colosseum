@@ -47,6 +47,8 @@ public class ArenaSession {
     private long deathmatchPool = 0;
     /** デスマッチ参加費（セッションごとに設定、1人あたり） */
     private long deathmatchEntryFee = 0;
+    /** デスマッチALL-INモード */
+    private boolean deathmatchAllIn = false;
 
     /** モンスターチームのセット */
     private final Set<String> mobTeams = new HashSet<>();
@@ -371,6 +373,22 @@ public class ArenaSession {
             throw new IllegalArgumentException("deathmatchEntryFee must not be negative: " + deathmatchEntryFee);
         }
         this.deathmatchEntryFee = deathmatchEntryFee;
+    }
+
+    /**
+     * デスマッチがALL-INモードかどうかを返す。
+     *
+     * @return ALL-INモードなら {@code true}
+     */
+    public boolean isDeathmatchAllIn() { return deathmatchAllIn; }
+
+    /**
+     * デスマッチのALL-INモードを設定する。
+     *
+     * @param deathmatchAllIn ALL-INモードかどうか
+     */
+    public void setDeathmatchAllIn(boolean deathmatchAllIn) {
+        this.deathmatchAllIn = deathmatchAllIn;
     }
 
     // ── 参加費 ──

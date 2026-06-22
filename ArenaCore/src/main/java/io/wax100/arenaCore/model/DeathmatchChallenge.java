@@ -40,6 +40,8 @@ public class DeathmatchChallenge {
     private final String proposerTeam;
     private final long perPersonFee;
     private final long totalPool;
+    /** ALL-INモードかどうか */
+    private final boolean allIn;
     /** チームごとの投票: チーム名 → (プレイヤーUUID → 賛成/反対) */
     private final Map<String, Map<UUID, Boolean>> votes = new HashMap<>();
     /** チームごとの人数 */
@@ -55,14 +57,16 @@ public class DeathmatchChallenge {
      * @param perPersonFee 1人あたりDM参加費
      * @param totalPool    DM総額
      * @param teamSizes    チームごとの人数マップ
+     * @param allIn        ALL-INモードかどうか
      */
     public DeathmatchChallenge(UUID proposer, String proposerTeam,
                                long perPersonFee, long totalPool,
-                               Map<String, Integer> teamSizes) {
+                               Map<String, Integer> teamSizes, boolean allIn) {
         this.proposer = Objects.requireNonNull(proposer, "proposer must not be null");
         this.proposerTeam = Objects.requireNonNull(proposerTeam, "proposerTeam must not be null");
         this.perPersonFee = perPersonFee;
         this.totalPool = totalPool;
+        this.allIn = allIn;
         this.teamSizes = new HashMap<>(teamSizes);
 
         // 各チームの投票マップを初期化
@@ -209,6 +213,9 @@ public class DeathmatchChallenge {
 
     /** DM総額を返す。 */
     public long getTotalPool() { return totalPool; }
+
+    /** ALL-INモードかどうかを返す。 */
+    public boolean isAllIn() { return allIn; }
 
     /** チームごとの人数マップを返す。 */
     public Map<String, Integer> getTeamSizes() {

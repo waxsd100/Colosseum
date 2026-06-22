@@ -110,12 +110,21 @@ public class DeathmatchSubCommand implements SubCommand {
         }
 
         // 金額パース
+        if (amountStr.equalsIgnoreCase("all")) {
+            // ALL-INデスマッチ
+            String error = manager.proposeDeathmatchAllIn(player.getUniqueId());
+            if (error != null) {
+                sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + error);
+            }
+            return;
+        }
+
         long totalAmount;
         try {
             totalAmount = Long.parseLong(amountStr);
         } catch (NumberFormatException e) {
             sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
-                    + "金額は数値で指定してください。");
+                    + "金額は数値または 'all' で指定してください。");
             return;
         }
         if (totalAmount <= 0) {
@@ -191,6 +200,7 @@ public class DeathmatchSubCommand implements SubCommand {
             session.setMatchMode(MatchMode.NORMAL);
             session.setDeathmatchEntryFee(0);
             session.setDeathmatchPool(0);
+            session.setDeathmatchAllIn(false);
             Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
             Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
                     + "デスマッチがキャンセルされました。ベットはそのまま有効です。");
@@ -237,7 +247,7 @@ public class DeathmatchSubCommand implements SubCommand {
         if (challenge == null) {
             if (session.getMatchMode() == MatchMode.DEATHMATCH) {
                 sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GOLD
-                        + "🔥 デスマッチ成立済み");
+                        + "デスマッチ成立済み");
                 sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY
                         + "参加費: " + ChatColor.YELLOW
                         + ChipManager.formatAmount(session.getDeathmatchEntryFee()) + " E / 人");
@@ -257,7 +267,7 @@ public class DeathmatchSubCommand implements SubCommand {
         // 投票中の情報表示
         sender.sendMessage(ArenaMessages.SEPARATOR);
         sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GOLD
-                + "🔥 デスマッチ投票中");
+                + "デスマッチ投票中");
 
         Player proposer = Bukkit.getPlayer(challenge.getProposer());
         String proposerName = proposer != null ? proposer.getName() : "???";
@@ -272,7 +282,7 @@ public class DeathmatchSubCommand implements SubCommand {
 
         // 各チームの投票状況
         StringBuilder sb = new StringBuilder();
-        sb.append(ArenaMessages.PREFIX).append(ChatColor.GRAY).append("📊 ");
+        sb.append(ArenaMessages.PREFIX).append(ChatColor.GRAY);
         boolean first = true;
         for (String team : session.getTeamNames()) {
             if (session.isMobTeam(team)) continue;
@@ -298,20 +308,37 @@ public class DeathmatchSubCommand implements SubCommand {
         String proposerName = proposer != null ? proposer.getName() : "???";
 
         Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
-        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GOLD + ChatColor.BOLD
-                + "🔥 デスマッチ提案！");
-        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.WHITE + proposerName
-                + ChatColor.GRAY + " が " + ChatColor.YELLOW
-                + ChipManager.formatAmount(challenge.getTotalPool()) + " E"
-                + ChatColor.GRAY + " のデスマッチを提案しました！");
-
-        String feeInfo = "(1人あたり: " + ChipManager.formatAmount(challenge.getPerPersonFee()) + " E";
-        if (entryFee > 0) {
-            feeInfo += " + 参加費" + ChipManager.formatAmount(entryFee) + " E"
-                    + " = " + ChipManager.formatAmount(challenge.getPerPersonFee() + entryFee) + " E";
+        if (challenge.isAllIn()) {
+            Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GOLD + ChatColor.BOLD
+                    + "ALL-IN デスマッチ提案");
+            Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.WHITE + proposerName
+                    + ChatColor.GRAY + " が " + ChatColor.RED + ChatColor.BOLD + "ALL-IN"
+                    + ChatColor.RESET + ChatColor.GRAY + " デスマッチを提案しました！");
+            Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                    + "全財産を賭け合い、不足分は借金として徴収されます。");
+            Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
+                    + "総額: " + ChatColor.YELLOW
+                    + ChipManager.formatAmount(challenge.getTotalPool()) + " E"
+                    + ChatColor.GRAY + "（平均: "
+                    + ChipManager.formatAmount(challenge.getPerPersonFee()) + " E / 人）");
+        } else {
+            Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GOLD + ChatColor.BOLD
+                    + "デスマッチ提案");
+            Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.WHITE + proposerName
+                    + ChatColor.GRAY + " が " + ChatColor.YELLOW
+                    + ChipManager.formatAmount(challenge.getTotalPool()) + " E"
+                    + ChatColor.GRAY + " のデスマッチを提案しました！");
         }
-        feeInfo += ")";
-        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY + feeInfo);
+
+        if (!challenge.isAllIn()) {
+            String feeInfo = "(1人あたり: " + ChipManager.formatAmount(challenge.getPerPersonFee()) + " E";
+            if (entryFee > 0) {
+                feeInfo += " + 参加費" + ChipManager.formatAmount(entryFee) + " E"
+                        + " = " + ChipManager.formatAmount(challenge.getPerPersonFee() + entryFee) + " E";
+            }
+            feeInfo += ")";
+            Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY + feeInfo);
+        }
         Bukkit.broadcastMessage("");
 
         // クリッカブルボタンを闘技者に送信
@@ -376,13 +403,13 @@ public class DeathmatchSubCommand implements SubCommand {
     public List<String> tabComplete(CommandSender sender, String[] args) {
         if (args.length == 1) {
             return CommandHelper.filterStartsWith(
-                    List.of("yes", "no", "cancel", "info"), args[0]);
+                    List.of("all", "yes", "no", "cancel", "info"), args[0]);
         }
         return List.of();
     }
 
     @Override
     public String getUsage() {
-        return "/arena deathmatch <金額|yes|no|cancel|info>";
+        return "/arena deathmatch <金額|all|yes|no|cancel|info>";
     }
 }

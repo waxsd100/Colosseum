@@ -578,6 +578,9 @@ public class ArenaManager {
             return false;
         }
 
+        // Mobチーム再検出（待機場にMobがいるチームを漏れなくマーク）
+        refreshMobTeamMarks();
+
         // ── 参加費・DM参加費の所持金チェック＆徴収 ──
         Economy economy = plugin.getEconomy();
         long entryFee = activeSession.getArenaConfig().getEntryFee();
@@ -585,8 +588,9 @@ public class ArenaManager {
         long dmFeePerPerson = isDeathmatch ? activeSession.getDeathmatchEntryFee() : 0;
 
         if (economy != null) {
-            // ── DM参加費: 借金許容（警告のみ） ──
-            if (dmFeePerPerson > 0) {
+            // ── DM参加費: 借金許容（警告のみ）──
+            // ALL-INモードでは全財産を貭けるため不足チェック不要
+            if (dmFeePerPerson > 0 && !activeSession.isDeathmatchAllIn()) {
                 for (String team : activeSession.getTeamNames()) {
                     if (activeSession.isMobTeam(team)) continue;
                     for (UUID fighterId : activeSession.getTeamMembers(team)) {
@@ -725,6 +729,12 @@ public class ArenaManager {
         Economy economy = plugin.getEconomy();
         if (economy == null || activeSession == null) return;
 
+        // ALL-IN: チームごとの所持金合計を計算し、最大値を基準に徴収
+        if (activeSession.isDeathmatchAllIn()) {
+            collectFeesAllIn(economy, entryFee);
+            return;
+        }
+
         for (String team : activeSession.getTeamNames()) {
             if (activeSession.isMobTeam(team)) continue;
             for (UUID fighterId : activeSession.getTeamMembers(team)) {
@@ -749,6 +759,83 @@ public class ArenaManager {
                 }
             }
         }
+    }
+
+    /**
+     * ALL-INデスマッチ用の参加費徴収。
+     *
+     * <p>各チームの所持金合計を計算し、最大値を基準額とする。
+     * 全プレイヤーから全財産を徴収し、チーム合計が基準額に満たない場合は
+     * 不足分を借金として各メンバーに均等配分する。
+     *
+     * @param economy  経済プラグイン
+     * @param entryFee 通常参加費
+     */
+    private void collectFeesAllIn(Economy economy, long entryFee) {
+        // 1. 各チームの所持金合計を計算
+        Map<String, Long> teamBalances = new LinkedHashMap<>();
+        for (String team : activeSession.getTeamNames()) {
+            if (activeSession.isMobTeam(team)) continue;
+            long teamTotal = 0;
+            for (UUID fid : activeSession.getTeamMembers(team)) {
+                Player f = Bukkit.getPlayer(fid);
+                if (f == null) continue;
+                teamTotal += Math.max(0, (long) economy.getBalance(f));
+            }
+            teamBalances.put(team, teamTotal);
+        }
+
+        // 2. 最大チーム合計を基準額とする
+        long maxTeamBalance = teamBalances.values().stream()
+                .mapToLong(Long::longValue).max().orElse(0);
+
+        // 3. チームごとに徴収
+        for (String team : activeSession.getTeamNames()) {
+            if (activeSession.isMobTeam(team)) continue;
+            List<UUID> members = activeSession.getTeamMembers(team);
+            long teamBalance = teamBalances.getOrDefault(team, 0L);
+            long shortfall = maxTeamBalance - teamBalance;
+            long shortfallPerPerson = members.size() > 0 ? shortfall / members.size() : 0;
+
+            for (UUID fighterId : members) {
+                Player fighter = Bukkit.getPlayer(fighterId);
+                if (fighter == null) continue;
+
+                // 通常参加費
+                if (entryFee > 0) {
+                    economy.withdrawPlayer(fighter, entryFee);
+                    activeSession.addToEntryFeePool(entryFee);
+                    fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                            + "参加費 " + ChipManager.formatAmount(entryFee) + " E を徴収しました。");
+                }
+
+                // ALL-IN: 全財産を徴収
+                long playerBalance = Math.max(0, (long) economy.getBalance(fighter));
+                if (playerBalance > 0) {
+                    economy.withdrawPlayer(fighter, playerBalance);
+                }
+                activeSession.setDeathmatchPool(
+                        activeSession.getDeathmatchPool() + playerBalance);
+
+                // 不足分は借金として追加徴収
+                if (shortfallPerPerson > 0) {
+                    economy.withdrawPlayer(fighter, shortfallPerPerson);
+                    activeSession.setDeathmatchPool(
+                            activeSession.getDeathmatchPool() + shortfallPerPerson);
+                    fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                            + "ALL-IN: " + ChipManager.formatAmount(playerBalance) + " E"
+                            + " + 借金 " + ChipManager.formatAmount(shortfallPerPerson) + " E"
+                            + " を徴収しました。");
+                } else {
+                    fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                            + "ALL-IN: " + ChipManager.formatAmount(playerBalance) + " E を徴収しました。");
+                }
+            }
+        }
+
+        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GOLD
+                + "ALL-IN 総額: " + ChatColor.YELLOW
+                + ChipManager.formatAmount(activeSession.getDeathmatchPool()) + " E");
     }
 
     /**
@@ -817,6 +904,9 @@ public class ArenaManager {
      */
     private void processAfterFeeResponses() {
         if (activeSession == null) return;
+
+        // Mobチーム再検出（辞退でプレイヤーが0人になってもMobが残っていればMobチーム扱い）
+        refreshMobTeamMarks();
 
         // 0人チームがあるか確認
         boolean hasEmptyTeam = false;
@@ -925,6 +1015,30 @@ public class ArenaManager {
         if (feeTimeoutTask != null) {
             feeTimeoutTask.cancel();
             feeTimeoutTask = null;
+        }
+    }
+
+    /**
+     * プレイヤー未登録で待機場にMobがいるチームをMobチームとして再マークする。
+     *
+     * <p>参加費・DM参加費の計算でMobを母数から除外するため、
+     * 各処理の直前に呼び出す。{@code openBetting} 時点で
+     * プレイヤー登録済みのためスキップされたチームのうち、
+     * その後プレイヤーが全員離脱したチームを再検出する。
+     *
+     * <p>混合チーム（プレイヤー＋Mob）はMobチームとしてマークしない。
+     * {@code getTeamMembers} にはプレイヤーのみが含まれるため、
+     * 参加費計算では自然にプレイヤーだけが対象になる。
+     */
+    private void refreshMobTeamMarks() {
+        if (activeSession == null) return;
+        for (String team : activeSession.getTeamNames()) {
+            if (activeSession.isMobTeam(team)) continue;
+            if (!activeSession.getTeamMembers(team).isEmpty()) continue; // 混合チームはスキップ
+            TeamAreaConfig config = activeSession.getTeamAreaConfig(team);
+            if (config != null && !config.scanEntities().isEmpty()) {
+                activeSession.markAsMobTeam(team);
+            }
         }
     }
 
@@ -1725,6 +1839,9 @@ public class ArenaManager {
         String proposerTeam = activeSession.getPlayerTeam(proposer);
         if (proposerTeam == null) return "闘技者のみデスマッチを提案できます。";
 
+        // Mobチーム再検出（DM参加費の母数からMobを除外）
+        refreshMobTeamMarks();
+
         // 全闘技者数を計算（プレイヤーのみ）
         int totalFighters = 0;
         Map<String, Integer> teamSizes = new LinkedHashMap<>();
@@ -1770,7 +1887,7 @@ public class ArenaManager {
 
         // チャレンジ作成
         activeChallenge = new DeathmatchChallenge(
-                proposer, proposerTeam, perPerson, actualTotalPool, teamSizes);
+                proposer, proposerTeam, perPerson, actualTotalPool, teamSizes, false);
         deathmatchProposalCount++;
 
         // 投票UIブロードキャスト
@@ -1780,6 +1897,81 @@ public class ArenaManager {
         scheduleVoteTimer();
 
         // 即時判定（提案者の自動賛成で決着する場合: 1人チーム×2 等）
+        DeathmatchChallenge.VoteResult result = activeChallenge.evaluateResult();
+        if (result != DeathmatchChallenge.VoteResult.PENDING) {
+            handleVoteResult(result);
+        }
+
+        return null; // 成功
+    }
+
+    /**
+     * ALL-INデスマッチを提案する。
+     *
+     * <p>全闘技者の全財産を賭け合うデスマッチ。
+     * 負けたチームは借金を背負う。
+     *
+     * @param proposer 提案者のUUID
+     * @return エラーメッセージ。成功時は {@code null}
+     */
+    public String proposeDeathmatchAllIn(UUID proposer) {
+        if (activeSession == null) return ArenaMessages.MSG_NO_SESSION;
+
+        ArenaState state = activeSession.getState();
+        if (state != ArenaState.BETTING && state != ArenaState.BLIND) {
+            return "デスマッチ提案はベット受付中（BETTING/BLIND）のみ可能です。";
+        }
+
+        String proposerTeam = activeSession.getPlayerTeam(proposer);
+        if (proposerTeam == null) return "闘技者のみデスマッチを提案できます。";
+
+        // Mobチーム再検出
+        refreshMobTeamMarks();
+
+        // 全闘技者数を計算（プレイヤーのみ）
+        int totalFighters = 0;
+        Map<String, Integer> teamSizes = new LinkedHashMap<>();
+        for (String team : activeSession.getTeamNames()) {
+            if (activeSession.isMobTeam(team)) continue;
+            int size = activeSession.getTeamMembers(team).size();
+            teamSizes.put(team, size);
+            totalFighters += size;
+        }
+        if (totalFighters <= 0) return "闘技者がいません。";
+
+        // チームごとの所持金合計を計算し、最大値を基準とする
+        Economy economy = plugin.getEconomy();
+        if (economy == null) return "経済プラグインが利用できません。";
+
+        long maxTeamBalance = 0;
+        for (String team : teamSizes.keySet()) {
+            long teamTotal = 0;
+            for (UUID fighterId : activeSession.getTeamMembers(team)) {
+                Player fighter = Bukkit.getPlayer(fighterId);
+                if (fighter == null || !fighter.isOnline()) continue;
+                long balance = Math.max(0, (long) economy.getBalance(fighter));
+                teamTotal += balance;
+            }
+            maxTeamBalance = Math.max(maxTeamBalance, teamTotal);
+        }
+
+        int teamCount = teamSizes.size();
+        long totalPool = maxTeamBalance * teamCount;
+        long perPerson = totalFighters > 0 ? totalPool / totalFighters : 0;
+
+        // チャレンジ作成（allIn=true）
+        activeChallenge = new DeathmatchChallenge(
+                proposer, proposerTeam, perPerson, totalPool, teamSizes, true);
+        deathmatchProposalCount++;
+
+        // 投票UIブロードキャスト
+        long entryFee = activeSession.getArenaConfig().getEntryFee();
+        DeathmatchSubCommand.broadcastVoteUI(activeSession, activeChallenge, entryFee);
+
+        // 投票タイマー開始（20秒）
+        scheduleVoteTimer();
+
+        // 即時判定
         DeathmatchChallenge.VoteResult result = activeChallenge.evaluateResult();
         if (result != DeathmatchChallenge.VoteResult.PENDING) {
             handleVoteResult(result);
@@ -1845,20 +2037,32 @@ public class ArenaManager {
             if (activeSession != null && activeChallenge != null) {
                 activeSession.setMatchMode(MatchMode.DEATHMATCH);
                 activeSession.setDeathmatchEntryFee(activeChallenge.getPerPersonFee());
+                activeSession.setDeathmatchAllIn(activeChallenge.isAllIn());
                 // DMプールは /arena start 時に実際に徴収して設定する
 
                 Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
-                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED + ChatColor.BOLD
-                        + "🔥🔥🔥 デスマッチ成立！ 🔥🔥🔥");
-                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
-                        + "参加費: " + ChipManager.formatAmount(activeChallenge.getPerPersonFee())
-                        + " E / 人（試合開始時に徴収）");
+                if (activeChallenge.isAllIn()) {
+                    Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED + ChatColor.BOLD
+                            + "ALL-IN デスマッチ成立");
+                    Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                            + "全財産を賭け合い、不足分は借金として徴収されます。");
+                    Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
+                            + "総額: " + ChatColor.YELLOW
+                            + ChipManager.formatAmount(activeChallenge.getTotalPool()) + " E"
+                            + ChatColor.GRAY + "（試合開始時に徴収）");
+                } else {
+                    Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED + ChatColor.BOLD
+                            + "デスマッチ成立");
+                    Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                            + "参加費: " + ChipManager.formatAmount(activeChallenge.getPerPersonFee())
+                            + " E / 人（試合開始時に徴収）");
+                }
                 Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
             }
         } else if (result == DeathmatchChallenge.VoteResult.REJECTED) {
             // デスマッチ却下
             Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
-                    + "✗ デスマッチは却下されました。通常試合で続行します。");
+                    + "デスマッチは却下されました。通常試合で続行します。");
 
             int maxProposals = plugin.getConfig().getInt("deathmatch.max-proposals", 2);
             int remaining = maxProposals - deathmatchProposalCount;
