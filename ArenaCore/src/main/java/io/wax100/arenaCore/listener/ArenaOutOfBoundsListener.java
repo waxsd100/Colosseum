@@ -24,6 +24,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.UUID;
 
 /**
@@ -41,6 +43,8 @@ public class ArenaOutOfBoundsListener implements Listener {
     private final Map<UUID, Long> outOfBoundsStart = new HashMap<>();
     /** エリア外モンスターの脱出開始時刻（ミリ秒） */
     private final Map<UUID, Long> mobOutOfBoundsStart = new HashMap<>();
+    /** エリア外警告済みMob（重複ブロードキャスト防止用） */
+    private final Set<UUID> mobOobWarned = new HashSet<>();
 
     private final ArenaCore plugin;
     private BukkitTask countdownTask;
@@ -54,7 +58,7 @@ public class ArenaOutOfBoundsListener implements Listener {
      *
      * <p>ブロック移動がない場合（視点変更のみ）は無視する。
      */
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPlayerMove(PlayerMoveEvent event) {
         // ブロック位置が変わっていなければ無視（軽量化）
         Location from = event.getFrom();
@@ -105,6 +109,7 @@ public class ArenaOutOfBoundsListener implements Listener {
         stopCountdown();
         outOfBoundsStart.clear();
         mobOutOfBoundsStart.clear();
+        mobOobWarned.clear();
 
         int gracePeriod = plugin.getConfig().getInt("out-of-bounds.grace-seconds", 10);
         int mobGracePeriod = plugin.getConfig().getInt("out-of-bounds.mob-grace-seconds", gracePeriod);
@@ -145,6 +150,7 @@ public class ArenaOutOfBoundsListener implements Listener {
         }
         outOfBoundsStart.clear();
         mobOutOfBoundsStart.clear();
+        mobOobWarned.clear();
     }
 
     /**
@@ -248,6 +254,7 @@ public class ArenaOutOfBoundsListener implements Listener {
             if (field.contains(entity.getLocation())) {
                 // エリア内に戻った → 追跡解除
                 mobOutOfBoundsStart.remove(mobId);
+                mobOobWarned.remove(mobId);
             } else {
                 // エリア外 → 初回記録
                 mobOutOfBoundsStart.putIfAbsent(mobId, now);
@@ -281,6 +288,16 @@ public class ArenaOutOfBoundsListener implements Listener {
 
             long elapsed = now - startTime;
             if (elapsed >= graceMs && entity instanceof LivingEntity living) {
+                // 初回ダメージ時にブロードキャスト
+                if (mobOobWarned.add(mobId)) {
+                    String team = session.getMobTeam(mobId);
+                    ChatColor teamColor = team != null
+                            ? session.getTeamColor(team) : ChatColor.WHITE;
+                    Bukkit.broadcastMessage(ArenaMessages.PREFIX + teamColor + team
+                            + ChatColor.GRAY + " の " + ChatColor.WHITE + entity.getName()
+                            + ChatColor.RED + " が戦闘エリア外でダメージを受けています！");
+                }
+
                 // ダメージフェーズ: 毎秒、最大HPの一定割合のダメージを与える
                 double damage = living.getMaxHealth() * (damagePercent / 100.0);
                 double newHealth = living.getHealth() - Math.max(1.0, damage);

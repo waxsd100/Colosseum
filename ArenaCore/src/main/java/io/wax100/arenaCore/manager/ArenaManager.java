@@ -797,8 +797,10 @@ public class ArenaManager {
             long teamBalance = teamBalances.getOrDefault(team, 0L);
             long shortfall = maxTeamBalance - teamBalance;
             long shortfallPerPerson = members.size() > 0 ? shortfall / members.size() : 0;
+            long shortfallRemainder = members.size() > 0 ? shortfall % members.size() : 0;
 
-            for (UUID fighterId : members) {
+            for (int i = 0; i < members.size(); i++) {
+                UUID fighterId = members.get(i);
                 Player fighter = Bukkit.getPlayer(fighterId);
                 if (fighter == null) continue;
 
@@ -818,14 +820,18 @@ public class ArenaManager {
                 activeSession.setDeathmatchPool(
                         activeSession.getDeathmatchPool() + playerBalance);
 
-                // 不足分は借金として追加徴収
-                if (shortfallPerPerson > 0) {
-                    economy.withdrawPlayer(fighter, shortfallPerPerson);
+                // 不足分は借金として追加徴収（端数は最後のメンバーが負担）
+                long personalShortfall = shortfallPerPerson;
+                if (i == members.size() - 1) {
+                    personalShortfall += shortfallRemainder;
+                }
+                if (personalShortfall > 0) {
+                    economy.withdrawPlayer(fighter, personalShortfall);
                     activeSession.setDeathmatchPool(
-                            activeSession.getDeathmatchPool() + shortfallPerPerson);
+                            activeSession.getDeathmatchPool() + personalShortfall);
                     fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
                             + "ALL-IN: " + ChipManager.formatAmount(playerBalance) + " E"
-                            + " + 借金 " + ChipManager.formatAmount(shortfallPerPerson) + " E"
+                            + " + 借金 " + ChipManager.formatAmount(personalShortfall) + " E"
                             + " を徴収しました。");
                 } else {
                     fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW

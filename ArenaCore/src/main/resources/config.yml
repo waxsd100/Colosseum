@@ -81,6 +81,9 @@ out-of-bounds:
 storage:
   type: redis
   redis:
+    # ※ 以下の接続設定は参考値です。実際の Redis 接続は ChipLib の設定に従います。
+    #    ArenaCore はこれらの値を読み取りません。
+    #    Redis 接続を変更する場合は ChipLib/config.yml を編集してください。
     host: localhost
     port: 6379
     password: ""
