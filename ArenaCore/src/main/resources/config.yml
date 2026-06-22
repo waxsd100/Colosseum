@@ -63,6 +63,7 @@ double-up:
 # ── 戦闘エリア外脱出ペナルティ ──
 out-of-bounds:
   grace-seconds: 10                 # エリア外に出てから失格までの猶予秒数
+  mob-grace-seconds: 10             # モンスターがエリア外に出てからKillされるまでの猶予秒数
 
 # ── ストレージ設定 ──
 # redis (デフォルト) / yaml
