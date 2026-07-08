@@ -1699,7 +1699,12 @@ public class ArenaManager {
                 Player player = Bukkit.getPlayer(memberId);
                 if (player != null && player.isOnline()) {
                     if (player.getGameMode() != GameMode.SURVIVAL) {
+                        String fromMode = player.getGameMode().name();
                         player.setGameMode(GameMode.SURVIVAL);
+                        var pLog = plugin.getPayoutLogger();
+                        if (pLog != null) {
+                            pLog.logGameModeRestore(player.getName(), memberId, fromMode, "SURVIVAL");
+                        }
                     }
                     // ChipLib の previousGameModes をクリーンアップ
                     if (chipPlugin != null) {

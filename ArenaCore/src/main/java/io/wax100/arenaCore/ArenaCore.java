@@ -22,6 +22,7 @@ import io.wax100.arenaCore.storage.RedisTerrainStorage;
 import io.wax100.arenaCore.storage.TerrainStorageProvider;
 import io.wax100.arenaCore.manager.JackpotManager;
 import io.wax100.arenaCore.payout.PayoutDistributor;
+import io.wax100.arenaCore.util.ArenaPayoutLogger;
 import io.wax100.arenaCore.wincondition.LastTeamStandingCondition;
 import io.wax100.arenaCore.wincondition.ManualDeclarationCondition;
 import io.wax100.arenaCore.wincondition.ScoreCondition;
@@ -61,6 +62,7 @@ public final class ArenaCore extends JavaPlugin {
     private TerrainStorageProvider terrainStorage;
     private ArenaOutOfBoundsListener outOfBoundsListener;
     private WinCondition winCondition;
+    private ArenaPayoutLogger payoutLogger;
 
     // ── 分配デフォルト定数 ──
     private static final double DEFAULT_LOSER_SHARE = 0.01;
@@ -91,6 +93,7 @@ public final class ArenaCore extends JavaPlugin {
         // 配当・ジャックポット初期化
         payoutDistributor = new PayoutDistributor();
         jackpotManager = new JackpotManager(getDataFolder(), getLogger());
+        payoutLogger = new ArenaPayoutLogger(getDataFolder(), getLogger());
         validateDistributionConfig();
         initWinCondition();
 
@@ -274,4 +277,5 @@ public final class ArenaCore extends JavaPlugin {
     public AreaStore getAreaStore() { return areaStore; }
     public DoubleUpManager getDoubleUpManager() { return doubleUpManager; }
     public ArenaOutOfBoundsListener getOutOfBoundsListener() { return outOfBoundsListener; }
+    public ArenaPayoutLogger getPayoutLogger() { return payoutLogger; }
 }

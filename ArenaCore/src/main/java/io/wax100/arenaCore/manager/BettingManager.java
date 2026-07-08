@@ -1,5 +1,7 @@
 package io.wax100.arenaCore.manager;
 
+import io.wax100.arenaCore.util.ArenaPayoutLogger;
+
 import io.wax100.arenaCore.ArenaCore;
 import io.wax100.arenaCore.model.ArenaSession;
 import io.wax100.arenaCore.model.Bet;
@@ -321,6 +323,13 @@ public class BettingManager {
         PayoutDistributor.DistributionResult dist =
                 PayoutDistributor.calculate(totalPool, rates.loserShare(), rates.winnerShare(), rates.houseFee());
 
+        // ── 分配計算結果をログ記録 ──
+        ArenaPayoutLogger log = plugin.getPayoutLogger();
+        if (log != null) {
+            log.logDistribution(totalPool, dist.loserFighterTotal(),
+                    dist.winnerFighterTotal(), dist.houseFee(), dist.bettorPayoutPool());
+        }
+
         // ── 闘技者への還元 ──
         distributeFighterShares(session, winningTeam, dist);
 
@@ -366,6 +375,11 @@ public class BettingManager {
                     distributeAmount(fighterId, entryFee);
                     totalRefund += entryFee;
                     Player fighter = Bukkit.getPlayer(fighterId);
+                    String fname = fighter != null ? fighter.getName() : fighterId.toString();
+                    ArenaPayoutLogger efLog = plugin.getPayoutLogger();
+                    if (efLog != null) {
+                        efLog.logFighterPayout(fname, fighterId, entryFee, "参加費払い戻し");
+                    }
                     if (fighter != null && fighter.isOnline()) {
                         fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.GREEN
                                 + "🔄 参加費払い戻し: " + ChipManager.formatAmount(entryFee) + " E");
@@ -405,6 +419,11 @@ public class BettingManager {
             distributeAmount(bet.playerId(), bet.amount());
 
             Player player = Bukkit.getPlayer(bet.playerId());
+            String name = player != null ? player.getName() : bet.playerId().toString();
+            ArenaPayoutLogger log = plugin.getPayoutLogger();
+            if (log != null) {
+                log.logRefund(name, bet.playerId(), bet.amount(), "キャンセル返金");
+            }
             if (player != null && player.isOnline()) {
                 player.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
                         + "ベット額 " + ChatColor.WHITE
@@ -432,6 +451,10 @@ public class BettingManager {
                     Player fighter = Bukkit.getPlayer(fighterId);
                     if (fighter != null) {
                         distributeAmount(fighterId, guarantee);
+                        ArenaPayoutLogger gLog = plugin.getPayoutLogger();
+                        if (gLog != null) {
+                            gLog.logFighterPayout(fighter.getName(), fighterId, guarantee, "最低保証金");
+                        }
                         fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.GREEN
                                 + "💰 最低保証金: " + ChatColor.YELLOW
                                 + ChipManager.formatAmount(guarantee) + " E");
@@ -481,6 +504,11 @@ public class BettingManager {
             for (UUID fighterId : fighters) {
                 distributeAmount(fighterId, perFighter);
                 Player fighter = Bukkit.getPlayer(fighterId);
+                String name = fighter != null ? fighter.getName() : fighterId.toString();
+                ArenaPayoutLogger log = plugin.getPayoutLogger();
+                if (log != null) {
+                    log.logFighterPayout(name, fighterId, perFighter, label);
+                }
                 if (fighter != null && fighter.isOnline()) {
                     fighter.sendMessage(ArenaMessages.PREFIX + labelColor
                             + emoji + " " + label + ": " + ChipManager.formatAmount(perFighter) + " E");
@@ -549,6 +577,12 @@ public class BettingManager {
                     }
 
                     // ダブルアップ不参加 → 通常配布
+                    ArenaPayoutLogger pLog = plugin.getPayoutLogger();
+                    if (pLog != null) {
+                        Bet logBet = session.getBet(playerId, winningTeam);
+                        pLog.logBettorPayout(player.getName(), playerId, payout,
+                                logBet != null ? logBet.amount() : 0, winningTeam);
+                    }
                     distributeAmount(playerId, payout);
 
                     // 計算式データ
@@ -792,6 +826,12 @@ public class BettingManager {
                             + "💰 運営手数料: " + ChipManager.formatAmount(amount) + " E を受け取りました。");
                 }
             }
+        }
+
+        // ログ記録
+        ArenaPayoutLogger hLog = plugin.getPayoutLogger();
+        if (hLog != null) {
+            hLog.logHouseFee(amount, recipientName);
         }
 
         // ジャックポットにも積立（運営手数料がジャックポットの原資になる）
