@@ -25,7 +25,8 @@ odds:
 distribution:
   loser-fighter-share: 0.01     # 敗者闘技者への還元率 (1%)
   winner-fighter-share: 0.10    # 勝者闘技者への還元率 (10%)
-  house-fee: 0.05               # 運営手数料 → ジャックポット積立 (5%)
+  house-fee: 0.05               # 運営手数料 (5%)
+  house-fee-recipient: ""       # 運営手数料の振込先プレイヤー名（空欄 = ジャックポット積立）
   # 残り (84%) が観客配当
 
 # ── ジャックポット ──

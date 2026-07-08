@@ -324,6 +324,9 @@ public class BettingManager {
         // ── 闘技者への還元 ──
         distributeFighterShares(session, winningTeam, dist);
 
+        // ── 運営手数料の処理 ──
+        depositHouseFee(dist.houseFee());
+
         // ── ジャックポット発動判定 ──
         long winnerTeamBets = session.getTeamPool(winningTeam);
         boolean jackpotEnabled = plugin.getConfig().getBoolean("jackpot.enabled", true);
@@ -334,11 +337,8 @@ public class BettingManager {
         if (jackpot != null && jackpotEnabled
                 && jackpot.shouldTrigger(winnerTeamBets, totalPool, threshold)) {
             jackpotTriggered = true;
-            // ジャックポット全額引き出し + 今回の手数料
-            jackpotBonus = jackpot.withdrawAll() + dist.houseFee();
-        } else if (jackpot != null && jackpotEnabled) {
-            // 通常時: 手数料をジャックポットに積立
-            jackpot.deposit(dist.houseFee());
+            // ジャックポット全額引き出し
+            jackpotBonus = jackpot.withdrawAll();
         }
 
         // ── 勝利ベッターへの配当 ──
@@ -352,10 +352,34 @@ public class BettingManager {
         // ── オフライン結果を一括保存 ──
         flushOfflineResults();
 
-        // ── entry-fee をジャックポットに積立 ──
+        // ── entry-fee: 勝者には払い戻し、敗者分はジャックポット ──
         long entryFeePool = session.getEntryFeePool();
-        if (entryFeePool > 0 && jackpot != null) {
-            jackpot.deposit(entryFeePool);
+        if (entryFeePool > 0) {
+            long entryFee = (session.getArenaConfig() != null)
+                    ? session.getArenaConfig().getEntryFee()
+                    : plugin.getConfig().getLong("entry-fee", 0);
+            if (entryFee > 0) {
+                // 勝者闘技者に参加費を払い戻し
+                List<UUID> winnerFightersForRefund = getPlayerFighters(session, winningTeam, true);
+                long totalRefund = 0;
+                for (UUID fighterId : winnerFightersForRefund) {
+                    distributeAmount(fighterId, entryFee);
+                    totalRefund += entryFee;
+                    Player fighter = Bukkit.getPlayer(fighterId);
+                    if (fighter != null && fighter.isOnline()) {
+                        fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.GREEN
+                                + "🔄 参加費払い戻し: " + ChipManager.formatAmount(entryFee) + " E");
+                        notifyBalanceDelta(fighter, entryFee);
+                    }
+                }
+                // 残り（敗者分）をジャックポットに積立
+                long remainingFeePool = entryFeePool - totalRefund;
+                if (remainingFeePool > 0 && jackpot != null) {
+                    jackpot.deposit(remainingFeePool);
+                }
+            } else if (jackpot != null) {
+                jackpot.deposit(entryFeePool);
+            }
         }
 
         // ── デスマッチプール分配 ──
@@ -655,8 +679,8 @@ public class BettingManager {
             if (dmHouseFeeEnabled) {
                 double dmHouseFeeRate = plugin.getConfig().getDouble("distribution.house-fee", 0.05);
                 dmHouseFee = (long) Math.floor(dmPool * dmHouseFeeRate);
-                if (dmHouseFee > 0 && jackpot != null) {
-                    jackpot.deposit(dmHouseFee);
+                if (dmHouseFee > 0) {
+                    depositHouseFee(dmHouseFee);
                 }
             }
 
@@ -739,6 +763,43 @@ public class BettingManager {
     }
 
     // ── 内部ヘルパーメソッド ──
+
+    /**
+     * 運営手数料を振り込む。
+     *
+     * <p>{@code distribution.house-fee-recipient} にプレイヤー名が設定されている場合は
+     * Vault 経由でそのアカウントに入金する。未設定またはプレイヤー不明の場合は
+     * ジャックポットに積立する。
+     *
+     * @param amount 運営手数料額
+     */
+    private void depositHouseFee(long amount) {
+        if (amount <= 0) return;
+
+        // 指定アカウントへの送金
+        String recipientName = plugin.getConfig().getString("distribution.house-fee-recipient", "");
+        if (recipientName != null && !recipientName.isEmpty()) {
+            OfflinePlayer recipient = Bukkit.getOfflinePlayer(recipientName);
+            net.milkbowl.vault.economy.Economy economy = plugin.getEconomy();
+            if (recipient.hasPlayedBefore() && economy != null) {
+                economy.depositPlayer(recipient, amount);
+                plugin.getLogger().info("運営手数料 " + ChipManager.formatAmount(amount)
+                        + " E を " + recipientName + " に送金しました。");
+
+                Player online = recipient.isOnline() ? recipient.getPlayer() : null;
+                if (online != null) {
+                    online.sendMessage(ArenaMessages.PREFIX + ChatColor.GOLD
+                            + "💰 運営手数料: " + ChipManager.formatAmount(amount) + " E を受け取りました。");
+                }
+            }
+        }
+
+        // ジャックポットにも積立（運営手数料がジャックポットの原資になる）
+        JackpotManager jackpot = plugin.getJackpotManager();
+        if (jackpot != null) {
+            jackpot.deposit(amount);
+        }
+    }
 
     /**
      * 指定チームのプレイヤー闘技者（Mob以外）のUUIDリストを返す。
