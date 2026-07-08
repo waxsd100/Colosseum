@@ -17,10 +17,8 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 
-
 import java.util.Collections;
 import java.util.HashSet;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -68,18 +66,11 @@ public class CasinoManager {
      * データ永続化ストア
      */
     private final CasinoDataStore dataStore;
-
-    /**
-     * ChipLib の StorageProvider。{@code null} の場合は YAML フォールバック。
-     */
-    private StorageProvider storageProvider;
-
     /**
      * セッション中の購入記録 (UUID -> 購入総額)
      * <p>非同期保存時のイテレーション安全性のため {@link ConcurrentHashMap} を使用。
      */
     private final Map<UUID, Long> sessionPurchases = new ConcurrentHashMap<>();
-
     /**
      * プレイヤーごとの累計統計データ (UUID -> PlayerStats)
      */
@@ -88,12 +79,15 @@ public class CasinoManager {
      * カジノ開始前のゲームモード保存 (UUID -> GameMode)
      */
     private final Map<UUID, GameMode> savedGameModes = new ConcurrentHashMap<>();
-
     /**
      * カジノモードに参加中のプレイヤー UUID セット
      * <p>非同期保存時のイテレーション安全性のため {@link ConcurrentHashMap} ベースのセットを使用。
      */
     private final Set<UUID> casinoPlayers = ConcurrentHashMap.newKeySet();
+    /**
+     * ChipLib の StorageProvider。{@code null} の場合は YAML フォールバック。
+     */
+    private StorageProvider storageProvider;
     /**
      * カジノ開始前の keepInventory ゲームルール値
      */
@@ -544,7 +538,6 @@ public class CasinoManager {
             }
         }
     }
-
 
 
     /**

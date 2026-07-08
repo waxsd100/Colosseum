@@ -3,8 +3,8 @@ package io.wax100.casinoCore.command;
 import io.wax100.casinoCore.CasinoCore;
 import io.wax100.casinoCore.manager.CasinoManager;
 import io.wax100.casinoCore.manager.PlayerStats;
-import io.wax100.chipLib.ChipManager;
 import io.wax100.casinoCore.util.Messages;
+import io.wax100.chipLib.ChipManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
@@ -70,7 +70,7 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
      * 引数がない場合や不明なサブコマンドの場合はヘルプを表示する。
      */
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String [] args) {
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0) {
             sendUsage(sender);
             return true;
@@ -109,7 +109,7 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
      * @param sender コマンド実行者
      * @param args   コマンド引数（{@code args[0]}="on", {@code args[1]}=プレイヤー名（任意））
      */
-    private void handleOn(CommandSender sender, String [] args) {
+    private void handleOn(CommandSender sender, String[] args) {
         if (!sender.hasPermission("casino.admin")) {
             sender.sendMessage(Messages.NO_PERMISSION);
             return;
@@ -172,7 +172,7 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
      * @param sender コマンド実行者
      * @param args   コマンド引数（{@code args[0]}="off", {@code args[1]}=プレイヤー名（任意））
      */
-    private void handleOff(CommandSender sender, String [] args) {
+    private void handleOff(CommandSender sender, String[] args) {
         if (!sender.hasPermission("casino.admin")) {
             sender.sendMessage(Messages.NO_PERMISSION);
             return;
@@ -248,7 +248,7 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
      * @param sender コマンド実行者
      * @param args   コマンド引数
      */
-    private void handleRanking(CommandSender sender, String [] args) {
+    private void handleRanking(CommandSender sender, String[] args) {
         if (args.length >= 2 && args[1].equalsIgnoreCase("reset")) {
             if (!sender.hasPermission("casino.admin")) {
                 sender.sendMessage(Messages.NO_PERMISSION);
@@ -298,7 +298,7 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
      * @param sender コマンド実行者
      * @param args   コマンド引数
      */
-    private void handleStats(CommandSender sender, String [] args) {
+    private void handleStats(CommandSender sender, String[] args) {
         Player target;
         if (args.length >= 2) {
             target = Bukkit.getPlayer(args[1]);
@@ -386,7 +386,7 @@ public class CasinoCommand implements CommandExecutor, TabCompleter {
      * 管理者権限のないプレイヤーには管理系サブコマンドを表示しない。
      */
     @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String [] args) {
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length > 2) return Collections.emptyList();
 
         if (args.length == 2) {

@@ -1,8 +1,8 @@
 package io.wax100.casinoCore.manager;
 
 import io.wax100.casinoCore.CasinoCore;
-import io.wax100.chipLib.storage.StorageProvider;
 import io.wax100.chipLib.ChipManager;
+import io.wax100.chipLib.storage.StorageProvider;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;

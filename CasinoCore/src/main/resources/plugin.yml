@@ -2,9 +2,9 @@ name: CasinoCore
 version: '${version}'
 main: io.wax100.casinoCore.CasinoCore
 api-version: '1.20'
-authors: [wax100]
+authors: [ wax100 ]
 description: カジノプラグイン - チップ売買・換金・ランキング
-depend: [Vault, ChipLib]
+depend: [ Vault, ChipLib ]
 
 commands:
   casino:

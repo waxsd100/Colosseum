@@ -15,8 +15,6 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import java.io.File;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
 
@@ -61,13 +59,11 @@ class CasinoManagerTest {
     @DisplayName("カジノ状態管理")
     class CasinoStateTest {
 
+        private final UUID playerId2 = UUID.randomUUID();
         @Mock
         private Player mockPlayer;
-
         @Mock
         private Player mockPlayer2;
-
-        private final UUID playerId2 = UUID.randomUUID();
 
         @BeforeEach
         void setUpPlayer() {
@@ -184,13 +180,11 @@ class CasinoManagerTest {
     @DisplayName("プレイヤー切断処理")
     class PlayerDisconnectTest {
 
+        private final UUID playerId2 = UUID.randomUUID();
         @Mock
         private Player mockPlayer;
-
         @Mock
         private Player mockPlayer2;
-
-        private final UUID playerId2 = UUID.randomUUID();
 
         @BeforeEach
         void setUpPlayer() {

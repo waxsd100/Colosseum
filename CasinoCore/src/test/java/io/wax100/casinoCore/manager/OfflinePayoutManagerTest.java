@@ -1,7 +1,10 @@
 package io.wax100.casinoCore.manager;
 
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
@@ -30,7 +33,9 @@ class OfflinePayoutManagerTest {
         ymlFile = new File(tempDir, "offline_payouts.yml");
     }
 
-    /** addOfflineResult と同等のロジック */
+    /**
+     * addOfflineResult と同等のロジック
+     */
     private void addOfflineResult(YamlConfiguration config, UUID playerId, long betAmount, long wonAmount) {
         String path = playerId.toString();
         long currentBet = config.getLong(path + ".bet", 0L);

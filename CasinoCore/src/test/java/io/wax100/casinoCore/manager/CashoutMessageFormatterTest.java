@@ -1,8 +1,6 @@
 package io.wax100.casinoCore.manager;
 
 import io.wax100.chipLib.Chip;
-import io.wax100.chipLib.ChipManager;
-import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -18,7 +16,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.verify;
 
 /**
  * {@link CashoutMessageFormatter} のユニットテスト。

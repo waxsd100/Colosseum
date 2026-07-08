@@ -37,14 +37,13 @@ public class CasinoDataStore {
      */
     private final File dataFile;
     /**
-     * 永続化データの設定オブジェクト
-     */
-    private FileConfiguration dataConfig;
-    /**
      * ファイル I/O 用の専用ロックオブジェクト
      */
     private final Object fileLock = new Object();
-
+    /**
+     * 永続化データの設定オブジェクト
+     */
+    private FileConfiguration dataConfig;
     /**
      * ChipLib の StorageProvider。{@code null} の場合は YAML フォールバック。
      */

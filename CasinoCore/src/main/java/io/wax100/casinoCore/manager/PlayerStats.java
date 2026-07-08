@@ -39,6 +39,82 @@ public class PlayerStats {
 
     // ── ゲッター ──
 
+    /**
+     * 設定セクションから統計データを読み込む。
+     *
+     * @param section 読み込み元の {@code players.<UUID>} セクション
+     * @return 読み込まれた PlayerStats インスタンス
+     */
+    public static PlayerStats loadFrom(ConfigurationSection section) {
+        PlayerStats ps = new PlayerStats();
+        ps.name = section.getString("name", "???");
+        ConfigurationSection stats = section.getConfigurationSection("stats");
+        if (stats != null) {
+            ps.totalSessions = stats.getInt("sessions", 0);
+            ps.totalPurchases = stats.getLong("purchases", 0);
+            ps.totalCashouts = stats.getLong("cashouts", 0);
+            ps.netProfit = stats.getLong("profit", 0);
+            ps.wins = stats.getInt("wins", 0);
+            ps.losses = stats.getInt("losses", 0);
+            ps.draws = stats.getInt("draws", 0);
+            ps.biggestWin = stats.getLong("max-win", 0);
+            ps.biggestLoss = stats.getLong("max-loss", 0);
+            String fp = stats.getString("first-play", null);
+            if (fp != null) {
+                try {
+                    ps.firstPlayed = LocalDateTime.parse(fp, FORMATTER);
+                } catch (java.time.format.DateTimeParseException e) {
+                    // データ破損時はnullのまま
+                }
+            }
+            String lp = stats.getString("last-play", null);
+            if (lp != null) {
+                try {
+                    ps.lastPlayed = LocalDateTime.parse(lp, FORMATTER);
+                } catch (java.time.format.DateTimeParseException e) {
+                    // データ破損時はnullのまま
+                }
+            }
+        }
+        return ps;
+    }
+
+    /**
+     * {@link PlayerStatsSnapshot} から {@link PlayerStats} を復元する。
+     *
+     * <p>StorageProvider（Redis / YAML）から取得したスナップショットを
+     * CasinoCore 内部の PlayerStats インスタンスに変換する。
+     *
+     * @param snapshot 変換元のスナップショット
+     * @return 復元された PlayerStats インスタンス
+     */
+    public static PlayerStats fromSnapshot(PlayerStatsSnapshot snapshot) {
+        PlayerStats ps = new PlayerStats();
+        ps.name = snapshot.name();
+        ps.totalSessions = snapshot.totalSessions();
+        ps.totalPurchases = snapshot.totalPurchases();
+        ps.totalCashouts = snapshot.totalCashouts();
+        ps.netProfit = snapshot.netProfit();
+        ps.wins = snapshot.wins();
+        ps.losses = snapshot.losses();
+        ps.draws = snapshot.draws();
+        ps.biggestWin = snapshot.biggestWin();
+        ps.biggestLoss = snapshot.biggestLoss();
+        if (snapshot.firstPlayed() != null) {
+            try {
+                ps.firstPlayed = LocalDateTime.parse(snapshot.firstPlayed(), FORMATTER);
+            } catch (Exception ignored) {
+            }
+        }
+        if (snapshot.lastPlayed() != null) {
+            try {
+                ps.lastPlayed = LocalDateTime.parse(snapshot.lastPlayed(), FORMATTER);
+            } catch (Exception ignored) {
+            }
+        }
+        return ps;
+    }
+
     public String getName() {
         return name;
     }
@@ -86,8 +162,6 @@ public class PlayerStats {
     public LocalDateTime getLastPlayed() {
         return lastPlayed;
     }
-
-    // ── 統計更新メソッド ──
 
     /**
      * セッション参加を記録する。
@@ -187,8 +261,6 @@ public class PlayerStats {
         return total == 0 ? 0.0 : (double) wins / total;
     }
 
-    // ── 永続化 ──
-
     /**
      * 設定セクションに統計データを書き出す。
      *
@@ -211,80 +283,6 @@ public class PlayerStats {
     }
 
     /**
-     * 設定セクションから統計データを読み込む。
-     *
-     * @param section 読み込み元の {@code players.<UUID>} セクション
-     * @return 読み込まれた PlayerStats インスタンス
-     */
-    public static PlayerStats loadFrom(ConfigurationSection section) {
-        PlayerStats ps = new PlayerStats();
-        ps.name = section.getString("name", "???");
-        ConfigurationSection stats = section.getConfigurationSection("stats");
-        if (stats != null) {
-            ps.totalSessions = stats.getInt("sessions", 0);
-            ps.totalPurchases = stats.getLong("purchases", 0);
-            ps.totalCashouts = stats.getLong("cashouts", 0);
-            ps.netProfit = stats.getLong("profit", 0);
-            ps.wins = stats.getInt("wins", 0);
-            ps.losses = stats.getInt("losses", 0);
-            ps.draws = stats.getInt("draws", 0);
-            ps.biggestWin = stats.getLong("max-win", 0);
-            ps.biggestLoss = stats.getLong("max-loss", 0);
-            String fp = stats.getString("first-play", null);
-            if (fp != null) {
-                try {
-                    ps.firstPlayed = LocalDateTime.parse(fp, FORMATTER);
-                } catch (java.time.format.DateTimeParseException e) {
-                    // データ破損時はnullのまま
-                }
-            }
-            String lp = stats.getString("last-play", null);
-            if (lp != null) {
-                try {
-                    ps.lastPlayed = LocalDateTime.parse(lp, FORMATTER);
-                } catch (java.time.format.DateTimeParseException e) {
-                    // データ破損時はnullのまま
-                }
-            }
-        }
-        return ps;
-    }
-
-    // ── StorageProvider 連携 ──
-
-    /**
-     * {@link PlayerStatsSnapshot} から {@link PlayerStats} を復元する。
-     *
-     * <p>StorageProvider（Redis / YAML）から取得したスナップショットを
-     * CasinoCore 内部の PlayerStats インスタンスに変換する。
-     *
-     * @param snapshot 変換元のスナップショット
-     * @return 復元された PlayerStats インスタンス
-     */
-    public static PlayerStats fromSnapshot(PlayerStatsSnapshot snapshot) {
-        PlayerStats ps = new PlayerStats();
-        ps.name = snapshot.name();
-        ps.totalSessions = snapshot.totalSessions();
-        ps.totalPurchases = snapshot.totalPurchases();
-        ps.totalCashouts = snapshot.totalCashouts();
-        ps.netProfit = snapshot.netProfit();
-        ps.wins = snapshot.wins();
-        ps.losses = snapshot.losses();
-        ps.draws = snapshot.draws();
-        ps.biggestWin = snapshot.biggestWin();
-        ps.biggestLoss = snapshot.biggestLoss();
-        if (snapshot.firstPlayed() != null) {
-            try { ps.firstPlayed = LocalDateTime.parse(snapshot.firstPlayed(), FORMATTER); }
-            catch (Exception ignored) {}
-        }
-        if (snapshot.lastPlayed() != null) {
-            try { ps.lastPlayed = LocalDateTime.parse(snapshot.lastPlayed(), FORMATTER); }
-            catch (Exception ignored) {}
-        }
-        return ps;
-    }
-
-    /**
      * この {@link PlayerStats} を {@link PlayerStatsSnapshot} に変換する。
      *
      * <p>StorageProvider への書き込み時に使用される。
@@ -293,10 +291,10 @@ public class PlayerStats {
      */
     public PlayerStatsSnapshot toSnapshot() {
         return new PlayerStatsSnapshot(
-            name, totalSessions, totalPurchases, totalCashouts,
-            netProfit, wins, losses, draws, biggestWin, biggestLoss,
-            firstPlayed != null ? firstPlayed.format(FORMATTER) : null,
-            lastPlayed != null ? lastPlayed.format(FORMATTER) : null
+                name, totalSessions, totalPurchases, totalCashouts,
+                netProfit, wins, losses, draws, biggestWin, biggestLoss,
+                firstPlayed != null ? firstPlayed.format(FORMATTER) : null,
+                lastPlayed != null ? lastPlayed.format(FORMATTER) : null
         );
     }
 }
