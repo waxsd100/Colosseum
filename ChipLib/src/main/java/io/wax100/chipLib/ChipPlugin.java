@@ -405,17 +405,19 @@ public final class ChipPlugin extends JavaPlugin implements Listener {
      */
     public long cashoutPlayer(Player player) {
         long totalValue = chipManager.calculateTotalValue(player);
-        if (totalValue == 0) return 0;
-        chipManager.removeAllChips(player);
-        shearsHelper.removeShears(player);
-        EconomyResponse resp = economy.depositPlayer(player, totalValue);
-        if (!resp.transactionSuccess()) {
-            getLogger().severe("換金入金失敗: player=" + player.getName()
-                    + ", amount=" + ChipManager.formatAmount(totalValue)
-                    + " E, error=" + resp.errorMessage);
+
+        if (totalValue > 0) {
+            chipManager.removeAllChips(player);
+            shearsHelper.removeShears(player);
+            EconomyResponse resp = economy.depositPlayer(player, totalValue);
+            if (!resp.transactionSuccess()) {
+                getLogger().severe("換金入金失敗: player=" + player.getName()
+                        + ", amount=" + ChipManager.formatAmount(totalValue)
+                        + " E, error=" + resp.errorMessage);
+            }
         }
 
-        // 元のゲームモードに復元
+        // チップの有無に関わらず、ゲームモードは必ず復元する
         GameMode previous = previousGameModes.remove(player.getUniqueId());
         if (previous != null && player.getGameMode() == GameMode.ADVENTURE) {
             player.setGameMode(previous);

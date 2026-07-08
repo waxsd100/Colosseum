@@ -25,6 +25,7 @@ import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.chat.hover.content.Text;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.ChatColor;
 import org.bukkit.Color;
@@ -1627,6 +1628,8 @@ public class ArenaManager {
         ChipPlugin chipPlugin = getChipPlugin();
         if (chipPlugin != null) chipPlugin.clearAllAllowed();
         if (activeSession != null) {
+            // 全闘技者のゲームモードをサバイバルに強制復元
+            restoreFighterGameModes(chipPlugin);
             // 闘技者を待機場へ帰還させる
             teleportFightersToWaitingArea();
 
@@ -1674,6 +1677,34 @@ public class ArenaManager {
                 Player player = Bukkit.getPlayer(memberId);
                 if (player != null && player.isOnline()) {
                     player.teleport(waitingLoc);
+                }
+            }
+        }
+    }
+    /**
+     * 全闘技者のゲームモードをサバイバルに強制復元する。
+     *
+     * <p>試合終了時の安全策として、チップ換金の有無に関わらず
+     * 全闘技者をサバイバルモードに戻す。ChipLib の previousGameModes
+     * エントリも併せてクリーンアップする。
+     *
+     * @param chipPlugin ChipPlugin インスタンス（null 可）
+     */
+    private void restoreFighterGameModes(ChipPlugin chipPlugin) {
+        if (activeSession == null) return;
+
+        for (String team : activeSession.getTeamNames()) {
+            if (activeSession.isMobTeam(team)) continue;
+            for (UUID memberId : activeSession.getTeamMembers(team)) {
+                Player player = Bukkit.getPlayer(memberId);
+                if (player != null && player.isOnline()) {
+                    if (player.getGameMode() != GameMode.SURVIVAL) {
+                        player.setGameMode(GameMode.SURVIVAL);
+                    }
+                    // ChipLib の previousGameModes をクリーンアップ
+                    if (chipPlugin != null) {
+                        chipPlugin.getPreviousGameModes().remove(memberId);
+                    }
                 }
             }
         }
