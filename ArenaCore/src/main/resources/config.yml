@@ -23,11 +23,11 @@ odds:
 
 # ── 天引き分配率（ベッタープールに対する %） ──
 distribution:
-  loser-fighter-share: 0.01     # 敗者闘技者への還元率 (1%)
+  loser-fighter-share: 0        # 敗者闘技者への還元率 (0%)
   winner-fighter-share: 0.12    # 勝者闘技者への還元率 (12%)
   house-fee: 0.02               # 運営手数料 (2%)
   house-fee-recipient: ""       # 運営手数料の振込先プレイヤー名（空欄 = ジャックポット積立のみ）
-  # 残り (85%) が観客配当
+  # 残り (86%) が観客配当
 
 # ── ジャックポット ──
 jackpot:
