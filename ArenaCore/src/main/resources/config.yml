@@ -32,7 +32,7 @@ distribution:
 # ── ジャックポット ──
 jackpot:
   enabled: true
-  trigger-threshold: 0.10       # 勝利チームのベット比率がこれ未満で発動
+  trigger-threshold: 0.30       # 勝利チームのベット比率がこれ未満で発動
 
 # ── 闘技者の最低保証金（ノーマルマッチ） ──
 fighter-guarantee: 100          # 勝敗に関係なく全闘技者に支払う固定給
