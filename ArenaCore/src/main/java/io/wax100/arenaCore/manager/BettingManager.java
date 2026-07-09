@@ -576,6 +576,10 @@ public class BettingManager {
                         continue;
                     }
 
+                    if (doubleUp != null) {
+                        doubleUp.terminateStreak(playerId);
+                    }
+
                     // ダブルアップ不参加 → 通常配布
                     ArenaPayoutLogger pLog = plugin.getPayoutLogger();
                     if (pLog != null) {
@@ -607,6 +611,11 @@ public class BettingManager {
                     // actionbarシャッフル → ロックインで配当額表示
                     notifyBalanceDelta(player, payout, 0);
                 } else {
+                    DoubleUpManager doubleUp = plugin.getDoubleUpManager();
+                    if (doubleUp != null) {
+                        doubleUp.terminateStreak(playerId);
+                    }
+
                     if (!recordOfflineResult(playerId, originalBet, payout)) {
                         distributeAmount(playerId, payout);
                         plugin.getLogger().warning("オフラインプレイヤーへの配当をVault経由で入金: " + playerId + " / " + payout + " E");
@@ -642,6 +651,10 @@ public class BettingManager {
 
             Player player = Bukkit.getPlayer(bet.playerId());
             if (player == null || !player.isOnline()) {
+                DoubleUpManager doubleUp = plugin.getDoubleUpManager();
+                if (doubleUp != null) {
+                    doubleUp.confiscateOnLoss(bet.playerId());
+                }
                 recordOfflineResult(bet.playerId(), bet.amount(), 0);
                 continue;
             }
@@ -655,6 +668,12 @@ public class BettingManager {
                 final long winBet = winnerPayoutMap.get(bet.playerId());
 
                 Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    // ダブルアップ保留中なら没収（オフラインになった場合も没収する）
+                    DoubleUpManager doubleUp = plugin.getDoubleUpManager();
+                    if (doubleUp != null && doubleUp.hasActiveStreak(bet.playerId())) {
+                        doubleUp.confiscateOnLoss(bet.playerId());
+                    }
+
                     Player p = Bukkit.getPlayer(bet.playerId());
                     if (p == null || !p.isOnline()) return;
 
@@ -668,12 +687,6 @@ public class BettingManager {
                             + ChatColor.RED + "-" + ChipManager.formatAmount(lossAmount) + " E"
                             + ChatColor.GRAY + " → 没収");
                     p.sendMessage("");
-
-                    // ダブルアップ保留中なら没収
-                    DoubleUpManager doubleUp = plugin.getDoubleUpManager();
-                    if (doubleUp != null && doubleUp.hasActiveStreak(bet.playerId())) {
-                        doubleUp.confiscateOnLoss(bet.playerId());
-                    }
 
                     notifyBalanceDelta(p, -lossAmount, 0);
                 }, winnerAnimationTicks + 20);

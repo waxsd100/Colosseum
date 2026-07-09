@@ -64,6 +64,10 @@ public class ArenaManager {
     private BukkitTask regionParticleTask;
     private final Set<UUID> eliminatedPlayers = new HashSet<>();
 
+    // ── オートループ管理 ──
+    private boolean autoLoopEnabled = false;
+    private String lastPresetName = null;
+
     // ── デスマッチ投票管理 ──
     private DeathmatchChallenge activeChallenge;
     private int deathmatchProposalCount;
@@ -91,6 +95,11 @@ public class ArenaManager {
 
     public boolean hasActiveSession() { return activeSession != null; }
     public ArenaSession getActiveSession() { return activeSession; }
+
+    public boolean isAutoLoopEnabled() { return autoLoopEnabled; }
+    public void setAutoLoopEnabled(boolean autoLoopEnabled) { this.autoLoopEnabled = autoLoopEnabled; }
+    public String getLastPresetName() { return lastPresetName; }
+    public void setLastPresetName(String lastPresetName) { this.lastPresetName = lastPresetName; }
 
     /**
      * 闘技場セッションを作成する。
@@ -245,6 +254,11 @@ public class ArenaManager {
         cancelRecruitingTimer();
         activeSession.setState(ArenaState.BETTING);
         plugin.getLogger().info("参加者を締め切りました: " + activeSession.getName());
+
+        DoubleUpManager doubleUp = plugin.getDoubleUpManager();
+        if (doubleUp != null) {
+            doubleUp.processAutoBets(activeSession);
+        }
 
         // ── 参加者一覧アナウンス ──
         Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
@@ -1648,6 +1662,43 @@ public class ArenaManager {
         cancelVoteTimer();
         // 戦闘エリア外脱出監視を停止
         plugin.getOutOfBoundsListener().stopCountdown();
+        
+        // オートループ（次の試合を自動開始）
+        if (autoLoopEnabled && lastPresetName != null) {
+            String presetNameToLoad = lastPresetName; // keep a reference
+            plugin.getLogger().info("オートループが有効です。5秒後に次の試合を自動開始します: " + presetNameToLoad);
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                // terrain manager が地形復元中なら待機するタスクをスケジュール
+                new org.bukkit.scheduler.BukkitRunnable() {
+                    @Override
+                    public void run() {
+                        if (terrainManager.isBlocking()) {
+                            // まだ復元中ならスキップ（次回Tickに再度チェック）
+                            return;
+                        }
+                        
+                        // 復元が完了したので、新しいセッションを作成
+                        this.cancel();
+                        if (activeSession != null) {
+                            return; // 既に別のセッションが開始されていれば中止
+                        }
+                        
+                        io.wax100.arenaCore.manager.ArenaPresetStore.PresetData data = plugin.getPresetStore().load(presetNameToLoad);
+                        if (data != null) {
+                            ArenaSession session = createFromPreset(data);
+                            if (session != null) {
+                                Bukkit.broadcastMessage(ArenaMessages.PREFIX + org.bukkit.ChatColor.AQUA + org.bukkit.ChatColor.BOLD
+                                        + "🔄 オートループにより、次の試合の募集を開始します！");
+                                // 募集フェーズを開始（プリセットロード時に自動で行われる通常のフロー）
+                                int duration = plugin.getConfig().getInt("default-betting-duration", 0);
+                                String[] args = duration > 0 ? new String[]{String.valueOf(duration)} : new String[0];
+                                new io.wax100.arenaCore.command.sub.OpenSubCommand(plugin).execute(Bukkit.getConsoleSender(), args);
+                            }
+                        }
+                    }
+                }.runTaskTimer(plugin, 0L, 20L); // 毎秒チェック
+            }, 100L); // 5秒待機
+        }
     }
 
     /**

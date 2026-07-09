@@ -40,6 +40,7 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
         subCommands.put("status", new StatusSubCommand(plugin));
         subCommands.put("deathmatch", new DeathmatchSubCommand(plugin));
         subCommands.put("config", new ConfigSubCommand(plugin));
+        subCommands.put("loop", new LoopSubCommand(plugin));
     }
 
     @Override
@@ -102,7 +103,8 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "  /arena win <チーム名>");
         sender.sendMessage(ChatColor.YELLOW + "  /arena cancel" + ChatColor.GRAY + " <- 中止（試合中なら引き分け）");
         sender.sendMessage(ChatColor.YELLOW + "  /arena deathmatch <金額|yes|no|cancel|info>" + ChatColor.GRAY + " <- デスマッチ提案・投票");
-        sender.sendMessage(ChatColor.YELLOW + "  /arena config [<設定名> <値>]" + ChatColor.GRAY + " <- 闘技場設定");
+        sender.sendMessage(ChatColor.YELLOW + "  /arena config [<設定名> <値>]" + ChatColor.GRAY + " <- 動的設定");
+        sender.sendMessage(ChatColor.YELLOW + "  /arena loop <true|false>" + ChatColor.GRAY + " <- 試合の自動ループ");
         sender.sendMessage(ChatColor.YELLOW + "  /arena status");
     }
 

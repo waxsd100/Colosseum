@@ -135,10 +135,6 @@ public class DoubleUpManager {
         int newStreak = existing != null ? existing.streakCount() + 1 : 1;
         long newHeld = choice.payoutAmount();
 
-        if (existing != null) {
-            newHeld = existing.getEffectiveAmount() + choice.payoutAmount();
-        }
-
         DoubleUpState state = new DoubleUpState(newHeld, newStreak, choice.teamName());
         activeStreaks.put(playerId, state);
 
@@ -174,11 +170,16 @@ public class DoubleUpManager {
 
         DoubleUpState existing = activeStreaks.remove(playerId);
         long totalPayout = choice.payoutAmount();
-        if (existing != null) {
-            totalPayout += existing.getEffectiveAmount();
-        }
 
         plugin.getBettingManager().payoutToPlayer(playerId, totalPayout);
+        
+        // 換金忘れ防止：チップで受け取った直後に換金する
+        if (player != null && player.isOnline()) {
+            org.bukkit.plugin.Plugin chipLibPlugin = Bukkit.getPluginManager().getPlugin("ChipLib");
+            if (chipLibPlugin instanceof io.wax100.chipLib.ChipPlugin chipPlugin) {
+                chipPlugin.cashoutPlayer(player);
+            }
+        }
 
         if (player != null && player.isOnline()) {
             int streak = existing != null ? existing.streakCount() + 1 : 1;
@@ -233,6 +234,16 @@ public class DoubleUpManager {
     }
 
     /**
+     * ダブルアップを強制終了し、ストリークを破棄する。
+     * （配当が通常配布された場合や、オフライン時のクリーンアップ用）
+     */
+    public void terminateStreak(UUID playerId) {
+        activeStreaks.remove(playerId);
+        pendingChoices.remove(playerId);
+        cancelTimer(playerId);
+    }
+
+    /**
      * BETTING開始時に自動ベットを処理する。
      */
     public void processAutoBets(ArenaSession session) {
@@ -249,8 +260,15 @@ public class DoubleUpManager {
             if (targetTeam == null) {
                 DoubleUpState state2 = activeStreaks.remove(playerId);
                 if (state2 != null) {
-                    // 直接払い出し
+                    // 直接払い出し + 自動換金
                     plugin.getBettingManager().payoutToPlayer(playerId, state2.getEffectiveAmount());
+                    Player p = Bukkit.getPlayer(playerId);
+                    if (p != null && p.isOnline()) {
+                        org.bukkit.plugin.Plugin chipLibPlugin = Bukkit.getPluginManager().getPlugin("ChipLib");
+                        if (chipLibPlugin instanceof io.wax100.chipLib.ChipPlugin chipPlugin) {
+                            chipPlugin.cashoutPlayer(p);
+                        }
+                    }
                     notifyBalanceDelta(Bukkit.getPlayer(playerId), state2.getEffectiveAmount());
                 }
                 continue;
@@ -317,6 +335,10 @@ public class DoubleUpManager {
             plugin.getBettingManager().payoutToPlayer(playerId, state.getEffectiveAmount());
             Player player = Bukkit.getPlayer(playerId);
             if (player != null && player.isOnline()) {
+                org.bukkit.plugin.Plugin chipLibPlugin = Bukkit.getPluginManager().getPlugin("ChipLib");
+                if (chipLibPlugin instanceof io.wax100.chipLib.ChipPlugin chipPlugin) {
+                    chipPlugin.cashoutPlayer(player);
+                }
                 player.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
                         + "ダブルアップ保留額 " + ChipManager.formatAmount(state.getEffectiveAmount())
                         + " E を強制確定しました。");
