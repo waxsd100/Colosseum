@@ -10,13 +10,18 @@ import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Color;
 import org.bukkit.Location;
+import org.bukkit.Particle;
+import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
+import org.bukkit.EntityEffect;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -45,9 +50,19 @@ public class ArenaOutOfBoundsListener implements Listener {
     private final Map<UUID, Long> mobOutOfBoundsStart = new HashMap<>();
     /** エリア外警告済みMob（重複ブロードキャスト防止用） */
     private final Set<UUID> mobOobWarned = new HashSet<>();
+    /** エリア外ダメージソースとしてマーク中のプレイヤー（damage→death判定用） */
+    private final Set<UUID> oobDamaging = new HashSet<>();
 
     private final ArenaCore plugin;
     private BukkitTask countdownTask;
+    /** 戦闘エリア境界線パーティクル描画タスク */
+    private BukkitTask boundaryParticleTask;
+
+    /** 境界線パーティクルの色（赤） */
+    private static final Particle.DustOptions BOUNDARY_DUST =
+            new Particle.DustOptions(Color.RED, 1.2F);
+    /** 境界線パーティクルの間隔（ブロック） */
+    private static final double PARTICLE_STEP = 0.5;
 
     public ArenaOutOfBoundsListener(ArenaCore plugin) {
         this.plugin = plugin;
@@ -94,7 +109,11 @@ public class ArenaOutOfBoundsListener implements Listener {
             }
         } else {
             // エリア外 → 初回記録
-            outOfBoundsStart.putIfAbsent(playerId, System.currentTimeMillis());
+            if (!outOfBoundsStart.containsKey(playerId)) {
+                outOfBoundsStart.put(playerId, System.currentTimeMillis());
+                // 外に出た瞬間にダメージエフェクト（画面赤フラッシュ）
+                player.playEffect(EntityEffect.HURT);
+            }
         }
     }
 
@@ -110,6 +129,7 @@ public class ArenaOutOfBoundsListener implements Listener {
         outOfBoundsStart.clear();
         mobOutOfBoundsStart.clear();
         mobOobWarned.clear();
+        oobDamaging.clear();
 
         int gracePeriod = plugin.getConfig().getInt("out-of-bounds.grace-seconds", 10);
         int mobGracePeriod = plugin.getConfig().getInt("out-of-bounds.mob-grace-seconds", gracePeriod);
@@ -136,6 +156,9 @@ public class ArenaOutOfBoundsListener implements Listener {
             checkMobsOutOfBounds(manager, session, field, now, mobGracePeriod, damagePercent);
 
         }, 0L, 20L); // 1秒ごと
+
+        // 戦闘エリア境界線のパーティクル描画を開始
+        startBoundaryParticles();
     }
 
     /**
@@ -148,9 +171,11 @@ public class ArenaOutOfBoundsListener implements Listener {
             countdownTask.cancel();
             countdownTask = null;
         }
+        stopBoundaryParticles();
         outOfBoundsStart.clear();
         mobOutOfBoundsStart.clear();
         mobOobWarned.clear();
+        oobDamaging.clear();
     }
 
     /**
@@ -200,16 +225,18 @@ public class ArenaOutOfBoundsListener implements Listener {
             long elapsed = now - startTime;
 
             if (elapsed >= graceMs) {
-                // ダメージフェーズ: 毎秒、最大HPの一定割合のダメージを与える
-                double damage = player.getMaxHealth() * (damagePercent / 100.0);
-                double newHealth = player.getHealth() - Math.max(1.0, damage);
-                player.setHealth(Math.max(0, newHealth));
+                // ダメージフェーズ: 毎秒、最大HPの一定割合のダメージをdamage()で与える
+                double damage = Math.max(1.0, player.getMaxHealth() * (damagePercent / 100.0));
+                oobDamaging.add(playerId);
+                player.damage(damage);
+                oobDamaging.remove(playerId);
 
                 player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
                         TextComponent.fromLegacyText(
                                 ChatColor.RED + "⚠ 戦闘エリア外！ ダメージを受けています！"));
             } else {
-                // カウントダウン警告（アクションバー）
+                // カウントダウン警告（アクションバー）+ 毎秒ダメージエフェクト（画面赤フラッシュ）
+                player.playEffect(EntityEffect.HURT);
                 int remainingSeconds = (int) Math.ceil((graceMs - elapsed) / 1000.0);
                 ChatColor urgency = remainingSeconds <= 3 ? ChatColor.RED : ChatColor.YELLOW;
                 player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
@@ -298,11 +325,103 @@ public class ArenaOutOfBoundsListener implements Listener {
                             + ChatColor.RED + " が戦闘エリア外でダメージを受けています！");
                 }
 
-                // ダメージフェーズ: 毎秒、最大HPの一定割合のダメージを与える
-                double damage = living.getMaxHealth() * (damagePercent / 100.0);
-                double newHealth = living.getHealth() - Math.max(1.0, damage);
-                living.setHealth(Math.max(0, newHealth));
+                // ダメージフェーズ: 毎秒、最大HPの一定割合のダメージをdamage()で与える
+                double damage = Math.max(1.0, living.getMaxHealth() * (damagePercent / 100.0));
+                living.damage(damage);
             }
+        }
+    }
+
+    /**
+     * エリア外ダメージ中かどうかを返す。
+     *
+     * <p>{@link ArenaFightListener} 等で、エリア外ダメージと通常戦闘を
+     * 区別する必要がある場合に使用できる。
+     *
+     * @param playerId プレイヤーのUUID
+     * @return エリア外ダメージ処理中の場合 {@code true}
+     */
+    public boolean isOobDamaging(UUID playerId) {
+        return oobDamaging.contains(playerId);
+    }
+
+    // ══════════════════════════════════════
+    //  戦闘エリア境界線パーティクル描画
+    // ══════════════════════════════════════
+
+    /**
+     * 戦闘エリアの境界線を赤いパーティクルで描画するタスクを開始する。
+     *
+     * <p>試合中（ACTIVE状態）にフィールド範囲の12辺を赤いダストパーティクルで
+     * 描画し、プレイヤーが範囲外を視覚的に把握できるようにする。
+     * 1秒ごとに更新。
+     */
+    private void startBoundaryParticles() {
+        stopBoundaryParticles();
+
+        boundaryParticleTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            ArenaManager manager = plugin.getArenaManager();
+            if (!manager.hasActiveSession()
+                    || manager.getActiveSession().getState() != ArenaState.ACTIVE) {
+                stopBoundaryParticles();
+                return;
+            }
+
+            ArenaSession session = manager.getActiveSession();
+            ArenaFieldConfig field = session.getFieldConfig();
+            if (field == null) return;
+
+            World world = field.getWorld();
+            if (world == null) return;
+
+            drawFieldBoundaryEdges(world, field);
+        }, 0L, 20L); // 1秒ごと
+    }
+
+    /**
+     * 境界線パーティクル描画タスクを停止する。
+     */
+    private void stopBoundaryParticles() {
+        if (boundaryParticleTask != null) {
+            boundaryParticleTask.cancel();
+            boundaryParticleTask = null;
+        }
+    }
+
+    /**
+     * 戦闘エリアの12辺を赤いパーティクルで描画する。
+     *
+     * @param world ワールド
+     * @param field 戦闘エリア設定
+     */
+    private void drawFieldBoundaryEdges(World world, ArenaFieldConfig field) {
+        double x1 = field.minX();
+        double y1 = field.minY();
+        double z1 = field.minZ();
+        double x2 = field.maxX() + 1.0;
+        double y2 = field.maxY() + 1.0;
+        double z2 = field.maxZ() + 1.0;
+
+        // X軸に平行な4辺
+        for (double x = x1; x <= x2; x += PARTICLE_STEP) {
+            world.spawnParticle(Particle.REDSTONE, x, y1, z1, 1, BOUNDARY_DUST);
+            world.spawnParticle(Particle.REDSTONE, x, y1, z2, 1, BOUNDARY_DUST);
+            world.spawnParticle(Particle.REDSTONE, x, y2, z1, 1, BOUNDARY_DUST);
+            world.spawnParticle(Particle.REDSTONE, x, y2, z2, 1, BOUNDARY_DUST);
+        }
+        // Z軸に平行な4辺
+        for (double z = z1; z <= z2; z += PARTICLE_STEP) {
+            world.spawnParticle(Particle.REDSTONE, x1, y1, z, 1, BOUNDARY_DUST);
+            world.spawnParticle(Particle.REDSTONE, x2, y1, z, 1, BOUNDARY_DUST);
+            world.spawnParticle(Particle.REDSTONE, x1, y2, z, 1, BOUNDARY_DUST);
+            world.spawnParticle(Particle.REDSTONE, x2, y2, z, 1, BOUNDARY_DUST);
+        }
+        // Y軸に平行な4辺
+        for (double y = y1; y <= y2; y += PARTICLE_STEP) {
+            world.spawnParticle(Particle.REDSTONE, x1, y, z1, 1, BOUNDARY_DUST);
+            world.spawnParticle(Particle.REDSTONE, x2, y, z1, 1, BOUNDARY_DUST);
+            world.spawnParticle(Particle.REDSTONE, x1, y, z2, 1, BOUNDARY_DUST);
+            world.spawnParticle(Particle.REDSTONE, x2, y, z2, 1, BOUNDARY_DUST);
         }
     }
 }
