@@ -508,9 +508,8 @@ public class BettingManager {
      * @param pool     配布プール額
      * @param label    メッセージラベル（例: "敗者還元"）
      * @param emoji    メッセージ絵文字（例: "💸"）
-     * @return ジャックポットに積立された端数
      */
-    private long distributeFighterPool(List<UUID> fighters, long pool, String label, String emoji) {
+    private void distributeFighterPool(List<UUID> fighters, long pool, String label, String emoji) {
         JackpotManager jackpot = plugin.getJackpotManager();
         long perFighter = pool / fighters.size();
         if (perFighter > 0) {
@@ -535,7 +534,6 @@ public class BettingManager {
         if (remainder > 0 && jackpot != null) {
             jackpot.deposit(remainder);
         }
-        return remainder;
     }
 
     /**
@@ -837,12 +835,14 @@ public class BettingManager {
         if (amount <= 0) return;
 
         // 指定アカウントへの送金
+        boolean paidToRecipient = false;
         String recipientName = plugin.getConfig().getString("distribution.house-fee-recipient", "");
-        if (recipientName != null && !recipientName.isEmpty()) {
+        if (!recipientName.isEmpty()) {
             OfflinePlayer recipient = Bukkit.getOfflinePlayer(recipientName);
             net.milkbowl.vault.economy.Economy economy = plugin.getEconomy();
             if (recipient.hasPlayedBefore() && economy != null) {
                 economy.depositPlayer(recipient, amount);
+                paidToRecipient = true;
                 plugin.getLogger().info("運営手数料 " + ChipManager.formatAmount(amount)
                         + " E を " + recipientName + " に送金しました。");
 
@@ -860,10 +860,12 @@ public class BettingManager {
             hLog.logHouseFee(amount, recipientName);
         }
 
-        // ジャックポットにも積立（運営手数料がジャックポットの原資になる）
-        JackpotManager jackpot = plugin.getJackpotManager();
-        if (jackpot != null) {
-            jackpot.deposit(amount);
+        // 受取人へ送金しなかった場合のみジャックポットに積立（Javadoc の仕様に一致させる）
+        if (!paidToRecipient) {
+            JackpotManager jackpot = plugin.getJackpotManager();
+            if (jackpot != null) {
+                jackpot.deposit(amount);
+            }
         }
     }
 

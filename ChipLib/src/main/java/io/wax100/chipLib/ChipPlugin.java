@@ -396,6 +396,28 @@ public final class ChipPlugin extends JavaPlugin implements Listener {
         return purchaseListener;
     }
 
+    // ── 換金リスナー ──
+
+    private ChipCashoutListener cashoutListener;
+
+    /**
+     * チップ換金時に呼び出されるリスナーを設定する。
+     *
+     * @param listener 換金リスナー（null で解除）
+     */
+    public void setCashoutListener(ChipCashoutListener listener) {
+        this.cashoutListener = listener;
+    }
+
+    /**
+     * 換金リスナーを取得する。
+     *
+     * @return 登録されたリスナー、未登録の場合は null
+     */
+    public ChipCashoutListener getCashoutListener() {
+        return cashoutListener;
+    }
+
     /**
      * プレイヤーのチップを全て換金し、Economy に入金する。
      * 外部プラグインから呼び出すための公開メソッド。

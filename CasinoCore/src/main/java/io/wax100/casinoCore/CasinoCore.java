@@ -107,6 +107,11 @@ public final class CasinoCore extends JavaPlugin {
         chipPlugin.setPurchaseListener((playerId, totalCost) ->
                 casinoManager.recordPurchase(playerId, totalCost));
 
+        // ChipLib 単独換金（/chip cashout）時にセッション購入記録を相殺し、
+        // 戦績に実際より損した記録が残るのを防ぐ
+        chipPlugin.setCashoutListener((playerId, totalValue) ->
+                casinoManager.refundPurchase(playerId, totalValue));
+
         getLogger().info("CasinoCore が有効化されました！");
     }
 

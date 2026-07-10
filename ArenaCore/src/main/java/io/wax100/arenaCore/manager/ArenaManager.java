@@ -24,6 +24,7 @@ import net.md_5.bungee.api.chat.HoverEvent;
 import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.chat.hover.content.Text;
 import net.milkbowl.vault.economy.Economy;
+import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.OfflinePlayer;
@@ -270,28 +271,14 @@ public class ArenaManager {
             ChatColor color = activeSession.getTeamColor(team);
             String label = ArenaMessages.formatTeamLabel(activeSession, team);
 
-            // メンバー名一覧を作成（待機場スキャン or 登録済みメンバー）
+            // メンバー名一覧を作成（待機場スキャン）
             StringBuilder members = new StringBuilder();
-            if (activeSession.getState() == ArenaState.ACTIVE
-                    || activeSession.getState() == ArenaState.FINISHED) {
-                // 試合中: 登録済みメンバーから名前取得
-                List<UUID> memberIds = activeSession.getTeamMembers(team);
-                for (int i = 0; i < memberIds.size(); i++) {
-                    Player p = Bukkit.getPlayer(memberIds.get(i));
-                    if (p != null) {
-                        if (i > 0) members.append(", ");
-                        members.append(p.getName());
-                    }
-                }
-            } else {
-                // 試合前: 待機場をスキャンしてプレイヤー名取得
-                TeamAreaConfig config = activeSession.getTeamAreaConfig(team);
-                if (config != null) {
-                    List<Player> playersInArea = config.scanPlayers();
-                    for (int i = 0; i < playersInArea.size(); i++) {
-                        if (i > 0) members.append(", ");
-                        members.append(playersInArea.get(i).getName());
-                    }
+            TeamAreaConfig config = activeSession.getTeamAreaConfig(team);
+            if (config != null) {
+                List<Player> playersInArea = config.scanPlayers();
+                for (int i = 0; i < playersInArea.size(); i++) {
+                    if (i > 0) members.append(", ");
+                    members.append(playersInArea.get(i).getName());
                 }
             }
 
@@ -733,6 +720,30 @@ public class ArenaManager {
     }
 
     /**
+     * Vault から指定額を徴収し、成否を返す。
+     *
+     * <p>マイナス残高を許可しない経済プラグインでは借金徴収が失敗するため、
+     * 失敗時は警告ログを出力して {@code false} を返す。
+     * 呼び出し元は成功時のみプールへ計上すること。
+     *
+     * @param economy 経済プラグイン
+     * @param fighter 徴収対象プレイヤー
+     * @param amount  徴収額
+     * @param label   ログ用ラベル（例: "参加費"）
+     * @return 徴収に成功した場合 {@code true}
+     */
+    private boolean withdrawFee(Economy economy, Player fighter, long amount, String label) {
+        EconomyResponse response = economy.withdrawPlayer(fighter, amount);
+        if (!response.transactionSuccess()) {
+            plugin.getLogger().warning(label + " の徴収に失敗: " + fighter.getName()
+                    + " / " + ChipManager.formatAmount(amount) + " E — " + response.errorMessage
+                    + "（経済プラグインがマイナス残高非対応の可能性）");
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * 参加費・DM参加費を全闘技者から徴収する。
      *
      * <p>借金（マイナス残高）を許容して徴収を行う。
@@ -757,16 +768,14 @@ public class ArenaManager {
                 if (fighter == null) continue;
 
                 // entry-fee 徴収 → entryFeePool (後でジャックポットへ)
-                if (entryFee > 0) {
-                    economy.withdrawPlayer(fighter, entryFee);
+                if (entryFee > 0 && withdrawFee(economy, fighter, entryFee, "参加費")) {
                     activeSession.addToEntryFeePool(entryFee);
                     fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
                             + "参加費 " + ChipManager.formatAmount(entryFee) + " E を徴収しました。");
                 }
 
                 // DM参加費 徴収 → deathmatchPool
-                if (dmFeePerPerson > 0) {
-                    economy.withdrawPlayer(fighter, dmFeePerPerson);
+                if (dmFeePerPerson > 0 && withdrawFee(economy, fighter, dmFeePerPerson, "DM参加費")) {
                     activeSession.setDeathmatchPool(
                             activeSession.getDeathmatchPool() + dmFeePerPerson);
                     fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
@@ -820,8 +829,7 @@ public class ArenaManager {
                 if (fighter == null) continue;
 
                 // 通常参加費
-                if (entryFee > 0) {
-                    economy.withdrawPlayer(fighter, entryFee);
+                if (entryFee > 0 && withdrawFee(economy, fighter, entryFee, "参加費")) {
                     activeSession.addToEntryFeePool(entryFee);
                     fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
                             + "参加費 " + ChipManager.formatAmount(entryFee) + " E を徴収しました。");
@@ -829,8 +837,8 @@ public class ArenaManager {
 
                 // ALL-IN: 全財産を徴収
                 long playerBalance = Math.max(0, (long) economy.getBalance(fighter));
-                if (playerBalance > 0) {
-                    economy.withdrawPlayer(fighter, playerBalance);
+                if (playerBalance > 0 && !withdrawFee(economy, fighter, playerBalance, "ALL-IN")) {
+                    playerBalance = 0;
                 }
                 activeSession.setDeathmatchPool(
                         activeSession.getDeathmatchPool() + playerBalance);
@@ -840,8 +848,9 @@ public class ArenaManager {
                 if (i == members.size() - 1) {
                     personalShortfall += shortfallRemainder;
                 }
-                if (personalShortfall > 0) {
-                    economy.withdrawPlayer(fighter, personalShortfall);
+                boolean shortfallCollected = personalShortfall > 0
+                        && withdrawFee(economy, fighter, personalShortfall, "ALL-IN借金");
+                if (shortfallCollected) {
                     activeSession.setDeathmatchPool(
                             activeSession.getDeathmatchPool() + personalShortfall);
                     fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW

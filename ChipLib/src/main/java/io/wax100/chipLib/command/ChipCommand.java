@@ -1,6 +1,7 @@
 package io.wax100.chipLib.command;
 
 import io.wax100.chipLib.Chip;
+import io.wax100.chipLib.ChipCashoutListener;
 import io.wax100.chipLib.ChipManager;
 import io.wax100.chipLib.ChipPlugin;
 import io.wax100.chipLib.ChipPurchaseListener;
@@ -343,6 +344,12 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
         GameMode previous = plugin.getPreviousGameModes().remove(player.getUniqueId());
         if (previous != null && player.getGameMode() == GameMode.ADVENTURE) {
             player.setGameMode(previous);
+        }
+
+        // 換金リスナーに通知（CasinoCore のセッション購入記録の相殺等）
+        ChipCashoutListener listener = plugin.getCashoutListener();
+        if (listener != null) {
+            listener.onCashout(player.getUniqueId(), totalValue);
         }
 
         player.sendMessage(ChipMessages.SEPARATOR);

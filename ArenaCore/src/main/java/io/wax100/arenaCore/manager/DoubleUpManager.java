@@ -203,21 +203,18 @@ public class DoubleUpManager {
     }
 
     /**
-     * 敗北時 — ダブルアップ保留額を全没収する。
+     * 敗北時 — ダブルアップストリークを破棄する。
+     *
+     * <p>保留額は自動ベットとして既にベットプールへ拠出済みのため、
+     * 追加の資金移動は行わない。選択待ち中の配当（pendingChoices）は
+     * 本試合で獲得済みの配当であり没収対象外のため維持する。
      */
     public void confiscateOnLoss(UUID playerId) {
         DoubleUpState state = activeStreaks.remove(playerId);
-        cancelTimer(playerId);
-        pendingChoices.remove(playerId);
         if (state == null) return;
 
         Player player = Bukkit.getPlayer(playerId);
         long lostAmount = state.getEffectiveAmount();
-
-        JackpotManager jackpot = plugin.getJackpotManager();
-        if (jackpot != null) {
-            jackpot.deposit(lostAmount / 2);
-        }
 
         if (player != null && player.isOnline()) {
             player.sendMessage("");
