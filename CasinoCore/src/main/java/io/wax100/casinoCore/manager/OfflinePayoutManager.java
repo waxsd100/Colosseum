@@ -136,6 +136,22 @@ public class OfflinePayoutManager implements Listener {
             save();
         }
 
+        // 配当は即時入金する（遅延中にログアウトすると消失するため）
+        if (wonAmount > 0) {
+            Economy eco = plugin.getEconomy();
+            if (eco != null) {
+                eco.depositPlayer(player, wonAmount);
+                plugin.getLogger().info("オフライン配当入金: " + player.getName()
+                        + " / " + ChipManager.formatAmount(wonAmount) + " E");
+            } else {
+                plugin.getLogger().severe("Vault経済APIが利用不可: " + player.getName()
+                        + " への配当 " + ChipManager.formatAmount(wonAmount) + " E を入金できませんでした");
+            }
+            // 戦績に配当額のみを記録（購入額はログアウト時に既に計上済み）
+            plugin.getCasinoManager().getOrCreateStats(player.getUniqueId())
+                    .recordCashout(wonAmount, 0);
+        }
+
         // ログイン処理完了後にメッセージを送信（3秒後）
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (!player.isOnline()) return;
@@ -166,23 +182,7 @@ public class OfflinePayoutManager implements Listener {
                         + ChipManager.formatAmount(betAmount) + " E 没収)");
             }
 
-            // 配当を Vault 経由で入金
-            if (wonAmount > 0) {
-                Economy eco = plugin.getEconomy();
-                if (eco != null) {
-                    eco.depositPlayer(player, wonAmount);
-                    plugin.getLogger().info("オフライン配当入金: " + player.getName()
-                            + " / " + ChipManager.formatAmount(wonAmount) + " E");
-                }
-            }
-
             player.sendMessage("");
-
-            // 戦績に配当額のみを記録（購入額はログアウト時に既に計上済み）
-            if (wonAmount > 0) {
-                plugin.getCasinoManager().getOrCreateStats(player.getUniqueId())
-                        .recordCashout(wonAmount, 0);
-            }
         }, 60L);
     }
 

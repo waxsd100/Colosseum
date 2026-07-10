@@ -267,7 +267,7 @@ class TerrainRestoreIT {
             ArenaSession session = createSessionWithField();
             terrainManager.startTracking(session);
 
-            File activeFile = new File(dataFolder, "arenas/" + session.getId().toString() + ".active");
+            File activeFile = new File(dataFolder, "arenas/" + session.getName() + ".active");
             assertTrue(activeFile.exists(), ".activeファイルが存在すること");
         }
 
@@ -277,9 +277,9 @@ class TerrainRestoreIT {
             ArenaSession session = createSessionWithField();
             terrainManager.startTracking(session);
 
-            File activeFile = new File(dataFolder, "arenas/" + session.getId().toString() + ".active");
+            File activeFile = new File(dataFolder, "arenas/" + session.getName() + ".active");
             YamlConfiguration yaml = YamlConfiguration.loadConfiguration(activeFile);
-            assertEquals(session.getId().toString(), yaml.getString("arena"));
+            assertEquals(session.getName(), yaml.getString("arena"));
             assertEquals("world", yaml.getString("world"));
         }
 
@@ -290,7 +290,7 @@ class TerrainRestoreIT {
             terrainManager.startTracking(session);
             terrainManager.cancelAndClear();
 
-            File activeFile = new File(dataFolder, "arenas/" + session.getId().toString() + ".active");
+            File activeFile = new File(dataFolder, "arenas/" + session.getName() + ".active");
             assertTrue(activeFile.exists(), "cancelAndClear後も.activeが残ること");
         }
     }

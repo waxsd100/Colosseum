@@ -147,8 +147,11 @@ public final class ArenaCore extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (doubleUpManager != null) doubleUpManager.shutdown();
+        // 先にセッションをキャンセルして自動ベットを返金・ストリーク終了させる。
+        // 後から doubleUpManager.shutdown() を呼ぶと、同じ自動ベットが
+        // ストリーク払い出しと refundAll の両方で二重に支払われるため順序が重要。
         if (arenaManager != null) arenaManager.shutdown();
+        if (doubleUpManager != null) doubleUpManager.shutdown();
         if (terrainStorage != null) terrainStorage.shutdown();
         getLogger().info("ArenaCore が無効化されました。");
     }

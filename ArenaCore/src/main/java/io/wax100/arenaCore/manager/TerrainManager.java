@@ -83,6 +83,8 @@ public class TerrainManager {
     private BukkitTask flushTask;
     private ArenaFieldConfig fieldConfig;
     private String sessionName;
+    /** Schematic/.active マーカーに使うセッション名（プリセット間で安定） */
+    private String schematicName;
     private long tickCounter = 0;
     private BukkitTask tickCounterTask;
 
@@ -284,6 +286,7 @@ public class TerrainManager {
             return;
         }
         sessionName = session.getId().toString();
+        schematicName = session.getName();
         terrainStorage.clearSession(sessionName);
         tickCounter = 0;
         state = State.TRACKING;
@@ -297,7 +300,7 @@ public class TerrainManager {
         }.runTaskTimer(plugin, 1L, 1L);
 
         // .active マーカーファイル作成
-        writeActiveMarker(sessionName, fieldConfig.worldName());
+        writeActiveMarker(schematicName, fieldConfig.worldName());
 
         Bukkit.broadcastMessage(ArenaMessages.MSG_TERRAIN_TRACKING);
     }
@@ -445,10 +448,10 @@ public class TerrainManager {
      */
     void onFlushComplete() {
         // Stage 3: Schematic ペースト（差分ゼロ保証）
-        pasteSchematic(sessionName, fieldConfig.worldName());
+        pasteSchematic(schematicName, fieldConfig.worldName());
 
         // .active マーカー削除
-        deleteActiveMarker(sessionName);
+        deleteActiveMarker(schematicName);
 
         // ストレージのセッションデータをクリア
         terrainStorage.clearSession(sessionName);
@@ -457,6 +460,7 @@ public class TerrainManager {
         state = State.IDLE;
         fieldConfig = null;
         sessionName = null;
+        schematicName = null;
 
         Bukkit.broadcastMessage(ArenaMessages.MSG_TERRAIN_COMPLETE);
     }
@@ -597,6 +601,7 @@ public class TerrainManager {
         }
         fieldConfig = null;
         sessionName = null;
+        schematicName = null;
         tickCounter = 0;
         // .active は残す → 次回 onEnable で復旧
         state = State.IDLE;

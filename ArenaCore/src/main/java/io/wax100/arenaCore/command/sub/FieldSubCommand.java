@@ -68,7 +68,7 @@ public class FieldSubCommand implements SubCommand {
         session.setFieldConfig(fieldConfig);
 
         // Schematic 保存
-        plugin.getTerrainManager().saveFieldSchematic(fieldConfig, session.getId().toString());
+        plugin.getTerrainManager().saveFieldSchematic(fieldConfig, session.getName());
 
         sender.sendMessage(ArenaMessages.MSG_FIELD_SET);
 

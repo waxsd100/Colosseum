@@ -32,6 +32,7 @@ import org.bukkit.inventory.meta.FireworkMeta;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -95,7 +96,7 @@ public class BettingManager {
         // ベット記録
         try {
             session.addOrUpdateBet(player.getUniqueId(), teamName, chipValue);
-        } catch (IllegalStateException e) {
+        } catch (IllegalStateException | IllegalArgumentException | ArithmeticException e) {
             player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + e.getMessage());
             return false;
         }
@@ -413,9 +414,11 @@ public class BettingManager {
         clearPlacedChips(session);
 
         // ベッターに返金（チップとして）
+        Set<UUID> refundedPlayers = new HashSet<>();
         for (Bet bet : session.getAllBets()) {
             if (bet.amount() <= 0) continue;
 
+            refundedPlayers.add(bet.playerId());
             distributeAmount(bet.playerId(), bet.amount());
 
             Player player = Bukkit.getPlayer(bet.playerId());
@@ -432,6 +435,17 @@ public class BettingManager {
             } else {
                 plugin.getLogger().warning("オフラインプレイヤーへの返金をVault経由で実行: "
                         + bet.playerId() + " / " + bet.amount() + " E");
+            }
+        }
+
+        // 返金済みプレイヤーのダブルアップストリークを終了する。
+        // 自動ベット分も返金済みのため、ストリークを残すと次セッションで同額が再ベットされ増殖する。
+        DoubleUpManager doubleUp = plugin.getDoubleUpManager();
+        if (doubleUp != null) {
+            for (UUID playerId : refundedPlayers) {
+                if (doubleUp.hasActiveStreak(playerId)) {
+                    doubleUp.terminateStreak(playerId);
+                }
             }
         }
     }
@@ -572,7 +586,6 @@ public class BettingManager {
                     DoubleUpManager doubleUp = plugin.getDoubleUpManager();
                     if (doubleUp != null && doubleUp.offerChoice(playerId, payout, originalBet, winningTeam)) {
                         // ダブルアップ選択待ち — 配当はまだ配布しない
-                        totalPayout += payout;
                         continue;
                     }
 

@@ -325,7 +325,7 @@ public class DoubleUpManager {
      * プラグイン無効化時に全保留を強制確定。
      */
     public void shutdown() {
-        clearTimers();
+        // 保留中の選択は clearTimers で消える前に強制キャッシュアウトする
         for (UUID playerId : new HashMap<>(pendingChoices).keySet()) {
             handleCashOut(playerId);
         }
@@ -345,6 +345,7 @@ public class DoubleUpManager {
             }
         }
         activeStreaks.clear();
+        clearTimers();
     }
 
     // ── 内部 ──

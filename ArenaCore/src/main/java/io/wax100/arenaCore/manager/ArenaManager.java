@@ -198,7 +198,7 @@ public class ArenaManager {
 
         // Open時にSchematicから地形を復元（前回の残骸をクリーンアップ）
         terrainManager.pasteSchematic(
-                activeSession.getId().toString(),
+                activeSession.getName(),
                 activeSession.getFieldConfig().worldName());
 
         // カスタムイベント発火（キャンセル可能）
@@ -1664,7 +1664,7 @@ public class ArenaManager {
         plugin.getOutOfBoundsListener().stopCountdown();
         
         // オートループ（次の試合を自動開始）
-        if (autoLoopEnabled && lastPresetName != null) {
+        if (autoLoopEnabled && lastPresetName != null && plugin.isEnabled()) {
             String presetNameToLoad = lastPresetName; // keep a reference
             plugin.getLogger().info("オートループが有効です。5秒後に次の試合を自動開始します: " + presetNameToLoad);
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
