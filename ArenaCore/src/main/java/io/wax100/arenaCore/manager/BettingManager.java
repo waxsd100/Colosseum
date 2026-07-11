@@ -79,6 +79,13 @@ public class BettingManager {
         }
     }
 
+    /**
+     * 元返し保証（最低オッズ1.0倍）が有効かどうかを返す。
+     */
+    private boolean isRefundGuaranteeEnabled() {
+        return plugin.getConfig().getBoolean("min-odds-guarantee", true);
+    }
+
     // ── Public API ──
 
     /**
@@ -235,7 +242,12 @@ public class BettingManager {
                 if (teamPool > 0 && totalPool > 0) {
                     double bettorPool = totalPool * rates.bettorShareRate();
                     double odds = bettorPool / teamPool;
-                    oddsStr = String.format("%.2f倍", odds);
+                    if (odds < 1.0 && isRefundGuaranteeEnabled()) {
+                        // 元返し保証: 1.0倍未満のオッズは元返し表示にする
+                        oddsStr = "1.00倍(元返し)";
+                    } else {
+                        oddsStr = String.format("%.2f倍", odds);
+                    }
                 } else {
                     oddsStr = "---";
                 }
@@ -259,6 +271,8 @@ public class BettingManager {
     /**
      * パリミュチュエルオッズを計算する（表示用）。
      *
+     * <p>元返し保証が有効な場合は 1.0 を下限とする。
+     *
      * @param session  セッション
      * @param teamName チーム名
      * @return オッズ倍率。ベットがない場合は 0.0
@@ -272,7 +286,12 @@ public class BettingManager {
         DistributionRates rates = DistributionRates.fromConfig(plugin);
 
         double bettorPool = totalPool * rates.bettorShareRate();
-        return bettorPool / teamPool;
+        double odds = bettorPool / teamPool;
+        // 元返し保証が有効な場合、表示・予想配当計算用のオッズも1.0倍を下限にする
+        if (odds < 1.0 && isRefundGuaranteeEnabled()) {
+            return 1.0;
+        }
+        return odds;
     }
 
     /**
@@ -552,6 +571,21 @@ public class BettingManager {
         JackpotManager jackpot = plugin.getJackpotManager();
         Map<UUID, Long> bettorPayouts = calculatePariMutuelPayouts(session, winningTeam, bettorPool);
 
+        // 元返し保証による補填額を記録（配当合計がプールを超えた分 = システム負担）
+        long guaranteedTotal = 0;
+        for (long p : bettorPayouts.values()) {
+            guaranteedTotal += p;
+        }
+        if (guaranteedTotal > bettorPool) {
+            long shortfall = guaranteedTotal - bettorPool;
+            plugin.getLogger().info("元返し保証: 配当プール " + ChipManager.formatAmount(bettorPool)
+                    + " E に対し " + ChipManager.formatAmount(shortfall) + " E をシステム負担で補填");
+            ArenaPayoutLogger gLog = plugin.getPayoutLogger();
+            if (gLog != null) {
+                gLog.logRefundGuarantee(bettorPool, shortfall);
+            }
+        }
+
         long totalPayout = 0;
 
         if (bettorPayouts.isEmpty()) {
@@ -604,6 +638,10 @@ public class BettingManager {
                     long totalPool = session.getTotalPool();
                     long winningPool = session.getTeamPool(winningTeam);
                     double odds = winningPool > 0 ? (double) bettorPool / winningPool : 0;
+
+                    if (odds > 0 && odds < 1.0 && isRefundGuaranteeEnabled()) {
+                        odds = 1.0; // 元返し保証時は実際の払戻に合わせて表示
+                    }
 
                     // チャット: 簡潔な結果のみ
                     player.sendMessage("");
@@ -898,22 +936,48 @@ public class BettingManager {
     /**
      * パリミュチュエル方式で勝利ベッターへの配当を計算する。
      *
+     * <p>元返し保証（{@code min-odds-guarantee}）が有効な場合、
+     * 各ベットの配当はベット額を下限とする（的中者は元本割れしない）。
+     *
      * @param session     セッション
      * @param winningTeam 勝利チーム名
      * @param bettorPool  観客配当プール
      * @return 各プレイヤーの配当金額マップ (UUID → 配当額)
      */
     private Map<UUID, Long> calculatePariMutuelPayouts(ArenaSession session, String winningTeam, long bettorPool) {
+        return calculatePariMutuelPayouts(session, winningTeam, bettorPool, isRefundGuaranteeEnabled());
+    }
+
+    /**
+     * パリミュチュエル配当計算の本体（純粋計算・テスト用に分離）。
+     *
+     * <p>{@code refundGuarantee} が {@code true} の場合、各ベットの配当は
+     * {@code max(floor(ベット額 × オッズ), ベット額)} となり元本割れしない。
+     * 観客配当プールが 0 以下でも、保証が有効ならベット額をそのまま返す。
+     *
+     * @param session         セッション
+     * @param winningTeam     勝利チーム名
+     * @param bettorPool      観客配当プール
+     * @param refundGuarantee 元返し保証を適用するか
+     * @return 各プレイヤーの配当金額マップ (UUID → 配当額)
+     */
+    static Map<UUID, Long> calculatePariMutuelPayouts(ArenaSession session, String winningTeam,
+                                                      long bettorPool, boolean refundGuarantee) {
         Map<UUID, Long> payouts = new HashMap<>();
         long winningPool = session.getTeamPool(winningTeam);
 
-        if (bettorPool <= 0 || winningPool <= 0) return payouts;
+        if (winningPool <= 0) return payouts;
+        if (bettorPool <= 0 && !refundGuarantee) return payouts;
 
-        double odds = (double) bettorPool / winningPool;
+        double odds = bettorPool > 0 ? (double) bettorPool / winningPool : 0.0;
 
         for (Bet bet : session.getAllBets()) {
             if (bet.teamName().equals(winningTeam)) {
                 long payout = Math.max(0L, (long) Math.floor(bet.amount() * odds));
+                if (refundGuarantee) {
+                    // 元返し保証: 的中者の配当はベット額を下限とする
+                    payout = Math.max(payout, bet.amount());
+                }
                 payouts.merge(bet.playerId(), payout, Long::sum);
             }
         }

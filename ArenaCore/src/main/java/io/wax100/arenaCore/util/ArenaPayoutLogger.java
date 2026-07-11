@@ -111,6 +111,16 @@ public class ArenaPayoutLogger {
     }
 
     /**
+     * 元返し保証による補填を記録する。
+     *
+     * @param bettorPool 観客配当プール
+     * @param shortfall  システム負担で補填した額
+     */
+    public void logRefundGuarantee(long bettorPool, long shortfall) {
+        write("GUARANTEE", "元返し補填: 配当プール " + fmt(bettorPool) + " E に対し補填 " + fmt(shortfall) + " E");
+    }
+
+    /**
      * ゲームモード復元を記録する。
      *
      * @param playerName プレイヤー名
