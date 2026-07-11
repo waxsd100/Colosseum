@@ -54,6 +54,9 @@ public class PresetSubCommand implements SubCommand {
         ArenaPresetStore presetStore = plugin.getPresetStore();
         presetStore.save(name, session, plugin.getRegionManager());
 
+        // 自動保存やオートループで使用するプリセット名を更新
+        plugin.getArenaManager().setLastPresetName(name);
+
         sender.sendMessage(ArenaMessages.MSG_PRESET_SAVED + ChatColor.WHITE + name);
     }
 

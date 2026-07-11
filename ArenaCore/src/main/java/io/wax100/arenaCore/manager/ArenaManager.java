@@ -238,9 +238,10 @@ public class ArenaManager {
         activeSession.setState(ArenaState.RECRUITING);
         plugin.getLogger().info("参加者募集を開始しました: " + activeSession.getName());
 
-        // プリセット自動保存
-        plugin.getPresetStore().save(activeSession.getName(), activeSession, regionManager);
-        plugin.getLogger().info("プリセットを自動保存しました: " + activeSession.getName());
+        // プリセット自動保存（別名保存済みの場合はその名前を優先）
+        String autoSaveName = lastPresetName != null ? lastPresetName : activeSession.getName();
+        plugin.getPresetStore().save(autoSaveName, activeSession, regionManager);
+        plugin.getLogger().info("プリセットを自動保存しました: " + autoSaveName);
 
         // 全オンラインプレイヤーにチップ使用を許可
         ChipPlugin chipPlugin = getChipPlugin();
