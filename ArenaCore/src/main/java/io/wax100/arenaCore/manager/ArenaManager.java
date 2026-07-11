@@ -825,6 +825,7 @@ public class ArenaManager {
                 // entry-fee 徴収 → entryFeePool (後でジャックポットへ)
                 if (entryFee > 0 && withdrawFee(economy, fighter, entryFee, "参加費")) {
                     activeSession.addToEntryFeePool(entryFee);
+                    activeSession.recordEntryFee(fighterId, entryFee);
                     fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
                             + "参加費 " + ChipManager.formatAmount(entryFee) + " E を徴収しました。");
                 }
@@ -833,6 +834,7 @@ public class ArenaManager {
                 if (dmFeePerPerson > 0 && withdrawFee(economy, fighter, dmFeePerPerson, "DM参加費")) {
                     activeSession.setDeathmatchPool(
                             activeSession.getDeathmatchPool() + dmFeePerPerson);
+                    activeSession.recordDmFee(fighterId, dmFeePerPerson);
                     fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
                             + "DM参加費 " + ChipManager.formatAmount(dmFeePerPerson) + " E を徴収しました。");
                 }
@@ -860,6 +862,7 @@ public class ArenaManager {
                 // 通常参加費
                 if (entryFee > 0 && withdrawFee(economy, fighter, entryFee, "参加費")) {
                     activeSession.addToEntryFeePool(entryFee);
+                    activeSession.recordEntryFee(fighterId, entryFee);
                     fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
                             + "参加費 " + ChipManager.formatAmount(entryFee) + " E を徴収しました。");
                 }
@@ -869,6 +872,7 @@ public class ArenaManager {
                 if (playerBalance > 0 && withdrawFee(economy, fighter, playerBalance, "ALL-IN")) {
                     activeSession.setDeathmatchPool(
                             activeSession.getDeathmatchPool() + playerBalance);
+                    activeSession.recordDmFee(fighterId, playerBalance);
                     fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
                             + "ALL-IN: " + ChipManager.formatAmount(playerBalance) + " E を徴収しました。");
                 } else if (playerBalance <= 0) {
@@ -881,6 +885,41 @@ public class ArenaManager {
         Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GOLD
                 + "ALL-IN 総額: " + ChatColor.YELLOW
                 + ChipManager.formatAmount(activeSession.getDeathmatchPool()) + " E");
+    }
+
+    /**
+     * プレイヤーごとの徴収記録に基づいて参加費・DM参加費を正確に返金する。
+     *
+     * <p>各プレイヤーが実際に支払った金額を記録から取得し、そのまま返金する。
+     * ALL-INデスマッチのように徴収額がプレイヤーごとに異なるケースでも正確に返金できる。
+     *
+     * @param session 返金対象のセッション
+     */
+    private void refundCollectedFees(ArenaSession session) {
+        Economy economy = plugin.getEconomy();
+        if (economy == null) return;
+
+        // 記録されている全プレイヤーのUUIDを収集（チームから離脱済みでも返金対象）
+        Set<UUID> allPlayers = new HashSet<>();
+        allPlayers.addAll(session.getCollectedEntryFees().keySet());
+        allPlayers.addAll(session.getCollectedDmFees().keySet());
+
+        for (UUID playerId : allPlayers) {
+            long entryRefund = session.getCollectedEntryFee(playerId);
+            long dmRefund = session.getCollectedDmFee(playerId);
+            long totalRefund = entryRefund + dmRefund;
+
+            if (totalRefund <= 0) continue;
+
+            OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerId);
+            economy.depositPlayer(offlinePlayer, totalRefund);
+
+            Player onlinePlayer = Bukkit.getPlayer(playerId);
+            if (onlinePlayer != null && onlinePlayer.isOnline()) {
+                onlinePlayer.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                        + "参加費 " + ChipManager.formatAmount(totalRefund) + " E を返金しました。");
+            }
+        }
     }
 
     /**
@@ -1136,32 +1175,8 @@ public class ArenaManager {
             terrainManager.finishAndFlush();
             activeSession.setState(ArenaState.FINISHED);
 
-            // 参加費返金
-            Economy economy = plugin.getEconomy();
-            if (economy != null) {
-                long entryFeePool = activeSession.getEntryFeePool();
-                long dmPool = activeSession.getDeathmatchPool();
-                int totalPlayerFighters = activeSession.getPlayerFighterCount();
-                long entryFeePerPerson = totalPlayerFighters > 0 ? entryFeePool / totalPlayerFighters : 0;
-                long dmFeePerPerson = totalPlayerFighters > 0 ? dmPool / totalPlayerFighters : 0;
-
-                for (String team : activeSession.getTeamNames()) {
-                    if (activeSession.isMobTeam(team)) continue;
-                    for (UUID playerId : activeSession.getTeamMembers(team)) {
-                        long refund = entryFeePerPerson + dmFeePerPerson;
-                        if (refund > 0) {
-                            OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerId);
-                            economy.depositPlayer(offlinePlayer, refund);
-
-                            Player onlinePlayer = Bukkit.getPlayer(playerId);
-                            if (onlinePlayer != null && onlinePlayer.isOnline()) {
-                                onlinePlayer.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
-                                        + "参加費 " + ChipManager.formatAmount(refund) + " E を返金しました。");
-                            }
-                        }
-                    }
-                }
-            }
+            // 参加費返金（プレイヤーごとの徴収記録ベース）
+            refundCollectedFees(activeSession);
 
             cleanupMobs();
             if (wasActive) {
@@ -1324,38 +1339,7 @@ public class ArenaManager {
 
             activeSession.setState(ArenaState.FINISHED);
 
-            // 参加費返金（entry-fee + DM参加費）
-            // 参加費返金: プールの合計を頭割りで返金
-            // (startMatch時に均等額で徴収済みなので人数で割れば1人分に戻る)
-            Economy economy = plugin.getEconomy();
-            if (economy != null) {
-                long entryFeePool = activeSession.getEntryFeePool();
-                long dmPool = activeSession.getDeathmatchPool();
-                int totalPlayerFighters = 0;
-                for (String team : activeSession.getTeamNames()) {
-                    if (activeSession.isMobTeam(team)) continue;
-                    totalPlayerFighters += activeSession.getTeamMembers(team).size();
-                }
-                long entryFeePerPerson = totalPlayerFighters > 0 ? entryFeePool / totalPlayerFighters : 0;
-                long dmFeePerPerson = totalPlayerFighters > 0 ? dmPool / totalPlayerFighters : 0;
-
-                for (String team : activeSession.getTeamNames()) {
-                    if (activeSession.isMobTeam(team)) continue;
-                    for (UUID playerId : activeSession.getTeamMembers(team)) {
-                        long refund = entryFeePerPerson + dmFeePerPerson;
-                        if (refund > 0) {
-                            OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerId);
-                            economy.depositPlayer(offlinePlayer, refund);
-
-                            Player onlinePlayer = Bukkit.getPlayer(playerId);
-                            if (onlinePlayer != null && onlinePlayer.isOnline()) {
-                                onlinePlayer.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
-                                        + "参加費 " + ChipManager.formatAmount(refund) + " E を返金しました。");
-                            }
-                        }
-                    }
-                }
-            }
+            // 参加費返金（プレイヤーごとの徴収記録ベース）\r\n            refundCollectedFees(activeSession);
 
             // スポーン済みモンスターを削除
             cleanupMobs();

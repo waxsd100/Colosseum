@@ -50,6 +50,11 @@ public class ArenaSession {
     /** デスマッチALL-INモード */
     private boolean deathmatchAllIn = false;
 
+    /** プレイヤーごとの参加費徴収額 */
+    private final Map<UUID, Long> collectedEntryFees = new HashMap<>();
+    /** プレイヤーごとのDM参加費徴収額 */
+    private final Map<UUID, Long> collectedDmFees = new HashMap<>();
+
     /** モンスターチームのセット */
     private final Set<String> mobTeams = new HashSet<>();
     /** チーム別の待機場設定（プレイヤー・モンスター共通） */
@@ -408,6 +413,66 @@ public class ArenaSession {
         this.entryFeePool = Math.addExact(this.entryFeePool, fee);
     }
 
+    // ── プレイヤーごとの徴収額記録 ──
+
+    /**
+     * プレイヤーの参加費徴収額を記録する。
+     *
+     * @param playerId プレイヤーUUID
+     * @param amount   徴収額（0以上）
+     */
+    public void recordEntryFee(UUID playerId, long amount) {
+        collectedEntryFees.merge(playerId, amount, Long::sum);
+    }
+
+    /**
+     * プレイヤーのDM参加費徴収額を記録する。
+     *
+     * @param playerId プレイヤーUUID
+     * @param amount   徴収額（0以上）
+     */
+    public void recordDmFee(UUID playerId, long amount) {
+        collectedDmFees.merge(playerId, amount, Long::sum);
+    }
+
+    /**
+     * プレイヤーの参加費徴収額を返す。
+     *
+     * @param playerId プレイヤーUUID
+     * @return 徴収額（未徴収の場合は0）
+     */
+    public long getCollectedEntryFee(UUID playerId) {
+        return collectedEntryFees.getOrDefault(playerId, 0L);
+    }
+
+    /**
+     * プレイヤーのDM参加費徴収額を返す。
+     *
+     * @param playerId プレイヤーUUID
+     * @return 徴収額（未徴収の場合は0）
+     */
+    public long getCollectedDmFee(UUID playerId) {
+        return collectedDmFees.getOrDefault(playerId, 0L);
+    }
+
+    /**
+     * 全プレイヤーの参加費徴収額マップを返す。
+     *
+     * @return 参加費徴収額マップ（変更不可）
+     */
+    public Map<UUID, Long> getCollectedEntryFees() {
+        return Collections.unmodifiableMap(collectedEntryFees);
+    }
+
+    /**
+     * 全プレイヤーのDM参加費徴収額マップを返す。
+     *
+     * @return DM参加費徴収額マップ（変更不可）
+     */
+    public Map<UUID, Long> getCollectedDmFees() {
+        return Collections.unmodifiableMap(collectedDmFees);
+    }
+
     // ── ベット管理 ──
 
     /**
@@ -606,6 +671,8 @@ public class ArenaSession {
         deathmatchPool = 0;
         deathmatchEntryFee = 0;
         deathmatchAllIn = false;
+        collectedEntryFees.clear();
+        collectedDmFees.clear();
     }
 
     // ── 戦闘エリア管理 ──
