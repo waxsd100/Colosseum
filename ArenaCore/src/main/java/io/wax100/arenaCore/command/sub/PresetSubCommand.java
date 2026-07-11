@@ -44,12 +44,13 @@ public class PresetSubCommand implements SubCommand {
     // ── save ──
 
     private void handleSave(CommandSender sender, String [] args) {
+        if (!CommandHelper.requireArgs(sender, args, 2, "/arena preset save <名前>")) return;
+
         ArenaManager manager = plugin.getArenaManager();
         ArenaSession session = CommandHelper.requireActiveSession(sender, manager);
         if (session == null) return;
 
-        // save [name] — 省略時はセッション名
-        String name = args.length >= 2 ? args[1] : session.getName();
+        String name = args[1];
 
         ArenaPresetStore presetStore = plugin.getPresetStore();
         presetStore.save(name, session, plugin.getRegionManager());

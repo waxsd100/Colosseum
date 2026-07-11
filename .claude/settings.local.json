@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git push *)",
+      "Bash(gh run *)",
+      "Bash(git config *)",
+      "Bash(git status *)",
+      "Bash(find .claude -maxdepth 2 -type f)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git tag *)",
+      "Bash(gh release *)"
+    ]
+  }
+}
