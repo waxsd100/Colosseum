@@ -250,7 +250,7 @@ public class DeathmatchSubCommand implements SubCommand {
                     sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + ChatColor.BOLD
                             + "ALL-IN デスマッチ成立済み");
                     sender.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
-                            + "全財産を賭け合い、不足分は借金として徴収されます。");
+                            + "全財産を賭け合い、勝者チームが総取り！");
                 } else {
                     sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GOLD
                             + "デスマッチ成立済み");
@@ -327,7 +327,7 @@ public class DeathmatchSubCommand implements SubCommand {
                     + ChatColor.GRAY + " が " + ChatColor.RED + ChatColor.BOLD + "ALL-IN"
                     + ChatColor.RESET + ChatColor.GRAY + " デスマッチを提案しました！");
             Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
-                    + "全財産を賭け合い、不足分は借金として徴収されます。");
+                    + "全財産を賭け合い、勝者チームが総取り！");
             Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
                     + "総額: " + ChatColor.YELLOW
                     + ChipManager.formatAmount(challenge.getTotalPool()) + " E"

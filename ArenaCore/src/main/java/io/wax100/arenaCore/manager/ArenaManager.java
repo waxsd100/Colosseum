@@ -843,43 +843,17 @@ public class ArenaManager {
     /**
      * ALL-INデスマッチ用の参加費徴収。
      *
-     * <p>各チームの所持金合計を計算し、最大値を基準額とする。
-     * 全プレイヤーから全財産を徴収し、チーム合計が基準額に満たない場合は
-     * 不足分を借金として各メンバーに均等配分する。
+     * <p>各プレイヤーの全財産を徴収する。チーム間の差額は問わず、借金は発生しない。
+     * 勝者チームがプール全額を総取りする。
      *
      * @param economy  経済プラグイン
      * @param entryFee 通常参加費
      */
     private void collectFeesAllIn(Economy economy, long entryFee) {
-        // 1. 各チームの所持金合計を計算
-        Map<String, Long> teamBalances = new LinkedHashMap<>();
+        // ALL-IN: 各プレイヤーの全財産を徴収（借金なし・チーム間の差額は問わない）
         for (String team : activeSession.getTeamNames()) {
             if (activeSession.isMobTeam(team)) continue;
-            long teamTotal = 0;
-            for (UUID fid : activeSession.getTeamMembers(team)) {
-                Player f = Bukkit.getPlayer(fid);
-                if (f == null) continue;
-                long balance = Math.max(0, (long) economy.getBalance(f));
-                teamTotal += Math.max(0, balance - entryFee);
-            }
-            teamBalances.put(team, teamTotal);
-        }
-
-        // 2. 最大チーム合計を基準額とする
-        long maxTeamBalance = teamBalances.values().stream()
-                .mapToLong(Long::longValue).max().orElse(0);
-
-        // 3. チームごとに徴収
-        for (String team : activeSession.getTeamNames()) {
-            if (activeSession.isMobTeam(team)) continue;
-            List<UUID> members = activeSession.getTeamMembers(team);
-            long teamBalance = teamBalances.getOrDefault(team, 0L);
-            long shortfall = maxTeamBalance - teamBalance;
-            long shortfallPerPerson = members.size() > 0 ? shortfall / members.size() : 0;
-            long shortfallRemainder = members.size() > 0 ? shortfall % members.size() : 0;
-
-            for (int i = 0; i < members.size(); i++) {
-                UUID fighterId = members.get(i);
+            for (UUID fighterId : activeSession.getTeamMembers(team)) {
                 Player fighter = Bukkit.getPlayer(fighterId);
                 if (fighter == null) continue;
 
@@ -890,31 +864,16 @@ public class ArenaManager {
                             + "参加費 " + ChipManager.formatAmount(entryFee) + " E を徴収しました。");
                 }
 
-                // ALL-IN: 全財産を徴収
+                // ALL-IN: 残りの全財産を徴収
                 long playerBalance = Math.max(0, (long) economy.getBalance(fighter));
-                if (playerBalance > 0 && !withdrawFee(economy, fighter, playerBalance, "ALL-IN")) {
-                    playerBalance = 0;
-                }
-                activeSession.setDeathmatchPool(
-                        activeSession.getDeathmatchPool() + playerBalance);
-
-                // 不足分は借金として追加徴収（端数は最後のメンバーが負担）
-                long personalShortfall = shortfallPerPerson;
-                if (i == members.size() - 1) {
-                    personalShortfall += shortfallRemainder;
-                }
-                boolean shortfallCollected = personalShortfall > 0
-                        && withdrawFee(economy, fighter, personalShortfall, "ALL-IN借金");
-                if (shortfallCollected) {
+                if (playerBalance > 0 && withdrawFee(economy, fighter, playerBalance, "ALL-IN")) {
                     activeSession.setDeathmatchPool(
-                            activeSession.getDeathmatchPool() + personalShortfall);
-                    fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
-                            + "ALL-IN: " + ChipManager.formatAmount(playerBalance) + " E"
-                            + " + 借金 " + ChipManager.formatAmount(personalShortfall) + " E"
-                            + " を徴収しました。");
-                } else {
+                            activeSession.getDeathmatchPool() + playerBalance);
                     fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
                             + "ALL-IN: " + ChipManager.formatAmount(playerBalance) + " E を徴収しました。");
+                } else if (playerBalance <= 0) {
+                    fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                            + "ALL-IN: 所持金 0 E のため徴収なし。");
                 }
             }
         }
@@ -2078,7 +2037,7 @@ public class ArenaManager {
      * ALL-INデスマッチを提案する。
      *
      * <p>全闘技者の全財産を賭け合うデスマッチ。
-     * 負けたチームは借金を背負う。
+     * 勝者チームが全額を総取りする。借金は発生しない。
      *
      * @param proposer 提案者のUUID
      * @return エラーメッセージ。成功時は {@code null}
@@ -2108,25 +2067,20 @@ public class ArenaManager {
         }
         if (totalFighters <= 0) return "闘技者がいません。";
 
-        // チームごとの所持金合計を計算し、最大値を基準とする
+        // 全闘技者の所持金合計を計算（ALL-IN = 各自の全財産を掛ける）
         Economy economy = plugin.getEconomy();
         if (economy == null) return "経済プラグインが利用できません。";
 
-        long maxTeamBalance = 0;
+        long totalPool = 0;
         for (String team : teamSizes.keySet()) {
-            long teamTotal = 0;
             for (UUID fighterId : activeSession.getTeamMembers(team)) {
                 Player fighter = Bukkit.getPlayer(fighterId);
                 if (fighter == null || !fighter.isOnline()) continue;
                 long balance = Math.max(0, (long) economy.getBalance(fighter));
-                teamTotal += balance;
+                totalPool += balance;
             }
-            maxTeamBalance = Math.max(maxTeamBalance, teamTotal);
         }
-
-        int teamCount = teamSizes.size();
-        long totalPool = maxTeamBalance * teamCount;
-        long perPerson = totalFighters > 0 ? totalPool / totalFighters : 0;
+        long perPerson = 0; // ALL-INは均等額ではないため0
 
         // チャレンジ作成（allIn=true）
         activeChallenge = new DeathmatchChallenge(
@@ -2214,7 +2168,7 @@ public class ArenaManager {
                     Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED + ChatColor.BOLD
                             + "ALL-IN デスマッチ成立");
                     Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
-                            + "全財産を賭け合い、不足分は借金として徴収されます。");
+                            + "全財産を賭け合い、勝者チームが総取り！");
                     Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
                             + "総額: " + ChatColor.YELLOW
                             + ChipManager.formatAmount(activeChallenge.getTotalPool()) + " E"
