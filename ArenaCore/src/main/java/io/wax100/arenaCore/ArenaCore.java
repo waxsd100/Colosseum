@@ -10,6 +10,7 @@ import io.wax100.arenaCore.listener.ArenaTerrainListener;
 import io.wax100.arenaCore.listener.EntryFeeListener;
 import io.wax100.arenaCore.listener.ArenaOutOfBoundsListener;
 import io.wax100.arenaCore.listener.MobAreaProtectionListener;
+import io.wax100.arenaCore.listener.ArenaSignListener;
 import io.wax100.arenaCore.manager.AreaStore;
 import io.wax100.arenaCore.manager.ArenaManager;
 import io.wax100.arenaCore.manager.ArenaPresetStore;
@@ -136,6 +137,7 @@ public final class ArenaCore extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new ArenaTerrainListener(terrainManager), this);
         getServer().getPluginManager().registerEvents(new ArenaTeamAreaListener(this), this);
         getServer().getPluginManager().registerEvents(new EntryFeeListener(this), this);
+        getServer().getPluginManager().registerEvents(new ArenaSignListener(this), this);
         outOfBoundsListener = new ArenaOutOfBoundsListener(this);
         getServer().getPluginManager().registerEvents(outOfBoundsListener, this);
 

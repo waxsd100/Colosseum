@@ -118,7 +118,6 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
                 ? plugin.getArenaManager().getActiveSession()
                 : null;
         String[] hints = ArenaMessages.getNextStepHint(session);
-        sender.sendMessage("");
         for (String hint : hints) {
             sender.sendMessage(ArenaMessages.PREFIX + hint);
         }

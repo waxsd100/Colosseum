@@ -11,8 +11,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 
-import java.util.List;
-
 /**
  * {@code /arena open [秒数]} — ベット受付開始を処理する。
  *
@@ -57,28 +55,18 @@ public class OpenSubCommand implements SubCommand {
         }
 
         Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
+        String timerSuffix = timerSeconds > 0
+                ? ChatColor.RESET + "" + ChatColor.YELLOW + " (締切まで " + timerSeconds + "秒)"
+                : "";
         Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GOLD + ChatColor.BOLD
-                + "⚔ 闘技者募集中！");
-        Bukkit.broadcastMessage("");
-        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
-                + "チーム待機エリアに入って参加！");
-        Bukkit.broadcastMessage("");
+                + "⚔ 闘技者募集中！" + ChatColor.RESET + ChatColor.GRAY
+                + " チーム待機エリアに入って参加" + timerSuffix);
 
-        List<String> teamNames = session.getTeamNames();
-        for (int i = 0; i < teamNames.size(); i++) {
-            String team = teamNames.get(i);
+        for (String team : session.getTeamNames()) {
             ChatColor color = session.getTeamColor(team);
-
             String label = ArenaMessages.formatTeamLabel(session, team);
-
             Bukkit.broadcastMessage(ArenaMessages.PREFIX + "  " + color + "■ " + team
                     + ChatColor.GRAY + " (" + label + ")");
-        }
-
-        if (timerSeconds > 0) {
-            Bukkit.broadcastMessage("");
-            Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW + ChatColor.BOLD
-                    + "⏱ 募集制限時間: " + timerSeconds + "秒");
         }
         Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
 

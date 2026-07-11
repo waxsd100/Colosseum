@@ -39,9 +39,7 @@ public class StartSubCommand implements SubCommand {
         }
 
         Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
-        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED + ChatColor.BOLD + "試合開始！");
-        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW + "ベットは締め切りました！");
-        Bukkit.broadcastMessage("");
+        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED + ChatColor.BOLD + "⚔ 試合開始！");
         plugin.getBettingManager().broadcastOdds(session);
         Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
     }

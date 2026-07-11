@@ -30,6 +30,13 @@ public class CancelSubCommand implements SubCommand {
 
         ArenaState prevState = session.getState();
 
+        // 手動キャンセル時はオートループも無効化する。
+        // cancelArena 内のクリーンアップが次試合をスケジュールする前に無効化する必要がある。
+        boolean loopWasEnabled = manager.isAutoLoopEnabled();
+        if (loopWasEnabled) {
+            manager.setAutoLoopEnabled(false);
+        }
+
         if (manager.cancelArena()) {
             Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
             if (prevState == ArenaState.ACTIVE) {
@@ -41,8 +48,16 @@ public class CancelSubCommand implements SubCommand {
                 Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED
                         + "闘技場がキャンセルされました。ベット額・参加費は返金されます。");
             }
+            if (loopWasEnabled) {
+                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+                        + "オートループを無効にしました。（再開: /arena loop true）");
+            }
             Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
         } else {
+            // キャンセルに失敗した場合はループ設定を元に戻す
+            if (loopWasEnabled) {
+                manager.setAutoLoopEnabled(true);
+            }
             sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
                     + "キャンセルに失敗しました。セッションの状態を確認してください。");
         }

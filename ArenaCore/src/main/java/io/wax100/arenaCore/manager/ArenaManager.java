@@ -69,6 +69,16 @@ public class ArenaManager {
     private boolean autoLoopEnabled = false;
     private String lastPresetName = null;
 
+    // ── 無人進行（開始看板）管理 ──
+    /** 看板起動セッションの無人進行モード（募集→締切→開始を自動で進める。セッション終了時にリセット） */
+    private boolean autoRunSession = false;
+    /** 無人進行時の募集延長回数 */
+    private int recruitExtensions = 0;
+    /** 無人進行時の募集延長上限 */
+    private static final int AUTO_RUN_MAX_EXTENSIONS = 2;
+    /** 無人進行時のタイマー未設定フォールバック（秒） */
+    private static final int AUTO_RUN_FALLBACK_SECONDS = 60;
+
     // ── デスマッチ投票管理 ──
     private DeathmatchChallenge activeChallenge;
     private int deathmatchProposalCount;
@@ -101,6 +111,21 @@ public class ArenaManager {
     public void setAutoLoopEnabled(boolean autoLoopEnabled) { this.autoLoopEnabled = autoLoopEnabled; }
     public String getLastPresetName() { return lastPresetName; }
     public void setLastPresetName(String lastPresetName) { this.lastPresetName = lastPresetName; }
+
+    public boolean isAutoRunSession() { return autoRunSession; }
+    public void setAutoRunSession(boolean autoRunSession) { this.autoRunSession = autoRunSession; }
+
+    /**
+     * 無人進行用のタイマー秒数を解決する。
+     *
+     * <p>config の {@code default-betting-duration} が未設定（0以下）の場合は
+     * フォールバック値（{@value #AUTO_RUN_FALLBACK_SECONDS}秒）を返す。
+     * 無人進行はタイマーがないとフェーズが進まないため、必ず正の値を返す。
+     */
+    public int resolveAutoRunDuration() {
+        int duration = plugin.getConfig().getInt("default-betting-duration", 0);
+        return duration > 0 ? duration : AUTO_RUN_FALLBACK_SECONDS;
+    }
 
     /**
      * 闘技場セッションを作成する。
@@ -253,6 +278,7 @@ public class ArenaManager {
         if (activeSession == null || activeSession.getState() != ArenaState.RECRUITING) return;
 
         cancelRecruitingTimer();
+        recruitExtensions = 0;
         activeSession.setState(ArenaState.BETTING);
         plugin.getLogger().info("参加者を締め切りました: " + activeSession.getName());
 
@@ -263,9 +289,11 @@ public class ArenaManager {
 
         // ── 参加者一覧アナウンス ──
         Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
+        String timerSuffix = bettingSeconds > 0
+                ? ChatColor.RESET + "" + ChatColor.YELLOW + " (締切まで " + bettingSeconds + "秒)"
+                : "";
         Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GOLD + ChatColor.BOLD
-                + "🔒 参加者締切 & ベット受付開始！");
-        Bukkit.broadcastMessage("");
+                + "🔒 参加者締切 — ベット受付開始！" + timerSuffix);
 
         for (String team : activeSession.getTeamNames()) {
             ChatColor color = activeSession.getTeamColor(team);
@@ -292,30 +320,19 @@ public class ArenaManager {
                     + ChatColor.WHITE + ": " + ChatColor.GRAY + members);
         }
 
-        Bukkit.broadcastMessage("");
-
         // ジャックポット残高表示
         JackpotManager jackpot = plugin.getJackpotManager();
         if (jackpot != null && jackpot.getBalance() > 0) {
             Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GOLD
                     + "🎰 ジャックポット積立: " + ChatColor.YELLOW
                     + ChipManager.formatAmount(jackpot.getBalance()) + " E");
-            Bukkit.broadcastMessage("");
         }
 
-        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
-                + "/bet <チーム名> <金額>" + ChatColor.DARK_GRAY + " でコマンドからベットする");
-        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
-                + "/chip <額面> <枚数>" + ChatColor.DARK_GRAY + " または "
-                + ChatColor.GRAY + "/chip <金額>" + ChatColor.DARK_GRAY + " でチップを購入して設置");
-        Bukkit.broadcastMessage("");
-        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.AQUA
-                + "💡 闘技者は /arena deathmatch <金額> でデスマッチ提案可能！");
-
-        if (bettingSeconds > 0) {
-            Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW + ChatColor.BOLD
-                    + "⏱ ベット制限時間: " + bettingSeconds + "秒");
-        }
+        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "ベット: "
+                + ChatColor.YELLOW + "/chip <金額>" + ChatColor.GRAY + " で購入して設置 or "
+                + ChatColor.YELLOW + "/bet <チーム> <金額>");
+        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "デスマッチ提案（闘技者）: "
+                + ChatColor.YELLOW + "/arena deathmatch <金額>");
         Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
 
         // ベットエリアのパーティクル表示開始
@@ -446,22 +463,49 @@ public class ArenaManager {
                 closeBetting();
                 ArenaSession session = activeSession;
                 Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
+                String nextInfo = autoRunSession
+                        ? ChatColor.RESET + "" + ChatColor.GRAY + " まもなく試合開始…"
+                        : ChatColor.RESET + "" + ChatColor.GRAY + " 試合開始待ち: " + ChatColor.YELLOW + "/arena start";
                 Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED + ChatColor.BOLD
-                        + "⏰ 時間切れ！ベット締め切り！");
-                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
-                        + "これ以上ベットすることはできません。");
-                Bukkit.broadcastMessage("");
+                        + "⏰ ベット締切！" + nextInfo);
                 if (session != null) {
                     bettingManager.broadcastOdds(session);
                 }
-                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
-                        + "試合開始を待っています… " + ChatColor.YELLOW + "/arena start");
                 Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
+
+                // 無人進行: 5秒後に自動で試合開始
+                if (autoRunSession) {
+                    scheduleAutoStart();
+                }
                 return;
             }
 
             remaining[0]--;
         }, 0L, 20L); // 1秒ごと
+    }
+
+    /**
+     * 無人進行モードで試合を自動開始する。
+     *
+     * <p>ベット締切の5秒後に {@link #startMatch()} を呼ぶ。
+     * 参加費応答待ち（借金/辞退の選択中）の場合はフローが自動継続するため何もしない。
+     * それ以外の理由（闘技者オフライン等）で開始できない場合は、
+     * アリーナを占有し続けないようセッションを中止して返金する。
+     */
+    private void scheduleAutoStart() {
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (activeSession == null || activeSession.getState() != ArenaState.CLOSED) return;
+            if (startMatch()) {
+                Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
+                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED + ChatColor.BOLD + "⚔ 試合開始！");
+                bettingManager.broadcastOdds(activeSession);
+                Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
+            } else if (pendingFeeResponses.isEmpty()) {
+                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED
+                        + "試合を開始できなかったため、中止して返金しました。");
+                cancelArena();
+            }
+        }, 100L);
     }
 
     /**
@@ -501,13 +545,23 @@ public class ArenaManager {
                     }
                 }
                 if (teamsWithMembers < 2) {
+                    // 無人進行時は延長上限を超えたら自動中止（アリーナを占有し続けないため）
+                    if (autoRunSession && ++recruitExtensions > AUTO_RUN_MAX_EXTENSIONS) {
+                        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED
+                                + "参加者が集まらなかったため、募集を中止しました。");
+                        cancelArena();
+                        return;
+                    }
                     Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED
                             + "参加者が不足しているため、募集を延長します。");
+                    scheduleRecruitingTimer(seconds); // 同じ時間で実際に延長する
                     return;
                 }
 
-                // 自動ロック: config の default-betting-duration を使用
-                int bettingDuration = plugin.getConfig().getInt("default-betting-duration", 0);
+                // 自動ロック: config の default-betting-duration を使用（無人進行時は必ずタイマーを付ける）
+                int bettingDuration = autoRunSession
+                        ? resolveAutoRunDuration()
+                        : plugin.getConfig().getInt("default-betting-duration", 0);
                 lockParticipants(bettingDuration);
                 return;
             }
@@ -987,9 +1041,7 @@ public class ArenaManager {
 
         // StartSubCommand 相当の開始アナウンス
         Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
-        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED + ChatColor.BOLD + "試合開始！");
-        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW + "ベットは締め切りました！");
-        Bukkit.broadcastMessage("");
+        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED + ChatColor.BOLD + "⚔ 試合開始！");
         bettingManager.broadcastOdds(activeSession);
         Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
     }
@@ -1671,9 +1723,14 @@ public class ArenaManager {
         cancelVoteTimer();
         // 戦闘エリア外脱出監視を停止
         plugin.getOutOfBoundsListener().stopCountdown();
-        
+
+        // 無人進行モードをリセット（看板起動セッションはオートループに接続しない）
+        boolean wasAutoRun = autoRunSession;
+        autoRunSession = false;
+        recruitExtensions = 0;
+
         // オートループ（次の試合を自動開始）
-        if (autoLoopEnabled && lastPresetName != null && plugin.isEnabled()) {
+        if (!wasAutoRun && autoLoopEnabled && lastPresetName != null && plugin.isEnabled()) {
             String presetNameToLoad = lastPresetName; // keep a reference
             plugin.getLogger().info("オートループが有効です。5秒後に次の試合を自動開始します: " + presetNameToLoad);
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
@@ -1681,6 +1738,11 @@ public class ArenaManager {
                 new org.bukkit.scheduler.BukkitRunnable() {
                     @Override
                     public void run() {
+                        if (!autoLoopEnabled) {
+                            // 待機中にオートループが無効化された（手動キャンセル・/arena loop false 等）場合は中止
+                            this.cancel();
+                            return;
+                        }
                         if (terrainManager.isBlocking()) {
                             // まだ復元中ならスキップ（次回Tickに再度チェック）
                             return;
