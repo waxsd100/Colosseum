@@ -875,7 +875,11 @@ public class ArenaManager {
                     activeSession.recordDmFee(fighterId, playerBalance);
                     fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
                             + "ALL-IN: " + ChipManager.formatAmount(playerBalance) + " E を徴収しました。");
-                } else if (playerBalance <= 0) {
+                } else if (playerBalance > 0) {
+                    // withdrawFee 失敗（経済プラグインの制限等）
+                    fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                            + "ALL-IN: 徴収に失敗しました。");
+                } else {
                     fighter.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
                             + "ALL-IN: 所持金 0 E のため徴収なし。");
                 }
@@ -1339,7 +1343,8 @@ public class ArenaManager {
 
             activeSession.setState(ArenaState.FINISHED);
 
-            // 参加費返金（プレイヤーごとの徴収記録ベース）\r\n            refundCollectedFees(activeSession);
+            // 参加費返金（プレイヤーごとの徴収記録ベース）
+            refundCollectedFees(activeSession);
 
             // スポーン済みモンスターを削除
             cleanupMobs();
@@ -2052,16 +2057,19 @@ public class ArenaManager {
         if (totalFighters <= 0) return "闘技者がいません。";
 
         // 全闘技者の所持金合計を計算（ALL-IN = 各自の全財産を掛ける）
+        // 参加費は別プールに入るため、DM総額からは除外する
         Economy economy = plugin.getEconomy();
         if (economy == null) return "経済プラグインが利用できません。";
 
+        long entryFee = activeSession.getArenaConfig().getEntryFee();
         long totalPool = 0;
         for (String team : teamSizes.keySet()) {
             for (UUID fighterId : activeSession.getTeamMembers(team)) {
                 Player fighter = Bukkit.getPlayer(fighterId);
                 if (fighter == null || !fighter.isOnline()) continue;
                 long balance = Math.max(0, (long) economy.getBalance(fighter));
-                totalPool += balance;
+                // 参加費を差し引いた残りがDMプール対象
+                totalPool += Math.max(0, balance - entryFee);
             }
         }
         long perPerson = 0; // ALL-INは均等額ではないため0
@@ -2072,7 +2080,6 @@ public class ArenaManager {
         deathmatchProposalCount++;
 
         // 投票UIブロードキャスト
-        long entryFee = activeSession.getArenaConfig().getEntryFee();
         DeathmatchSubCommand.broadcastVoteUI(activeSession, activeChallenge, entryFee);
 
         // 投票タイマー開始（20秒）

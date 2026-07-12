@@ -330,9 +330,7 @@ public class DeathmatchSubCommand implements SubCommand {
                     + "全財産を賭け合い、勝者チームが総取り！");
             Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
                     + "総額: " + ChatColor.YELLOW
-                    + ChipManager.formatAmount(challenge.getTotalPool()) + " E"
-                    + ChatColor.GRAY + "（平均: "
-                    + ChipManager.formatAmount(challenge.getPerPersonFee()) + " E / 人）");
+                    + ChipManager.formatAmount(challenge.getTotalPool()) + " E");
         } else {
             Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GOLD + ChatColor.BOLD
                     + "デスマッチ提案");
