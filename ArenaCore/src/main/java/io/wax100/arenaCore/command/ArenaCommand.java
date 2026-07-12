@@ -27,7 +27,6 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
         this.plugin = plugin;
         subCommands.put("create", new CreateSubCommand(plugin));
         subCommands.put("team", new TeamSubCommand(plugin));
-        subCommands.put("area", new AreaSubCommand(plugin));
         subCommands.put("region", new RegionSubCommand(plugin));
         subCommands.put("field", new FieldSubCommand(plugin));
         subCommands.put("preset", new PresetSubCommand(plugin));
