@@ -307,11 +307,6 @@ class CasinoManagerTest {
     @Nested
     @DisplayName("ランキング（RankingManager 委譲）")
     class RankingTest {
-        @Test
-        @DisplayName("RankingManager 未接続時、updateRanking は例外を投げない")
-        void updateRankingDoesNotThrowWithoutRankingManager() {
-            assertDoesNotThrow(() -> casinoManager.updateRanking(UUID.randomUUID(), 5000));
-        }
 
         @Test
         @DisplayName("RankingManager 未接続時、getSortedRanking は空リスト")

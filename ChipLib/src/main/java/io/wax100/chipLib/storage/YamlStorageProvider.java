@@ -258,25 +258,7 @@ public class YamlStorageProvider implements StorageProvider {
         flush();
     }
 
-    // ── ダーティフラグ公開（RedisBackedStorageProvider 用） ──
 
-    /**
-     * ランキングデータのダーティフラグを返す。
-     *
-     * @return ダーティなら {@code true}
-     */
-    public boolean isRankingDirty() {
-        return rankingDirty;
-    }
-
-    /**
-     * データファイルのダーティフラグを返す。
-     *
-     * @return ダーティなら {@code true}
-     */
-    public boolean isDataDirty() {
-        return dataDirty;
-    }
 
     // ── ランキングファイル I/O ──
 

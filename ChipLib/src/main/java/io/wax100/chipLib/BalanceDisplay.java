@@ -281,14 +281,7 @@ public class BalanceDisplay implements Runnable {
         return count;
     }
 
-    public void clearPlayer(UUID playerId) {
-        previousBalances.remove(playerId);
-        activeDelta.remove(playerId);
-        activeOverlay.remove(playerId);
-        peekRemaining.remove(playerId);
-        // hiddenPlayers はクリアしない（PDC に永続化されているため、再ログイン時に復元される）
-        hiddenPlayers.remove(playerId);
-    }
+
 
     /**
      * プレイヤーのログイン時に PDC から表示設定を読み込み、キャッシュに反映する。
@@ -345,15 +338,7 @@ public class BalanceDisplay implements Runnable {
         }
     }
 
-    /**
-     * プレイヤーのアクションバー表示が現在 ON かどうかを返す。
-     *
-     * @param playerId 対象プレイヤーの UUID
-     * @return 表示中の場合 {@code true}
-     */
-    public boolean isDisplayVisible(UUID playerId) {
-        return !hiddenPlayers.contains(playerId);
-    }
+
 
     /**
      * アクションバーに一時メッセージを表示する。

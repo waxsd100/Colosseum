@@ -371,7 +371,7 @@ public class CasinoManager {
      * @param playerId  プレイヤーの UUID
      * @param netResult 今回の損益（正: 勝ち、負: 負け）
      */
-    public void updateRanking(UUID playerId, long netResult) {
+    private void updateRanking(UUID playerId, long netResult) {
         RankingManager rm = getRankingManager();
         if (rm != null) {
             rm.updateRanking("casino", playerId, netResult);
