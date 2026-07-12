@@ -12,6 +12,8 @@ import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.logging.Logger;
 
@@ -44,6 +46,12 @@ public class ArenaPresetStore {
 
     /**
      * セッションの現在の設定をYAMLファイルに保存する。
+     *
+     * <p>プリセット名 {@code name} がセッション名（{@link ArenaSession#getName()}）と
+     * 異なる場合（別名保存）、地形データ {@code arenas/<セッション名>.schem} が存在すれば
+     * {@code arenas/<name>.schem} へコピーする。これにより別名保存したプリセットを
+     * ロードして {@code open} した際にも地形復元が機能する。
+     * schematic のコピーに失敗しても YAML 保存自体は成功扱いとする。
      *
      * @param name          プリセット名（ファイル名に使用、null不可）
      * @param session       保存するセッション（null不可）
@@ -112,6 +120,22 @@ public class ArenaPresetStore {
             yaml.save(file);
         } catch (IOException e) {
             logger.severe("プリセット保存失敗: " + e.getMessage());
+        }
+
+        // 別名保存時は .schem も揃える（schematic はセッション名でのみ保存されるため）
+        String sessionName = session.getName();
+        if (sessionName != null && !sessionName.equals(name)) {
+            File srcSchem = new File(arenasDir, sessionName + ".schem");
+            if (srcSchem.exists()) {
+                File dstSchem = new File(arenasDir, name + ".schem");
+                try {
+                    Files.copy(srcSchem.toPath(), dstSchem.toPath(),
+                            StandardCopyOption.REPLACE_EXISTING);
+                } catch (IOException e) {
+                    logger.warning("Schematicのコピーに失敗（プリセット " + name
+                            + " の地形復元が効かない可能性）: " + e.getMessage());
+                }
+            }
         }
     }
 

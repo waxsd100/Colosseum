@@ -141,6 +141,8 @@ public class ArenaManager {
         }
         activeSession = new ArenaSession(name, teamNames);
         activeSession.setArenaConfig(new ArenaConfig(plugin.getConfig()));
+        // 前セッションのプリセット名が新セッションの自動保存先に漏れるのを防ぐ
+        lastPresetName = null;
         eliminatedPlayers.clear();
         regionManager.clearRegions();
 
@@ -1707,6 +1709,8 @@ public class ArenaManager {
                         if (data != null) {
                             ArenaSession session = createFromPreset(data);
                             if (session != null) {
+                                // createArena が lastPresetName をリセットするため、ループ継続用に再設定する
+                                lastPresetName = presetNameToLoad;
                                 Bukkit.broadcastMessage(ArenaMessages.PREFIX + org.bukkit.ChatColor.AQUA + org.bukkit.ChatColor.BOLD
                                         + "🔄 オートループにより、次の試合の募集を開始します！");
                                 // 募集フェーズを開始（プリセットロード時に自動で行われる通常のフロー）

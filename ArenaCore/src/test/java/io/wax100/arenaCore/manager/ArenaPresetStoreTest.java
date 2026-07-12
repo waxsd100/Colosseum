@@ -302,6 +302,74 @@ class ArenaPresetStoreTest {
     }
 
     // ========================================================================
+    // schematic コピー
+    // ========================================================================
+
+    @Nested
+    @DisplayName("save - schematic コピー")
+    class SchematicCopyTest {
+
+        private File arenasDir() {
+            return new File(tempDir, "arenas");
+        }
+
+        private void writeSchem(String name, byte[] content) throws Exception {
+            File f = new File(arenasDir(), name + ".schem");
+            java.nio.file.Files.write(f.toPath(), content);
+        }
+
+        @Test
+        @DisplayName("別名保存時にセッション名の.schemを新しい名前へコピーする")
+        void differentName_copiesSchematic() throws Exception {
+            // セッション名 "original" の .schem を用意
+            writeSchem("original", new byte[]{1, 2, 3});
+
+            ArenaSession session = mockSession("original", null);
+            store.save("custom_name", session, mockRegionManager());
+
+            File copied = new File(arenasDir(), "custom_name.schem");
+            assertTrue(copied.exists(), "別名の.schemが作成されること");
+            assertArrayEquals(new byte[]{1, 2, 3},
+                    java.nio.file.Files.readAllBytes(copied.toPath()));
+        }
+
+        @Test
+        @DisplayName("別名の.schemが既存でも上書きコピーする")
+        void differentName_overwritesExistingSchematic() throws Exception {
+            writeSchem("original", new byte[]{9, 9, 9});
+            writeSchem("custom_name", new byte[]{0});
+
+            ArenaSession session = mockSession("original", null);
+            store.save("custom_name", session, mockRegionManager());
+
+            File copied = new File(arenasDir(), "custom_name.schem");
+            assertArrayEquals(new byte[]{9, 9, 9},
+                    java.nio.file.Files.readAllBytes(copied.toPath()));
+        }
+
+        @Test
+        @DisplayName("同名保存では.schemコピーは発生しない")
+        void sameName_noSchematicCopy() throws Exception {
+            ArenaSession session = mockSession("same", null);
+            store.save("same", session, mockRegionManager());
+
+            // 元の .schem が無いので新規作成もされない
+            File schem = new File(arenasDir(), "same.schem");
+            assertFalse(schem.exists());
+        }
+
+        @Test
+        @DisplayName("元の.schemが存在しなければ何もしない（yml保存は成功）")
+        void noSourceSchematic_ymlStillSaved() {
+            ArenaSession session = mockSession("original", null);
+            store.save("custom_name", session, mockRegionManager());
+
+            assertNotNull(store.load("custom_name"));
+            assertFalse(new File(arenasDir(), "custom_name.schem").exists());
+        }
+    }
+
+    // ========================================================================
     // save バリデーション
     // ========================================================================
 
