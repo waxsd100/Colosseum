@@ -11,7 +11,6 @@ import io.wax100.arenaCore.listener.EntryFeeListener;
 import io.wax100.arenaCore.listener.ArenaOutOfBoundsListener;
 import io.wax100.arenaCore.listener.MobAreaProtectionListener;
 import io.wax100.arenaCore.listener.ArenaSignListener;
-import io.wax100.arenaCore.manager.AreaStore;
 import io.wax100.arenaCore.manager.ArenaManager;
 import io.wax100.arenaCore.manager.ArenaPresetStore;
 import io.wax100.arenaCore.manager.BettingManager;
@@ -56,7 +55,6 @@ public final class ArenaCore extends JavaPlugin {
     private RegionManager regionManager;
     private TerrainManager terrainManager;
     private ArenaPresetStore presetStore;
-    private AreaStore areaStore;
     private PayoutDistributor payoutDistributor;
     private JackpotManager jackpotManager;
     private DoubleUpManager doubleUpManager;
@@ -114,7 +112,6 @@ public final class ArenaCore extends JavaPlugin {
         bettingManager = new BettingManager(this);
         terrainManager = new TerrainManager(this, terrainStorage);
         presetStore = new ArenaPresetStore(getDataFolder(), getLogger());
-        areaStore = new AreaStore(getDataFolder(), getLogger());
         doubleUpManager = new DoubleUpManager(this);
         arenaManager = new ArenaManager(this, bettingManager, regionManager, terrainManager);
 
@@ -279,7 +276,6 @@ public final class ArenaCore extends JavaPlugin {
     public WinCondition getWinCondition() { return winCondition; }
     public TerrainManager getTerrainManager() { return terrainManager; }
     public ArenaPresetStore getPresetStore() { return presetStore; }
-    public AreaStore getAreaStore() { return areaStore; }
     public DoubleUpManager getDoubleUpManager() { return doubleUpManager; }
     public ArenaOutOfBoundsListener getOutOfBoundsListener() { return outOfBoundsListener; }
     public ArenaPayoutLogger getPayoutLogger() { return payoutLogger; }

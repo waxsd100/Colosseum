@@ -154,7 +154,7 @@ public class TeamSubCommand implements SubCommand {
 
     private void handleArea(CommandSender sender, String [] args) {
         if (!CommandHelper.requireArgs(sender, args, 2,
-                "/arena team area <チーム名> [待機場名]")) return;
+                "/arena team area <チーム名>")) return;
 
         String teamName = args[1];
         ArenaManager manager = plugin.getArenaManager();
@@ -163,32 +163,19 @@ public class TeamSubCommand implements SubCommand {
         if (session == null) return;
         if (CommandHelper.abortIfTeamNotFound(sender, session, teamName)) return;
 
-        TeamAreaConfig newConfig;
+        // WE選択範囲から作成
+        Player player = CommandHelper.requirePlayer(sender);
+        if (player == null) return;
 
-        if (args.length >= 3) {
-            // 保存済み待機場名を指定
-            String areaName = args[2];
-            newConfig = plugin.getAreaStore().load(areaName);
-            if (newConfig == null) {
-                sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
-                        + "待機場「" + areaName + "」が見つかりません。");
-                return;
-            }
-        } else {
-            // WE選択範囲から作成
-            Player player = CommandHelper.requirePlayer(sender);
-            if (player == null) return;
+        if (!plugin.getRegionManager().isWorldEditAvailable()) {
+            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + ArenaMessages.MSG_WE_REQUIRED);
+            return;
+        }
 
-            if (!plugin.getRegionManager().isWorldEditAvailable()) {
-                sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + ArenaMessages.MSG_WE_REQUIRED);
-                return;
-            }
-
-            newConfig = CommandHelper.createAreaConfigFromSelection(player);
-            if (newConfig == null) {
-                sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + ArenaMessages.MSG_WE_SELECT_FIRST);
-                return;
-            }
+        TeamAreaConfig newConfig = CommandHelper.createAreaConfigFromSelection(player);
+        if (newConfig == null) {
+            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + ArenaMessages.MSG_WE_SELECT_FIRST);
+            return;
         }
 
         // 既存の destination を引き継ぎ
@@ -333,11 +320,7 @@ public class TeamSubCommand implements SubCommand {
                                 .toList(),
                         args[2]);
             }
-            if ("area".equals(sub)) {
-                // 保存済み待機場名の補完
-                return CommandHelper.filterStartsWith(
-                        plugin.getAreaStore().list(), args[2]);
-            }
+
         }
         return List.of();
     }
