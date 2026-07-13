@@ -5,6 +5,7 @@ import io.wax100.arenaCore.command.CommandHelper;
 import io.wax100.arenaCore.command.SubCommand;
 import io.wax100.arenaCore.manager.ArenaManager;
 import io.wax100.arenaCore.model.ArenaFieldConfig;
+import io.wax100.arenaCore.model.CylinderFieldConfig;
 import io.wax100.arenaCore.model.ArenaSession;
 import io.wax100.arenaCore.model.ArenaState;
 import io.wax100.arenaCore.util.ArenaMessages;
@@ -92,11 +93,20 @@ public class FieldSubCommand implements SubCommand {
             return;
         }
 
-        sender.sendMessage(String.format(ArenaMessages.MSG_FIELD_INFO_FMT,
-                field.worldName(),
-                field.minX(), field.minY(), field.minZ(),
-                field.maxX(), field.maxY(), field.maxZ(),
-                field.getBlockCount()));
+        if (field instanceof CylinderFieldConfig cyl) {
+            sender.sendMessage(String.format(ArenaMessages.MSG_FIELD_INFO_CYLINDER_FMT,
+                    cyl.worldName(),
+                    cyl.centerX(), cyl.centerZ(),
+                    cyl.radius(),
+                    cyl.minY(), cyl.maxY(),
+                    cyl.getBlockCount()));
+        } else {
+            sender.sendMessage(String.format(ArenaMessages.MSG_FIELD_INFO_FMT,
+                    field.worldName(),
+                    field.minX(), field.minY(), field.minZ(),
+                    field.maxX(), field.maxY(), field.maxZ(),
+                    field.getBlockCount()));
+        }
     }
 
     // ── Tab 補完 ──

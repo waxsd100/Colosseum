@@ -3,6 +3,7 @@ package io.wax100.arenaCore.listener;
 import io.wax100.arenaCore.ArenaCore;
 import io.wax100.arenaCore.manager.ArenaManager;
 import io.wax100.arenaCore.model.ArenaFieldConfig;
+import io.wax100.arenaCore.model.CylinderFieldConfig;
 import io.wax100.arenaCore.model.ArenaSession;
 import io.wax100.arenaCore.model.ArenaState;
 import io.wax100.arenaCore.util.ArenaMessages;
@@ -453,12 +454,23 @@ public class ArenaOutOfBoundsListener implements Listener {
     }
 
     /**
-     * 戦闘エリアの12辺を赤いパーティクルで描画する。
+     * 戦闘エリアの境界線を赤いパーティクルで描画する（形状ディスパッチ）。
      *
      * @param world ワールド
      * @param field 戦闘エリア設定
      */
     private void drawFieldBoundaryEdges(World world, ArenaFieldConfig field) {
+        if (field instanceof CylinderFieldConfig cyl) {
+            drawCylinderBoundary(world, cyl);
+        } else {
+            drawCuboidBoundary(world, field);
+        }
+    }
+
+    /**
+     * 直方体フィールドの12辺を赤いパーティクルで描画する。
+     */
+    private void drawCuboidBoundary(World world, ArenaFieldConfig field) {
         double x1 = field.minX();
         double y1 = field.minY();
         double z1 = field.minZ();
@@ -486,6 +498,39 @@ public class ArenaOutOfBoundsListener implements Listener {
             world.spawnParticle(Particle.REDSTONE, x2, y, z1, 1, BOUNDARY_DUST);
             world.spawnParticle(Particle.REDSTONE, x1, y, z2, 1, BOUNDARY_DUST);
             world.spawnParticle(Particle.REDSTONE, x2, y, z2, 1, BOUNDARY_DUST);
+        }
+    }
+
+    /**
+     * 円柱フィールドの上下の円周と縦線を赤いパーティクルで描画する。
+     */
+    private void drawCylinderBoundary(World world, CylinderFieldConfig cyl) {
+        double cx = cyl.centerX();
+        double cz = cyl.centerZ();
+        double r = cyl.radius();
+        double y1 = cyl.minY();
+        double y2 = cyl.maxY() + 1.0;
+
+        // 円周の角度ステップ（半径に応じて調整。パーティクル間隔がPARTICLE_STEP程度になるように）
+        double circumference = 2 * Math.PI * r;
+        int steps = Math.max(16, (int) (circumference / PARTICLE_STEP));
+        double angleStep = 2 * Math.PI / steps;
+
+        // 上下の円を描画
+        for (int i = 0; i < steps; i++) {
+            double angle = i * angleStep;
+            double x = cx + r * Math.cos(angle);
+            double z = cz + r * Math.sin(angle);
+            world.spawnParticle(Particle.REDSTONE, x, y1, z, 1, BOUNDARY_DUST);
+            world.spawnParticle(Particle.REDSTONE, x, y2, z, 1, BOUNDARY_DUST);
+        }
+
+        // 縦線（4本: 東西南北）
+        for (double y = y1; y <= y2; y += PARTICLE_STEP) {
+            world.spawnParticle(Particle.REDSTONE, cx + r, y, cz, 1, BOUNDARY_DUST);
+            world.spawnParticle(Particle.REDSTONE, cx - r, y, cz, 1, BOUNDARY_DUST);
+            world.spawnParticle(Particle.REDSTONE, cx, y, cz + r, 1, BOUNDARY_DUST);
+            world.spawnParticle(Particle.REDSTONE, cx, y, cz - r, 1, BOUNDARY_DUST);
         }
     }
 }

@@ -97,6 +97,9 @@ public final class ArenaMessages {
     /** 戦闘エリア情報（フォーマット用） */
     public static final String MSG_FIELD_INFO_FMT = PREFIX + ChatColor.GRAY + "戦闘エリア: " + ChatColor.WHITE + "%s " + ChatColor.GRAY + "(%d, %d, %d) → (%d, %d, %d) " + ChatColor.GRAY + "[%d ブロック]";
 
+    /** 戦闘エリア情報・円柱（フォーマット用） */
+    public static final String MSG_FIELD_INFO_CYLINDER_FMT = PREFIX + ChatColor.GRAY + "戦闘エリア(円柱): " + ChatColor.WHITE + "%s " + ChatColor.GRAY + "中心(%.1f, %.1f) 半径%.1f Y[%d, %d] " + ChatColor.GRAY + "[≈%d ブロック]";
+
     // ── プリセット ──
 
     /** プリセット保存完了 */

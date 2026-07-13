@@ -2,6 +2,7 @@ package io.wax100.arenaCore.command;
 
 import io.wax100.arenaCore.manager.ArenaManager;
 import io.wax100.arenaCore.model.ArenaFieldConfig;
+import io.wax100.arenaCore.model.CylinderFieldConfig;
 import io.wax100.arenaCore.model.ArenaSession;
 import io.wax100.arenaCore.model.ArenaState;
 import io.wax100.arenaCore.model.TeamAreaConfig;
@@ -134,12 +135,23 @@ public final class CommandHelper {
             com.sk89q.worldedit.regions.Region region =
                     com.sk89q.worldedit.WorldEdit.getInstance().getSessionManager()
                             .get(wePlayer).getSelection(wePlayer.getWorld());
+            String worldName = player.getWorld().getName();
+
+            // 円柱選択の場合
+            if (region instanceof com.sk89q.worldedit.regions.CylinderRegion cyl) {
+                com.sk89q.worldedit.math.Vector3 exactCenter = cyl.getCenter();
+                double radius = cyl.getRadius().getX();
+                int minY = cyl.getMinimumY();
+                int maxY = cyl.getMaximumY();
+                return CylinderFieldConfig.of(worldName,
+                        exactCenter.getX(), exactCenter.getZ(), radius, minY, maxY);
+            }
+
+            // デフォルト: 直方体選択
             com.sk89q.worldedit.math.BlockVector3 min = region.getMinimumPoint();
             com.sk89q.worldedit.math.BlockVector3 max = region.getMaximumPoint();
-            String worldName = player.getWorld().getName();
-            ArenaFieldConfig result = ArenaFieldConfig.of(worldName,
+            return ArenaFieldConfig.of(worldName,
                     min.getX(), min.getY(), min.getZ(), max.getX(), max.getY(), max.getZ());
-            return result;
         } catch (NoClassDefFoundError | Exception e) {
             return null;
         }
