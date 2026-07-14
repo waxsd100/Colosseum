@@ -232,6 +232,9 @@ public class ChipManager {
      */
     public boolean isChip(ItemStack item) {
         if (item == null) return false;
+        // チップはカーペット限定。マテリアルで足切りすることで、壊れた NBT を持つ
+        // 他アイテム（例: 未解決の trim pattern を持つ防具）への getItemMeta() 呼び出しを回避する
+        if (!Chip.isChipMaterial(item.getType())) return false;
         // 改善: hasItemMeta() + getItemMeta() の二重呼び出しを排除
         // getItemMeta() は null を返しうるので直接 null チェック
         ItemMeta meta = item.getItemMeta();
@@ -249,6 +252,9 @@ public class ChipManager {
      */
     public long getChipValue(ItemStack item) {
         if (item == null) return 0;
+        // チップはカーペット限定。マテリアルで足切りすることで、壊れた NBT を持つ
+        // 他アイテム（例: 未解決の trim pattern を持つ防具）への getItemMeta() 呼び出しを回避する
+        if (!Chip.isChipMaterial(item.getType())) return 0;
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return 0;
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
