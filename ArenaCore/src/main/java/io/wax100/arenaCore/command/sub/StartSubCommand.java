@@ -7,7 +7,6 @@ import io.wax100.arenaCore.manager.ArenaManager;
 import io.wax100.arenaCore.model.ArenaSession;
 import io.wax100.arenaCore.model.ArenaState;
 import io.wax100.arenaCore.util.ArenaMessages;
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 
@@ -34,14 +33,11 @@ public class StartSubCommand implements SubCommand {
                 sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
                         + "ベット締切後でなければ試合を開始できません。（現在: " + state.getDisplayName() + "）");
             }
-            // TP未設定エラーは ArenaManager 側で broadcastMessage 済み
+            // TP未設定エラーは ArenaManager 側で通知済み
             return;
         }
 
-        Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
-        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED + ChatColor.BOLD + "⚔ 試合開始！");
-        plugin.getBettingManager().broadcastOdds(session);
-        Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
+        // 開始アナウンス＋鐘の音はカウントダウン完了時に ArenaManager 側で行う
     }
 
     @Override

@@ -68,15 +68,6 @@ public final class ArenaMessages {
 
     // ── 地形復元 ──
 
-    /** 地形追跡開始 */
-    public static final String MSG_TERRAIN_TRACKING = PREFIX + ChatColor.GRAY + "地形の追跡を開始しました。";
-
-    /** 地形復元中 */
-    public static final String MSG_TERRAIN_FLUSHING = PREFIX + ChatColor.GRAY + "地形を復元中です...";
-
-    /** 地形復元完了 */
-    public static final String MSG_TERRAIN_COMPLETE = PREFIX + ChatColor.GREEN + "地形の復元が完了しました。";
-
     /** 地形復元中でセッション作成不可 */
     public static final String MSG_TERRAIN_BLOCKING = PREFIX + ChatColor.RED + "地形復元中のため、セッションを作成できません。";
 
