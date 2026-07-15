@@ -157,8 +157,12 @@ SETUP → RECRUITING → BETTING → BLIND → CLOSED → ACTIVE → FINISHED
 
 | パーミッション | 説明 | デフォルト |
 |--------------|------|----------|
-| `arena.admin` | `/arena` コマンドの使用 | OP |
+| `arenacore.admin` | `/arena` の管理サブコマンド・アリーナ看板の作成 | OP |
 | `arena.bet` | `/bet` コマンドの使用 | 全員 |
+
+> **注意**: v1.x では管理権限ノードは `arena.admin` でしたが、`arenacore.admin` に変更されました。
+> 権限プラグインで `arena.admin` を付与している場合は `arenacore.admin` に付け替えてください。
+> `/arena` 自体は権限なしで実行でき、`deathmatch` など一部のサブコマンドは参加者向けに開放されています。
 
 ---
 

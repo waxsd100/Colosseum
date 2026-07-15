@@ -131,6 +131,12 @@ public class ArenaOutOfBoundsListener implements Listener {
                 currentOobStart.put(playerId, System.currentTimeMillis());
                 // 外に出た瞬間にダメージエフェクト（画面赤フラッシュ）
                 player.playEffect(EntityEffect.HURT);
+                // 外に出た瞬間に移動速度低下を付与（毎秒タスクの更新を待たない）
+                int slownessLevel = plugin.getConfig().getInt(
+                        "out-of-bounds.slowness-level", SLOWNESS_AMPLIFIER);
+                player.addPotionEffect(new PotionEffect(
+                        PotionEffectType.SLOW, SLOWNESS_DURATION_TICKS,
+                        slownessLevel, false, false, true));
             }
         }
     }

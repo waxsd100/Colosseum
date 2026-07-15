@@ -6,6 +6,7 @@ import io.wax100.arenaCore.event.ArenaBettingCloseEvent;
 import io.wax100.arenaCore.event.ArenaBettingOpenEvent;
 import io.wax100.arenaCore.event.ArenaWinnerDeclaredEvent;
 import io.wax100.arenaCore.model.ArenaConfig;
+import io.wax100.arenaCore.model.ArenaFieldConfig;
 import io.wax100.arenaCore.model.ArenaSession;
 import io.wax100.arenaCore.model.ArenaState;
 import io.wax100.arenaCore.model.DeathmatchChallenge;
@@ -13,6 +14,7 @@ import io.wax100.arenaCore.model.MatchMode;
 import io.wax100.arenaCore.model.TeamAreaConfig;
 import io.wax100.arenaCore.model.BettingRegion;
 import io.wax100.arenaCore.util.ArenaMessages;
+import io.wax100.arenaCore.util.Players;
 import io.wax100.arenaCore.wincondition.WinCondition;
 import io.wax100.casinoCore.CasinoCore;
 import io.wax100.chipLib.ChipManager;
@@ -32,8 +34,10 @@ import org.bukkit.ChatColor;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -65,6 +69,13 @@ public class ArenaManager {
     private BukkitTask regionParticleTask;
     private final Set<UUID> eliminatedPlayers = new HashSet<>();
 
+    // ── 試合開始カウントダウン管理 ──
+    private BukkitTask startCountdownTask;
+    /** カウントダウン中の移動禁止対象闘技者 */
+    private final Set<UUID> frozenFighters = new HashSet<>();
+    /** カウントダウン中にAIを無効化したMob */
+    private final Set<UUID> frozenMobs = new HashSet<>();
+
     // ── オートループ管理 ──
     private boolean autoLoopEnabled = false;
     private String lastPresetName = null;
@@ -94,6 +105,8 @@ public class ArenaManager {
     private static final int[] VOTE_PROGRESS_NOTIFY_AT = {15, 10, 5};
     /** 参加費応答のタイムアウト（秒） */
     private static final int FEE_RESPONSE_TIMEOUT_SECONDS = 30;
+    /** 試合開始前カウントダウンの秒数 */
+    private static final int START_COUNTDOWN_SECONDS = 3;
 
     public ArenaManager(ArenaCore plugin, BettingManager bettingManager,
                         RegionManager regionManager, TerrainManager terrainManager) {
@@ -210,7 +223,7 @@ public class ArenaManager {
         if (!missingDest.isEmpty()) {
             for (String team : missingDest) {
                 ChatColor teamColor = activeSession.getTeamColor(team);
-                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED
+                notifyAdmins(ArenaMessages.PREFIX + ChatColor.RED
                         + "✗ " + teamColor + team + ChatColor.RED + " のTP先が未設定です。"
                         + ChatColor.GRAY + " → /arena team dest " + team);
             }
@@ -219,7 +232,7 @@ public class ArenaManager {
 
         // 戦闘エリア未設定チェック（エラー）
         if (activeSession.getFieldConfig() == null) {
-            Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED
+            notifyAdmins(ArenaMessages.PREFIX + ChatColor.RED
                     + "✗ 戦闘エリアが未設定です。" + ChatColor.GRAY + " → /arena field");
             return false;
         }
@@ -463,13 +476,18 @@ public class ArenaManager {
                 Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
                 String nextInfo = autoRunSession
                         ? ChatColor.RESET + "" + ChatColor.GRAY + " まもなく試合開始…"
-                        : ChatColor.RESET + "" + ChatColor.GRAY + " 試合開始待ち: " + ChatColor.YELLOW + "/arena start";
+                        : ChatColor.RESET + "" + ChatColor.GRAY + " 試合開始待ち…";
                 Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED + ChatColor.BOLD
                         + "⏰ ベット締切！" + nextInfo);
                 if (session != null) {
                     bettingManager.broadcastOdds(session);
                 }
                 Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
+                if (!autoRunSession) {
+                    notifyAdmins(ArenaMessages.PREFIX + ChatColor.GRAY + "→ "
+                            + ChatColor.YELLOW + "/arena start"
+                            + ChatColor.GRAY + " で試合を開始してください。");
+                }
 
                 // 無人進行: 5秒後に自動で試合開始
                 if (autoRunSession) {
@@ -493,12 +511,8 @@ public class ArenaManager {
     private void scheduleAutoStart() {
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (activeSession == null || activeSession.getState() != ArenaState.CLOSED) return;
-            if (startMatch()) {
-                Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
-                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED + ChatColor.BOLD + "⚔ 試合開始！");
-                bettingManager.broadcastOdds(activeSession);
-                Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
-            } else if (pendingFeeResponses.isEmpty()) {
+            // 開始成功時のアナウンスはカウントダウン完了時に startMatchCountdown 側で行う
+            if (!startMatch() && pendingFeeResponses.isEmpty()) {
                 Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED
                         + "試合を開始できなかったため、中止して返金しました。");
                 cancelArena();
@@ -604,7 +618,7 @@ public class ArenaManager {
             TeamAreaConfig areaConfig = activeSession.getTeamAreaConfig(team);
             if (areaConfig == null || areaConfig.getDestination() == null) {
                 ChatColor teamColor = activeSession.getTeamColor(team);
-                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED
+                notifyAdmins(ArenaMessages.PREFIX + ChatColor.RED
                         + "✗ " + teamColor + team + ChatColor.RED + " のTP先が未設定です。"
                         + ChatColor.GRAY + " → /arena team dest " + team);
                 return false;
@@ -741,6 +755,20 @@ public class ArenaManager {
             collectFees(entryFee, dmFeePerPerson);
         }
 
+        beginActiveMatch();
+
+        return true;
+    }
+
+    /**
+     * ベット締切後の試合開始シーケンス本体。
+     *
+     * <p>{@link #startMatch()} と参加費応答後の再開
+     * （{@link #processAfterFeeResponses()}）の両方から呼ばれる共通処理。
+     * 場外監視はカウントダウン中の凍結でペナルティが進行しないよう、
+     * カウントダウン完了後（{@link #announceMatchStart}）に開始する。
+     */
+    private void beginActiveMatch() {
         activeSession.setState(ArenaState.ACTIVE);
         cancelAllTasks();
         eliminatedPlayers.clear();
@@ -755,20 +783,136 @@ public class ArenaManager {
         Bukkit.getPluginManager().callEvent(new ArenaBettingCloseEvent(activeSession));
         plugin.getLogger().info("試合を開始しました: " + activeSession.getName());
 
-        // 戦闘エリア外脱出監視を開始
-        if (activeSession.getFieldConfig() != null) {
-            plugin.getOutOfBoundsListener().startCountdown();
-        }
+        // 締切時点のオッズを公開（カウントダウンが中断されても必ず流れるよう同期実行）
+        bettingManager.broadcastOdds(activeSession);
+
+        // 戦闘エリア内の残留ドロップアイテムを削除
+        clearDroppedItemsInField();
 
         // プレイヤー待機場からスキャンして登録＋TP
         scanAndTeleportPlayers();
         // モンスターチームのMobを待機場からスキャンしてTP
         scanAndTeleportMobs();
 
+        // 闘技者をサバイバルに強制（チップ購入でアドベンチャーのまま入場するのを防止）
+        restoreFighterGameModes(getChipPlugin());
+
         // バニラ Scoreboard Team と連携
         registerScoreboardTeams();
 
-        return true;
+        // 3秒カウントダウン → 開始アナウンス＋鐘の音＋場外監視開始
+        startMatchCountdown();
+    }
+
+    // ══════════════════════════════════════
+    //  試合開始カウントダウン
+    // ══════════════════════════════════════
+
+    /**
+     * 試合開始前のカウントダウンを開始する。
+     *
+     * <p>カウントダウン中（{@value #START_COUNTDOWN_SECONDS}秒間）は闘技者の移動を
+     * 禁止し（{@link #isFighterFrozen}）、MobチームのモンスターもAIを無効化して
+     * 足止めする。0になった時点で凍結を解除し、開始アナウンスと鐘の音を鳴らす。
+     */
+    private void startMatchCountdown() {
+        cancelStartCountdown();
+        if (activeSession == null) return;
+
+        // 闘技者を凍結
+        for (String team : activeSession.getTeamNames()) {
+            if (activeSession.isMobTeam(team)) continue;
+            frozenFighters.addAll(activeSession.getTeamMembers(team));
+        }
+
+        // Mobチームのモンスターも凍結（AI無効化）
+        for (UUID mobId : activeSession.getTrackedMobs().keySet()) {
+            if (Bukkit.getEntity(mobId) instanceof LivingEntity living) {
+                living.setAI(false);
+                frozenMobs.add(mobId);
+            }
+        }
+
+        final int[] remaining = {START_COUNTDOWN_SECONDS};
+        startCountdownTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            // セッションが中断・終了されたらカウントダウンも中止
+            if (activeSession == null || activeSession.getState() != ArenaState.ACTIVE) {
+                cancelStartCountdown();
+                return;
+            }
+
+            int r = remaining[0]--;
+            if (r > 0) {
+                Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW + ChatColor.BOLD
+                        + "試合開始まで " + r + "…");
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 1.0f);
+                }
+                for (UUID fighterId : frozenFighters) {
+                    Player fighter = Bukkit.getPlayer(fighterId);
+                    if (fighter != null) {
+                        fighter.sendTitle(ChatColor.YELLOW + "" + ChatColor.BOLD + r,
+                                ChatColor.GRAY + "試合開始まで…", 0, 25, 5);
+                    }
+                }
+            } else {
+                Set<UUID> fighters = new HashSet<>(frozenFighters);
+                cancelStartCountdown();
+                announceMatchStart(fighters);
+            }
+        }, 0L, 20L);
+    }
+
+    /** カウントダウンタスクを停止し、闘技者・Mobの凍結を解除する。 */
+    private void cancelStartCountdown() {
+        if (startCountdownTask != null) {
+            startCountdownTask.cancel();
+            startCountdownTask = null;
+        }
+        frozenFighters.clear();
+        // MobのAIを復元
+        for (UUID mobId : frozenMobs) {
+            if (Bukkit.getEntity(mobId) instanceof LivingEntity living) {
+                living.setAI(true);
+            }
+        }
+        frozenMobs.clear();
+    }
+
+    /**
+     * 開始カウントダウン中で移動禁止のプレイヤーかを判定する。
+     *
+     * @param playerId プレイヤーUUID
+     * @return 移動禁止中の場合 {@code true}
+     */
+    public boolean isFighterFrozen(UUID playerId) {
+        return frozenFighters.contains(playerId);
+    }
+
+    /**
+     * 試合開始をアナウンスし、鐘の音を鳴らす。
+     *
+     * @param fighters タイトル表示対象の闘技者
+     */
+    private void announceMatchStart(Set<UUID> fighters) {
+        Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
+        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED + ChatColor.BOLD + "⚔ 試合開始！");
+        if (activeSession != null) {
+            bettingManager.broadcastOdds(activeSession);
+        }
+        Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
+
+        // 鐘の音
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            p.playSound(p.getLocation(), Sound.BLOCK_BELL_USE, 1.0f, 1.0f);
+        }
+        for (UUID fighterId : fighters) {
+            Player fighter = Bukkit.getPlayer(fighterId);
+            if (fighter != null) {
+                fighter.sendTitle(ChatColor.RED + "" + ChatColor.BOLD + "⚔ 試合開始！",
+                        "", 0, 30, 10);
+            }
+        }
     }
 
     /**
@@ -1022,28 +1166,8 @@ public class ArenaManager {
             collectFees(entryFee, dmFeePerPerson);
         }
 
-        // startMatch の残り処理を実行
-        activeSession.setState(ArenaState.ACTIVE);
-        cancelAllTasks();
-        eliminatedPlayers.clear();
-        terrainManager.startTracking(activeSession);
-        guardManager.lockField(activeSession);
-        Bukkit.getPluginManager().callEvent(new ArenaBettingCloseEvent(activeSession));
-        plugin.getLogger().info("試合を開始しました: " + activeSession.getName());
-        scanAndTeleportPlayers();
-        scanAndTeleportMobs();
-        registerScoreboardTeams();
-
-        // 戦闘エリア外脱出監視を開始
-        if (activeSession.getFieldConfig() != null) {
-            plugin.getOutOfBoundsListener().startCountdown();
-        }
-
-        // StartSubCommand 相当の開始アナウンス
-        Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
-        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.RED + ChatColor.BOLD + "⚔ 試合開始！");
-        bettingManager.broadcastOdds(activeSession);
-        Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
+        // startMatch と共通の開始シーケンスを実行
+        beginActiveMatch();
     }
 
     /**
@@ -1515,6 +1639,7 @@ public class ArenaManager {
         cancelVoteTimer();
         cancelRecruitingTimer();
         stopRegionParticles();
+        cancelStartCountdown();
     }
 
     // ══════════════════════════════════════
@@ -1637,6 +1762,36 @@ public class ArenaManager {
     }
 
     /**
+     * 戦闘エリア内に落ちているドロップアイテムを削除する。
+     *
+     * <p>前試合の残骸などが試合開始時にフィールドへ残っていることがあるため、
+     * 試合開始時に呼び出してフィールドをクリーンな状態にする。
+     */
+    private void clearDroppedItemsInField() {
+        if (activeSession == null) return;
+        ArenaFieldConfig field = activeSession.getFieldConfig();
+        if (field == null) return;
+        World world = field.getWorld();
+        if (world == null) return;
+
+        try {
+            int removed = 0;
+            for (Entity entity : world.getEntities()) {
+                if (entity instanceof Item && field.contains(entity.getLocation())) {
+                    entity.remove();
+                    removed++;
+                }
+            }
+            if (removed > 0) {
+                plugin.getLogger().info(
+                        "戦闘エリア内のドロップアイテムを削除しました: " + removed + "個");
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("ドロップアイテム除去中にエラーが発生しました: " + e.getMessage());
+        }
+    }
+
+    /**
      * セッション終了時の共通クリーンアップ処理。
      *
      * <p>バニラ Scoreboard Team の解除、トラッキングMobの除去、
@@ -1663,6 +1818,8 @@ public class ArenaManager {
         eliminatedPlayers.clear();
         pendingFeeResponses.clear();
         regionManager.clearRegions();
+        // 開始カウントダウンを停止（凍結解除）
+        cancelStartCountdown();
         // デスマッチ投票状態をリセット
         activeChallenge = null;
         deathmatchProposalCount = 0;
@@ -1752,11 +1909,11 @@ public class ArenaManager {
         }
     }
     /**
-     * 全闘技者のゲームモードをサバイバルに強制復元する。
+     * 全闘技者のゲームモードをサバイバルに強制する。
      *
-     * <p>試合終了時の安全策として、チップ換金の有無に関わらず
-     * 全闘技者をサバイバルモードに戻す。ChipLib の previousGameModes
-     * エントリも併せてクリーンアップする。
+     * <p>試合開始時（チップ購入によるアドベンチャーモードのまま入場するのを防止）と
+     * 試合終了時（チップ換金の有無に関わらない安全策）の両方で呼び出される。
+     * ChipLib の previousGameModes エントリも併せてクリーンアップする。
      *
      * @param chipPlugin ChipPlugin インスタンス（null 可）
      */
@@ -2282,6 +2439,23 @@ public class ArenaManager {
     private ChipPlugin getChipPlugin() {
         Plugin p = Bukkit.getPluginManager().getPlugin("ChipLib");
         return (p instanceof ChipPlugin) ? (ChipPlugin) p : null;
+    }
+
+    /**
+     * 管理者（{@code arenacore.admin} 権限保持者）とコンソールにのみメッセージを送信する。
+     *
+     * <p>セットアップ不備の警告やコマンド案内など、一般プレイヤーに
+     * 見せる必要のない運営向けメッセージに使用する。
+     *
+     * @param message 送信するメッセージ（カラーコード可）
+     */
+    private void notifyAdmins(String message) {
+        plugin.getLogger().info(ChatColor.stripColor(message));
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            if (p.hasPermission("arenacore.admin")) {
+                p.sendMessage(message);
+            }
+        }
     }
 
     /**

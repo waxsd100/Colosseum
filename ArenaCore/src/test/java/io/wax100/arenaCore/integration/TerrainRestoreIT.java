@@ -214,6 +214,92 @@ class TerrainRestoreIT {
     }
 
     // ========================================================================
+    // 設置ブロックの破壊は復元対象外
+    // ========================================================================
+
+    @Nested
+    @DisplayName("設置ブロック除外テスト")
+    class PlacedBlockExclusionTest {
+
+        private io.wax100.arenaCore.storage.MemoryTerrainStorage storage;
+        private TerrainManager tm;
+        private ArenaSession session;
+
+        @BeforeEach
+        void setUpStorage() {
+            storage = new io.wax100.arenaCore.storage.MemoryTerrainStorage();
+            tm = new TerrainManager(plugin, storage);
+            session = createSessionWithField();
+            tm.startTracking(session);
+        }
+
+        private BlockData mockBlockData(String asString) {
+            BlockData data = mock(BlockData.class);
+            when(data.getAsString()).thenReturn(asString);
+            return data;
+        }
+
+        @Test
+        @DisplayName("設置したブロックを壊しても破壊エントリは記録されない")
+        void placedThenBroken_breakNotRecorded() {
+            String sessionId = session.getId().toString();
+            Location loc = mockLocation("world", 5, 5, 5);
+
+            tm.recordPlace(loc, mockBlockData("minecraft:air"));
+            tm.recordBreak(loc, mockBlockData("minecraft:dirt"));
+
+            // 残るのは設置時のエントリ（AIRへの復元）のみ
+            List<io.wax100.arenaCore.storage.BlockRestoreEntry> entries =
+                    storage.pollBatch(sessionId, 10);
+            assertEquals(1, entries.size());
+            assertEquals("minecraft:air", entries.get(0).blockDataString());
+            assertEquals(Long.MAX_VALUE, entries.get(0).restoreAtTick());
+        }
+
+        @Test
+        @DisplayName("設置していないブロックの破壊は記録される")
+        void normalBreak_recorded() {
+            String sessionId = session.getId().toString();
+            Location loc = mockLocation("world", 5, 5, 5);
+
+            tm.recordBreak(loc, mockBlockData("minecraft:stone"));
+
+            List<io.wax100.arenaCore.storage.BlockRestoreEntry> entries =
+                    storage.pollBatch(sessionId, 10);
+            assertEquals(1, entries.size());
+            assertEquals("minecraft:stone", entries.get(0).blockDataString());
+        }
+
+        @Test
+        @DisplayName("設置ブロック破壊後、同座標の別ブロック破壊は再び記録される")
+        void breakAfterPlacedBroken_recordedAgain() {
+            String sessionId = session.getId().toString();
+            Location loc = mockLocation("world", 5, 5, 5);
+
+            tm.recordPlace(loc, mockBlockData("minecraft:air"));
+            tm.recordBreak(loc, mockBlockData("minecraft:dirt"));   // 除外される
+            tm.recordBreak(loc, mockBlockData("minecraft:stone"));  // 元地形の破壊 → 記録
+
+            List<io.wax100.arenaCore.storage.BlockRestoreEntry> entries =
+                    storage.pollBatch(sessionId, 10);
+            assertEquals(2, entries.size(), "設置エントリ + 2回目の破壊エントリ");
+        }
+
+        @Test
+        @DisplayName("別座標の破壊は設置ブロックの影響を受けない")
+        void differentLocation_notAffected() {
+            String sessionId = session.getId().toString();
+
+            tm.recordPlace(mockLocation("world", 5, 5, 5), mockBlockData("minecraft:air"));
+            tm.recordBreak(mockLocation("world", 6, 5, 5), mockBlockData("minecraft:stone"));
+
+            List<io.wax100.arenaCore.storage.BlockRestoreEntry> entries =
+                    storage.pollBatch(sessionId, 10);
+            assertEquals(2, entries.size());
+        }
+    }
+
+    // ========================================================================
     // fieldConfig未設定
     // ========================================================================
 

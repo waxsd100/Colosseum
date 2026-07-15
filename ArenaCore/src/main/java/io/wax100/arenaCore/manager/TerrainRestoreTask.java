@@ -2,12 +2,6 @@ package io.wax100.arenaCore.manager;
 
 import io.wax100.arenaCore.storage.BlockRestoreEntry;
 import io.wax100.arenaCore.storage.TerrainStorageProvider;
-import org.bukkit.Bukkit;
-import org.bukkit.Chunk;
-import org.bukkit.Location;
-import org.bukkit.World;
-import org.bukkit.block.Block;
-import org.bukkit.block.data.BlockData;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.List;
@@ -52,23 +46,7 @@ public class TerrainRestoreTask extends BukkitRunnable {
         List<BlockRestoreEntry> batch = terrainStorage.pollBatch(sessionId, blocksPerTick);
 
         for (BlockRestoreEntry entry : batch) {
-            World world = Bukkit.getWorld(entry.worldName());
-            if (world == null) continue;
-
-            Location loc = new Location(world, entry.x(), entry.y(), entry.z());
-
-            // チャンクロード確認
-            Chunk chunk = loc.getChunk();
-            if (!chunk.isLoaded()) chunk.load();
-
-            BlockData originalData = Bukkit.createBlockData(entry.blockDataString());
-            Block block = loc.getBlock();
-            if (!block.getBlockData().equals(originalData)) {
-                block.setBlockData(originalData, false);
-                if (effects) {
-                    manager.playEffect(loc, originalData);
-                }
-            }
+            manager.restoreBlock(entry, effects);
         }
 
         if (terrainStorage.isEmpty(sessionId)) {

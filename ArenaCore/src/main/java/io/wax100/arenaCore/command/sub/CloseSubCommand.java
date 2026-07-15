@@ -51,8 +51,11 @@ public class CloseSubCommand implements SubCommand {
         Bukkit.broadcastMessage("");
         plugin.getBettingManager().broadcastOdds(session);
         Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
-                + "試合開始を待っています… " + ChatColor.YELLOW + "/arena start");
+                + "試合開始を待っています…");
         Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
+        // コマンド案内は実行者のみに表示
+        sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "→ "
+                + ChatColor.YELLOW + "/arena start" + ChatColor.GRAY + " で試合を開始");
     }
 
     @Override

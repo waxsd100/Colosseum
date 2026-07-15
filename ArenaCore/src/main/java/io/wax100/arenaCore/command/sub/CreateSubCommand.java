@@ -7,7 +7,6 @@ import io.wax100.arenaCore.manager.ArenaManager;
 import io.wax100.arenaCore.model.ArenaSession;
 import io.wax100.arenaCore.util.ArenaMessages;
 import io.wax100.chipLib.ChipManager;
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 
@@ -49,24 +48,25 @@ public class CreateSubCommand implements SubCommand {
             return;
         }
 
-        Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
-        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GOLD + ChatColor.BOLD
+        // セットアップ情報は実行者のみに表示（全体アナウンスは /arena open 時に行う）
+        sender.sendMessage(ArenaMessages.SEPARATOR);
+        sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GOLD + ChatColor.BOLD
                 + "闘技場「" + name + "」が開設されました！");
-        Bukkit.broadcastMessage("");
+        sender.sendMessage("");
 
         long entryFee = session.getArenaConfig().getEntryFee();
         if (entryFee > 0) {
-            Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
+            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY
                     + "参加費: " + ChatColor.YELLOW + ChipManager.formatAmount(entryFee) + " E");
-            Bukkit.broadcastMessage("");
+            sender.sendMessage("");
         }
 
-        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "次のステップ:");
-        Bukkit.broadcastMessage(ChatColor.GRAY + "  1. " + ChatColor.YELLOW + "/arena team add <チーム名>");
-        Bukkit.broadcastMessage(ChatColor.GRAY + "  2. " + ChatColor.YELLOW + "/arena team area <チーム> [待機場名]");
-        Bukkit.broadcastMessage(ChatColor.GRAY + "  3. " + ChatColor.YELLOW + "/arena field set [名前]");
-        Bukkit.broadcastMessage(ChatColor.GRAY + "  4. " + ChatColor.YELLOW + "/arena config" + ChatColor.GRAY + " <- 設定変更");
-        Bukkit.broadcastMessage(ArenaMessages.SEPARATOR);
+        sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "次のステップ:");
+        sender.sendMessage(ChatColor.GRAY + "  1. " + ChatColor.YELLOW + "/arena team add <チーム名>");
+        sender.sendMessage(ChatColor.GRAY + "  2. " + ChatColor.YELLOW + "/arena team area <チーム> [待機場名]");
+        sender.sendMessage(ChatColor.GRAY + "  3. " + ChatColor.YELLOW + "/arena field set [名前]");
+        sender.sendMessage(ChatColor.GRAY + "  4. " + ChatColor.YELLOW + "/arena config" + ChatColor.GRAY + " <- 設定変更");
+        sender.sendMessage(ArenaMessages.SEPARATOR);
     }
 
     @Override

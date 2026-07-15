@@ -9,9 +9,8 @@ softdepend: [WorldEdit, WorldGuard]
 
 commands:
   arena:
-    description: 闘技場管理コマンド
-    usage: /arena <create|team|area|region|field|preset|open|close|start|win|cancel|status|jackpot>
-    permission: arena.admin
+    description: 闘技場コマンド（管理 + デスマッチ提案・投票）
+    usage: /arena <create|team|area|region|field|preset|open|close|start|win|cancel|status|jackpot|deathmatch>
   bet:
     description: ベット情報コマンド
     usage: /bet <odds|info>
@@ -22,7 +21,7 @@ commands:
     permission: arena.bet
 
 permissions:
-  arena.admin:
+  arenacore.admin:
     description: 闘技場の管理権限
     default: op
   arena.bet:

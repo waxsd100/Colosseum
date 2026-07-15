@@ -20,6 +20,9 @@ import java.util.*;
  */
 public class ArenaCommand implements CommandExecutor, TabCompleter {
 
+    /** 管理者権限なしで実行できるプレイヤー向けサブコマンド（内部で闘技者チェック等を行う） */
+    private static final Set<String> PLAYER_SUB_COMMANDS = Set.of("deathmatch");
+
     private final ArenaCore plugin;
     private final Map<String, SubCommand> subCommands = new LinkedHashMap<>();
 
@@ -45,19 +48,31 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String [] args) {
-        if (!sender.hasPermission("arenacore.admin")) {
-            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "権限がありません。");
-            return true;
-        }
+        boolean isAdmin = sender.hasPermission("arenacore.admin");
 
         if (args.length == 0) {
-            sendUsage(sender);
+            if (isAdmin) {
+                sendUsage(sender);
+            } else {
+                sendPlayerUsage(sender);
+            }
             return true;
         }
 
-        SubCommand sub = subCommands.get(args[0].toLowerCase());
+        String subName = args[0].toLowerCase();
+        SubCommand sub = subCommands.get(subName);
         if (sub == null) {
-            sendUsage(sender);
+            if (isAdmin) {
+                sendUsage(sender);
+            } else {
+                sendPlayerUsage(sender);
+            }
+            return true;
+        }
+
+        // 管理サブコマンドは admin 権限が必要（deathmatch 等は誰でも実行可）
+        if (!isAdmin && !PLAYER_SUB_COMMANDS.contains(subName)) {
+            sender.sendMessage(ArenaMessages.PREFIX + ChatColor.RED + "権限がありません。");
             return true;
         }
 
@@ -65,18 +80,28 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
         String[] subArgs = Arrays.copyOfRange(args, 1, args.length);
         sub.execute(sender, subArgs);
 
-        // 次ステップのヒントを表示
-        sendNextStepHint(sender);
+        // 次ステップのヒントを表示（運営向けのため管理者のみ）
+        if (isAdmin) {
+            sendNextStepHint(sender);
+        }
         return true;
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String [] args) {
+        boolean isAdmin = sender.hasPermission("arenacore.admin");
+
         if (args.length == 1) {
-            return CommandHelper.filterStartsWith(subCommands.keySet(), args[0]);
+            return CommandHelper.filterStartsWith(
+                    isAdmin ? subCommands.keySet() : PLAYER_SUB_COMMANDS, args[0]);
         }
 
-        SubCommand sub = subCommands.get(args[0].toLowerCase());
+        String subName = args[0].toLowerCase();
+        if (!isAdmin && !PLAYER_SUB_COMMANDS.contains(subName)) {
+            return List.of();
+        }
+
+        SubCommand sub = subCommands.get(subName);
         if (sub != null) {
             String[] subArgs = Arrays.copyOfRange(args, 1, args.length);
             return sub.tabComplete(sender, subArgs);
@@ -107,6 +132,16 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "  /arena loop <true|false>" + ChatColor.GRAY + " <- 試合の自動ループ");
         sender.sendMessage(ChatColor.YELLOW + "  /arena jackpot [add <金額>]" + ChatColor.GRAY + " <- 残高確認・自腹で積立");
         sender.sendMessage(ChatColor.YELLOW + "  /arena status");
+    }
+
+    /**
+     * 非管理者（闘技者・観客）向けの使い方を表示する。
+     */
+    private void sendPlayerUsage(CommandSender sender) {
+        sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY + "使い方:");
+        sender.sendMessage(ChatColor.YELLOW + "  /arena deathmatch <金額|all>" + ChatColor.GRAY + " <- デスマッチ提案（闘技者）");
+        sender.sendMessage(ChatColor.YELLOW + "  /arena deathmatch yes/no" + ChatColor.GRAY + " <- 投票（闘技者）");
+        sender.sendMessage(ChatColor.YELLOW + "  /arena deathmatch info" + ChatColor.GRAY + " <- 投票状況");
     }
 
     /**

@@ -23,6 +23,7 @@ import io.wax100.arenaCore.storage.MemoryTerrainStorage;
 import io.wax100.arenaCore.storage.TerrainStorageProvider;
 import io.wax100.arenaCore.util.ArenaMessages;
 import org.bukkit.Bukkit;
+import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
@@ -37,7 +38,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.List;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 
@@ -46,7 +49,7 @@ import java.util.Set;
  *
  * <p>試合中のブロック破壊を追跡し、3段階で地形を復元する:
  * <ol>
- *   <li><b>Stage 1</b> — 試合中: N tick後に個別復元（ゆっくり）</li>
+ *   <li><b>Stage 1</b> — 試合中: N tick後に interval tickごとにN個ずつ復元（デフォルト毎tick 1個ずつ）</li>
  *   <li><b>Stage 2</b> — 試合後: 高速復元（1tickにN個）</li>
  *   <li><b>Stage 3</b> — Schematic ペーストで差分ゼロ保証</li>
  * </ol>
@@ -57,6 +60,9 @@ import java.util.Set;
  * クラッシュ復旧の情報源として活用する。
  */
 public class TerrainManager {
+
+    /** Stage 2（高速復元）タスクの実行間隔 (tick)。仕様として毎tick固定。 */
+    static final long POST_MATCH_INTERVAL_TICKS = 1L;
 
     private static final Particle BLOCK_PARTICLE;
 
@@ -87,12 +93,18 @@ public class TerrainManager {
     private String schematicName;
     private long tickCounter = 0;
     private BukkitTask tickCounterTask;
+    /** 試合中に設置されたブロックの座標キー。設置ブロックの破壊は復元対象外にする。 */
+    private final Set<String> placedLocations = new HashSet<>();
+    /** Stage 1 で復元時刻を迎えたエントリの待ち行列。1tick に N 個ずつ取り出して復元する。 */
+    private final Deque<BlockRestoreEntry> duringMatchQueue = new ArrayDeque<>();
 
     // ── config値 ──
 
     private boolean enabled;
     private final boolean worldEditAvailable;
     private int duringMatchDelay;
+    private int duringMatchBlocksPerTick;
+    private int duringMatchInterval;
     private int postMatchDelay;
     private int postMatchBlocksPerTick;
     private boolean effects;
@@ -133,6 +145,10 @@ public class TerrainManager {
         enabled = config.getBoolean("terrain-restore.enabled", true);
         duringMatchDelay = Math.max(0,
                 config.getInt("terrain-restore.during-match-delay", 300));
+        duringMatchBlocksPerTick = Math.max(1,
+                config.getInt("terrain-restore.during-match-blocks-per-tick", 1));
+        duringMatchInterval = Math.max(1,
+                config.getInt("terrain-restore.during-match-interval", 1));
         postMatchDelay = config.getInt("terrain-restore.post-match-delay", 60);
         postMatchBlocksPerTick = Math.max(1,
                 config.getInt("terrain-restore.post-match-blocks-per-tick", 10));
@@ -289,6 +305,8 @@ public class TerrainManager {
         schematicName = session.getName();
         terrainStorage.clearSession(sessionName);
         tickCounter = 0;
+        placedLocations.clear();
+        duringMatchQueue.clear();
         state = State.TRACKING;
 
         // 自前tickカウンター開始（Spigot互換、Paper API不要）
@@ -302,19 +320,24 @@ public class TerrainManager {
         // .active マーカーファイル作成
         writeActiveMarker(schematicName, fieldConfig.worldName());
 
-        Bukkit.broadcastMessage(ArenaMessages.MSG_TERRAIN_TRACKING);
+        plugin.getLogger().info("地形の追跡を開始しました: " + schematicName);
     }
 
     /**
      * ブロック破壊を記録する。
      *
      * <p>TRACKING 状態かつフィールド範囲内の場合のみストレージに追加する。
+     * 試合中に設置されたブロック（{@link #recordPlace} 済みの座標）の破壊は
+     * 元の地形に存在しないブロックのため復元対象外とする。
      *
      * @param loc      破壊されたブロックの座標
      * @param original 破壊前のブロックデータ
      */
     public void recordBreak(Location loc, BlockData original) {
         if (!isTrackable(loc)) return;
+
+        // 設置ブロックの破壊 → 復元しない（設置前の状態は recordPlace 側のエントリが復元する）
+        if (placedLocations.remove(locKey(loc))) return;
 
         terrainStorage.recordBlockChange(sessionName,
                 loc.getWorld().getName(),
@@ -335,6 +358,8 @@ public class TerrainManager {
     public void recordPlace(Location loc, BlockData previousData) {
         if (!isTrackable(loc)) return;
 
+        placedLocations.add(locKey(loc));
+
         // Long.MAX_VALUE → Stage 1 では処理されず、Stage 2 の flush で一括復元
         terrainStorage.recordBlockChange(sessionName,
                 loc.getWorld().getName(),
@@ -348,6 +373,17 @@ public class TerrainManager {
         return state == State.TRACKING && fieldConfig != null && fieldConfig.contains(loc);
     }
 
+    /** 設置ブロック追跡用の座標キーを生成する。 */
+    private static String locKey(Location loc) {
+        return locKey(loc.getWorld().getName(),
+                loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
+    }
+
+    /** 設置ブロック追跡用の座標キーを生成する。 */
+    private static String locKey(String worldName, int x, int y, int z) {
+        return worldName + ":" + x + ":" + y + ":" + z;
+    }
+
     /** 試合中復元タスクが停止していれば起動する。 */
     private void ensureDuringMatchTask() {
         if (duringMatchTask == null || duringMatchTask.isCancelled()) {
@@ -356,22 +392,31 @@ public class TerrainManager {
                 public void run() {
                     processDuringMatch();
                 }
-            }.runTaskTimer(plugin, 1L, 1L);
+            }.runTaskTimer(plugin, 1L, duringMatchInterval);
         }
     }
 
     /**
-     * 試合中の復元処理。delay が経過したエントリを復元する。
-     * ストレージが空になったらタスクを停止する。
+     * 試合中の復元処理。delay が経過したエントリをキューに移し、
+     * {@code duringMatchInterval} tick ごとに {@code duringMatchBlocksPerTick} 個ずつ
+     * 復元する（同時に破壊されたブロックもまとめて戻さず順番に戻る）。
+     * キューとストレージが空になったらタスクを停止する。
      */
     private void processDuringMatch() {
-        List<BlockRestoreEntry> readyEntries =
-                terrainStorage.pollReadyEntries(sessionName, tickCounter);
-        for (BlockRestoreEntry entry : readyEntries) {
-            restoreSingleBlock(entry);
+        duringMatchQueue.addAll(
+                terrainStorage.pollReadyEntries(sessionName, tickCounter));
+        for (int i = 0; i < duringMatchBlocksPerTick
+                && !duringMatchQueue.isEmpty(); i++) {
+            BlockRestoreEntry entry = duringMatchQueue.poll();
+            restoreBlock(entry, effects);
+            // 復元でこの座標の設置ブロックは上書きされたため、
+            // 残ったフラグが以降の破壊記録を誤ってスキップしないよう解除する
+            placedLocations.remove(
+                    locKey(entry.worldName(), entry.x(), entry.y(), entry.z()));
         }
-        // ストレージが空になったらタスク停止
-        if (terrainStorage.isEmpty(sessionName) && duringMatchTask != null) {
+        // キューとストレージが空になったらタスク停止
+        if (duringMatchQueue.isEmpty() && terrainStorage.isEmpty(sessionName)
+                && duringMatchTask != null) {
             duringMatchTask.cancel();
             duringMatchTask = null;
         }
@@ -380,19 +425,26 @@ public class TerrainManager {
     /**
      * 1ブロックを復元する（変更がある場合のみ）。
      *
-     * @param entry 復元エントリ
+     * <p>チャンク未ロードの場合はロードしてから復元する。
+     * package-private: {@link TerrainRestoreTask} からアクセス可能。
+     *
+     * @param entry       復元エントリ
+     * @param playEffects エフェクトを再生するか
      */
-    private void restoreSingleBlock(BlockRestoreEntry entry) {
+    void restoreBlock(BlockRestoreEntry entry, boolean playEffects) {
         World world = Bukkit.getWorld(entry.worldName());
         // ワールドがアンロードされている場合はスキップ
         if (world == null) return;
 
         Location loc = new Location(world, entry.x(), entry.y(), entry.z());
+        Chunk chunk = loc.getChunk();
+        if (!chunk.isLoaded()) chunk.load();
+
         BlockData originalData = Bukkit.createBlockData(entry.blockDataString());
         Block block = loc.getBlock();
         if (!block.getBlockData().equals(originalData)) {
             block.setBlockData(originalData, false);
-            if (effects) playEffect(loc, originalData);
+            if (playEffects) playEffect(loc, originalData);
         }
     }
 
@@ -414,7 +466,11 @@ public class TerrainManager {
 
         cancelTrackingTasks();
         state = State.FLUSHING;
-        Bukkit.broadcastMessage(ArenaMessages.MSG_TERRAIN_FLUSHING);
+        plugin.getLogger().info("地形を復元中です: " + schematicName);
+
+        // Stage 1 キューの残り（ストレージからは取り出し済み）を即時復元する
+        duringMatchQueue.forEach(entry -> restoreBlock(entry, effects));
+        duringMatchQueue.clear();
 
         // MemoryTerrainStorage の場合は設置ブロックを先頭に並べ替える
         if (terrainStorage instanceof MemoryTerrainStorage memoryStorage) {
@@ -426,7 +482,7 @@ public class TerrainManager {
         // Stage 2: 高速復元 → Stage 3
         flushTask = new TerrainRestoreTask(
                 terrainStorage, this, sessionName, postMatchBlocksPerTick, effects)
-                .runTaskTimer(plugin, postMatchDelay, 1L);
+                .runTaskTimer(plugin, postMatchDelay, POST_MATCH_INTERVAL_TICKS);
     }
 
     /** 試合中タスクを全て停止する。 */
@@ -461,8 +517,9 @@ public class TerrainManager {
         fieldConfig = null;
         sessionName = null;
         schematicName = null;
+        placedLocations.clear();
 
-        Bukkit.broadcastMessage(ArenaMessages.MSG_TERRAIN_COMPLETE);
+        plugin.getLogger().info("地形の復元が完了しました。");
     }
 
     // ══════════════════════════════════════
@@ -603,6 +660,8 @@ public class TerrainManager {
         sessionName = null;
         schematicName = null;
         tickCounter = 0;
+        placedLocations.clear();
+        duringMatchQueue.clear();
         // .active は残す → 次回 onEnable で復旧
         state = State.IDLE;
     }
@@ -610,12 +669,10 @@ public class TerrainManager {
     /**
      * 復元エフェクト（パーティクル + 効果音）を再生する。
      *
-     * <p>package-private: {@link TerrainRestoreTask} からアクセス可能。
-     *
      * @param loc  エフェクトの座標
      * @param data ブロックデータ（パーティクル用）
      */
-    void playEffect(Location loc, BlockData data) {
+    private void playEffect(Location loc, BlockData data) {
         World world = loc.getWorld();
         if (world == null) return;
         Location center = loc.clone().add(0.5, 0.5, 0.5);

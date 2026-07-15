@@ -9,7 +9,11 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Bash(git tag *)",
-      "Bash(gh release *)"
+      "Bash(gh release *)",
+      "PowerShell(.\\\\gradlew.bat :ChipLib:compileJava --console=plain -q)",
+      "PowerShell(.\\\\gradlew.bat :ChipLib:test --console=plain -q)",
+      "PowerShell(.\\\\gradlew.bat :ArenaCore:test 2>&1 | Select-Object -Last 10)",
+      "PowerShell(.\\\\gradlew.bat :ArenaCore:test 2>&1 | Select-Object -Last 8)"
     ]
   }
 }

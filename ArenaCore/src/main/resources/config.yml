@@ -62,6 +62,10 @@ terrain-restore:
   enabled: true
   # 試合中: ブロック破壊からN tick後に自動復元 (20tick=1秒)
   during-match-delay: 300
+  # 試合中: 1回あたりの復元ブロック数 (1 = まとめず1個ずつ順番に戻る)
+  during-match-blocks-per-tick: 1
+  # 試合中: 復元の実行間隔 (tick, 1 = 毎tick)
+  during-match-interval: 1
   # 試合後: 高速復元開始までの遅延 (tick)
   post-match-delay: 60
   # 試合後: 1tickあたりの復元ブロック数

@@ -70,7 +70,7 @@ public class TeamSubCommand implements SubCommand {
 
         session.addTeam(teamName);
         ChatColor teamColor = session.getTeamColor(teamName);
-        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GREEN
+        sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GREEN
                 + "チーム " + teamColor + ChatColor.BOLD + teamName
                 + ChatColor.RESET + ChatColor.GREEN + " が追加されました！");
         sender.sendMessage(ArenaMessages.PREFIX + ChatColor.GRAY
@@ -96,7 +96,7 @@ public class TeamSubCommand implements SubCommand {
             return;
         }
 
-        Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
+        sender.sendMessage(ArenaMessages.PREFIX + ChatColor.YELLOW
                 + "チーム " + ChatColor.BOLD + teamName
                 + ChatColor.RESET + ChatColor.YELLOW + " が削除されました。");
     }

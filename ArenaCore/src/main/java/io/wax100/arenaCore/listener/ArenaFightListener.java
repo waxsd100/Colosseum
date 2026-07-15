@@ -7,6 +7,7 @@ import io.wax100.arenaCore.model.ArenaState;
 import io.wax100.arenaCore.util.ArenaMessages;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Location;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -14,6 +15,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
 /**
@@ -27,6 +29,26 @@ public class ArenaFightListener implements Listener {
 
     public ArenaFightListener(ArenaCore plugin) {
         this.plugin = plugin;
+    }
+
+    /**
+     * 試合開始カウントダウン中の闘技者の移動をブロックする。
+     *
+     * <p>視点変更（yaw/pitch）は許可し、位置の変化のみを打ち消す。
+     */
+    @EventHandler(ignoreCancelled = true)
+    public void onPlayerMove(PlayerMoveEvent event) {
+        if (!plugin.getArenaManager().isFighterFrozen(event.getPlayer().getUniqueId())) return;
+
+        Location from = event.getFrom();
+        Location to = event.getTo();
+        if (to == null) return;
+        if (from.getX() != to.getX() || from.getY() != to.getY() || from.getZ() != to.getZ()) {
+            Location fixed = from.clone();
+            fixed.setYaw(to.getYaw());
+            fixed.setPitch(to.getPitch());
+            event.setTo(fixed);
+        }
     }
 
     /**
