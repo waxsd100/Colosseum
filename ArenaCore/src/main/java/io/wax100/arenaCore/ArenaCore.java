@@ -16,6 +16,7 @@ import io.wax100.arenaCore.manager.ArenaPresetStore;
 import io.wax100.arenaCore.manager.BettingManager;
 import io.wax100.arenaCore.manager.DoubleUpManager;
 import io.wax100.arenaCore.manager.RegionManager;
+import io.wax100.arenaCore.manager.SpectatorHealthManager;
 import io.wax100.arenaCore.manager.TerrainManager;
 import io.wax100.arenaCore.storage.MemoryTerrainStorage;
 import io.wax100.arenaCore.storage.RedisTerrainStorage;
@@ -58,6 +59,7 @@ public final class ArenaCore extends JavaPlugin {
     private PayoutDistributor payoutDistributor;
     private JackpotManager jackpotManager;
     private DoubleUpManager doubleUpManager;
+    private SpectatorHealthManager spectatorHealthManager;
     private TerrainStorageProvider terrainStorage;
     private ArenaOutOfBoundsListener outOfBoundsListener;
     private WinCondition winCondition;
@@ -113,6 +115,7 @@ public final class ArenaCore extends JavaPlugin {
         terrainManager = new TerrainManager(this, terrainStorage);
         presetStore = new ArenaPresetStore(getDataFolder(), getLogger());
         doubleUpManager = new DoubleUpManager(this);
+        spectatorHealthManager = new SpectatorHealthManager(this);
         arenaManager = new ArenaManager(this, bettingManager, regionManager, terrainManager);
 
         // コマンド登録
@@ -279,4 +282,5 @@ public final class ArenaCore extends JavaPlugin {
     public DoubleUpManager getDoubleUpManager() { return doubleUpManager; }
     public ArenaOutOfBoundsListener getOutOfBoundsListener() { return outOfBoundsListener; }
     public ArenaPayoutLogger getPayoutLogger() { return payoutLogger; }
+    public SpectatorHealthManager getSpectatorHealthManager() { return spectatorHealthManager; }
 }

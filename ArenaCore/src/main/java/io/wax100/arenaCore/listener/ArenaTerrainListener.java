@@ -38,6 +38,21 @@ public class ArenaTerrainListener implements Listener {
     }
 
     /**
+     * 復元対象ブロックの破壊ドロップ・経験値を抑止する。
+     *
+     * <p>破壊されたブロックは後で復元されるため、ドロップを許すと
+     * ブロックが無限に複製できてしまう。MONITOR ではイベントを
+     * 改変できないため HIGH で処理する。
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onBlockBreakSuppressDrops(BlockBreakEvent e) {
+        if (terrainManager.shouldSuppressDrops(e.getBlock().getLocation())) {
+            e.setDropItems(false);
+            e.setExpToDrop(0);
+        }
+    }
+
+    /**
      * プレイヤーによるブロック破壊を記録する。
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -59,11 +74,31 @@ public class ArenaTerrainListener implements Listener {
     }
 
     /**
+     * フィールド内のエンティティ爆発によるブロックドロップを抑止する。
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onEntityExplodeSuppressDrops(EntityExplodeEvent e) {
+        if (terrainManager.shouldSuppressExplosionDrops(e.getLocation())) {
+            e.setYield(0f);
+        }
+    }
+
+    /**
      * エンティティ爆発によるブロック破壊を記録する。
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onEntityExplode(EntityExplodeEvent e) {
         recordExplosion(e.blockList());
+    }
+
+    /**
+     * フィールド内のブロック爆発によるブロックドロップを抑止する。
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onBlockExplodeSuppressDrops(BlockExplodeEvent e) {
+        if (terrainManager.shouldSuppressExplosionDrops(e.getBlock().getLocation())) {
+            e.setYield(0f);
+        }
     }
 
     /**

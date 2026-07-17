@@ -87,8 +87,8 @@ public class ArenaManager {
     private int recruitExtensions = 0;
     /** 無人進行時の募集延長上限 */
     private static final int AUTO_RUN_MAX_EXTENSIONS = 2;
-    /** 無人進行時のタイマー未設定フォールバック（秒） */
-    private static final int AUTO_RUN_FALLBACK_SECONDS = 60;
+    /** 無人進行時のタイマー未設定・不正値フォールバック（秒） */
+    private static final int AUTO_RUN_FALLBACK_SECONDS = 90;
 
     // ── デスマッチ投票管理 ──
     private DeathmatchChallenge activeChallenge;
@@ -131,12 +131,14 @@ public class ArenaManager {
     /**
      * 無人進行用のタイマー秒数を解決する。
      *
-     * <p>config の {@code default-betting-duration} が未設定（0以下）の場合は
+     * <p>config の {@code sign-start.duration} を使用する
+     * （{@code default-betting-duration} とは独立）。未設定・0以下の場合は
      * フォールバック値（{@value #AUTO_RUN_FALLBACK_SECONDS}秒）を返す。
      * 無人進行はタイマーがないとフェーズが進まないため、必ず正の値を返す。
      */
     public int resolveAutoRunDuration() {
-        int duration = plugin.getConfig().getInt("default-betting-duration", 0);
+        int duration = plugin.getConfig().getInt(
+                "sign-start.duration", AUTO_RUN_FALLBACK_SECONDS);
         return duration > 0 ? duration : AUTO_RUN_FALLBACK_SECONDS;
     }
 
@@ -799,6 +801,10 @@ public class ArenaManager {
 
         // バニラ Scoreboard Team と連携
         registerScoreboardTeams();
+
+        // 観客向け競技者HP表示を開始
+        SpectatorHealthManager spectatorHealth = plugin.getSpectatorHealthManager();
+        if (spectatorHealth != null) spectatorHealth.start(activeSession);
 
         // 3秒カウントダウン → 開始アナウンス＋鐘の音＋場外監視開始
         startMatchCountdown();
@@ -1799,6 +1805,8 @@ public class ArenaManager {
      * {@code cancelArena} の finally ブロックから呼び出される。
      */
     private void cleanupSession() {
+        // 観客向けHP表示（ボスバー）を停止
+        stopSpectatorHealth();
         unregisterScoreboardTeams();
         // チップ使用許可を全解除
         ChipPlugin chipPlugin = getChipPlugin();
@@ -2067,6 +2075,13 @@ public class ArenaManager {
         cancelVoteTimer();
         terrainManager.cancelAndClear();
         if (activeSession != null) cancelArena();
+        stopSpectatorHealth();
+    }
+
+    /** 観客向けHP表示を停止する（マネージャ未初期化のテスト環境では何もしない）。 */
+    private void stopSpectatorHealth() {
+        SpectatorHealthManager spectatorHealth = plugin.getSpectatorHealthManager();
+        if (spectatorHealth != null) spectatorHealth.stop();
     }
 
     // ══════════════════════════════════════

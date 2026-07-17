@@ -56,6 +56,25 @@ deathmatch:
 # ── ベットタイマー ──
 default-betting-duration: 0       # /arena lock 時のデフォルトベット制限時間（秒, 0 = 無制限）
 
+# ── 開始看板（無人進行） ──
+sign-start:
+  # 看板起動セッションの募集・ベット受付タイマー（秒, default-betting-duration とは独立。0以下は90秒扱い）
+  duration: 90
+  # Mobチームを含むプリセットの看板開始を許可するか（Mob召喚に管理者操作が必要なため既定で不可）
+  allow-mob-presets: false
+
+# ── 観客向け競技者HP表示 ──
+spectator-health:
+  # 観客に競技者HPを表示するか（競技者本人には表示されない）
+  enabled: true
+  # デフォルトの表示方式: bossbar（競技者ごとのボスバー）| sidebar（一覧）| off
+  # 観客は /arena hp <bossbar|sidebar|off> で個別に切り替え可能
+  default-mode: bossbar
+  # 観客判定: フィールド境界からの半径 (ブロック)
+  radius: 100
+  # 表示・観客判定の更新間隔 (tick)
+  update-interval: 10
+
 # ── 地形復元 ──
 terrain-restore:
   # 地形復元を有効にするか (WorldEdit 必須)
@@ -72,6 +91,8 @@ terrain-restore:
   post-match-blocks-per-tick: 10
   # 復元エフェクト (パーティクル + 効果音, 試合中のみ)
   effects: true
+  # 復元対象ブロックのドロップを抑止するか (false にすると破壊で複製可能になる)
+  suppress-drops: true
 
 # ── ダブルアップ（パーレー） ──
 double-up:

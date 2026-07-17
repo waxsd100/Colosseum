@@ -21,7 +21,7 @@ import java.util.*;
 public class ArenaCommand implements CommandExecutor, TabCompleter {
 
     /** 管理者権限なしで実行できるプレイヤー向けサブコマンド（内部で闘技者チェック等を行う） */
-    private static final Set<String> PLAYER_SUB_COMMANDS = Set.of("deathmatch");
+    private static final Set<String> PLAYER_SUB_COMMANDS = Set.of("deathmatch", "hp");
 
     private final ArenaCore plugin;
     private final Map<String, SubCommand> subCommands = new LinkedHashMap<>();
@@ -41,6 +41,7 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
         subCommands.put("cancel", new CancelSubCommand(plugin));
         subCommands.put("status", new StatusSubCommand(plugin));
         subCommands.put("deathmatch", new DeathmatchSubCommand(plugin));
+        subCommands.put("hp", new HpSubCommand(plugin));
         subCommands.put("config", new ConfigSubCommand(plugin));
         subCommands.put("jackpot", new JackpotSubCommand(plugin));
         subCommands.put("loop", new LoopSubCommand(plugin));
@@ -128,6 +129,7 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "  /arena win <チーム名>");
         sender.sendMessage(ChatColor.YELLOW + "  /arena cancel" + ChatColor.GRAY + " <- 中止（試合中なら引き分け）");
         sender.sendMessage(ChatColor.YELLOW + "  /arena deathmatch <金額|yes|no|cancel|info>" + ChatColor.GRAY + " <- デスマッチ提案・投票");
+        sender.sendMessage(ChatColor.YELLOW + "  /arena hp <bossbar|sidebar|off>" + ChatColor.GRAY + " <- 観客時の競技者HP表示方式");
         sender.sendMessage(ChatColor.YELLOW + "  /arena config [<設定名> <値>]" + ChatColor.GRAY + " <- 動的設定");
         sender.sendMessage(ChatColor.YELLOW + "  /arena loop <true|false>" + ChatColor.GRAY + " <- 試合の自動ループ");
         sender.sendMessage(ChatColor.YELLOW + "  /arena jackpot [add <金額>]" + ChatColor.GRAY + " <- 残高確認・自腹で積立");
@@ -142,6 +144,7 @@ public class ArenaCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "  /arena deathmatch <金額|all>" + ChatColor.GRAY + " <- デスマッチ提案（闘技者）");
         sender.sendMessage(ChatColor.YELLOW + "  /arena deathmatch yes/no" + ChatColor.GRAY + " <- 投票（闘技者）");
         sender.sendMessage(ChatColor.YELLOW + "  /arena deathmatch info" + ChatColor.GRAY + " <- 投票状況");
+        sender.sendMessage(ChatColor.YELLOW + "  /arena hp <bossbar|sidebar|off>" + ChatColor.GRAY + " <- 観客時の競技者HP表示方式");
     }
 
     /**

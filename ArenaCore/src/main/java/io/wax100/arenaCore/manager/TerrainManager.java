@@ -108,6 +108,7 @@ public class TerrainManager {
     private int postMatchDelay;
     private int postMatchBlocksPerTick;
     private boolean effects;
+    private boolean suppressDrops;
 
     private final ArenaCore plugin;
 
@@ -153,6 +154,7 @@ public class TerrainManager {
         postMatchBlocksPerTick = Math.max(1,
                 config.getInt("terrain-restore.post-match-blocks-per-tick", 10));
         effects = config.getBoolean("terrain-restore.effects", true);
+        suppressDrops = config.getBoolean("terrain-restore.suppress-drops", true);
     }
 
     // ══════════════════════════════════════
@@ -371,6 +373,34 @@ public class TerrainManager {
     /** TRACKING 中かつフィールド範囲内かを判定する。 */
     private boolean isTrackable(Location loc) {
         return state == State.TRACKING && fieldConfig != null && fieldConfig.contains(loc);
+    }
+
+    /**
+     * ブロック破壊のドロップを抑止すべきかを判定する。
+     *
+     * <p>復元対象となる破壊（追跡中フィールド内の元地形ブロック）は、
+     * ドロップを許すと復元後にブロックが複製されるため抑止する。
+     * 試合中にプレイヤーが設置したブロックの回収は複製にならないため対象外。
+     *
+     * @param loc 破壊されるブロックの座標
+     * @return ドロップを抑止すべき場合 {@code true}
+     */
+    public boolean shouldSuppressDrops(Location loc) {
+        return suppressDrops && isTrackable(loc)
+                && !placedLocations.contains(locKey(loc));
+    }
+
+    /**
+     * 爆発によるブロックドロップを抑止すべきかを判定する。
+     *
+     * <p>追跡中フィールド内の爆発は破壊ブロックが後で復元されるため、
+     * ドロップを許すと複製になる。
+     *
+     * @param loc 爆発の中心座標
+     * @return ドロップを抑止すべき場合 {@code true}
+     */
+    public boolean shouldSuppressExplosionDrops(Location loc) {
+        return suppressDrops && isTrackable(loc);
     }
 
     /** 設置ブロック追跡用の座標キーを生成する。 */

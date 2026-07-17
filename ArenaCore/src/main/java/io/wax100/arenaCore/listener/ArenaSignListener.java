@@ -31,6 +31,8 @@ import org.bukkit.inventory.EquipmentSlot;
  *   <li>看板の作成には {@code arenacore.admin} 権限が必要</li>
  *   <li>クリックによる開始は権限不要（誰でも可）</li>
  *   <li>セッション稼働中・地形復元中は開始できない</li>
+ *   <li>Mobチームを含むプリセットは看板から開始できない
+ *       （Mob召喚に管理者操作が必要なため。{@code sign-start.allow-mob-presets} で変更可）</li>
  *   <li>看板起動のセッションは無人進行（自動締切・自動開始）となり、
  *       終了後にオートループは発動しない</li>
  * </ul>
@@ -78,10 +80,17 @@ public class ArenaSignListener implements Listener {
                     + "2行目にプリセット名を入力してください。");
             return;
         }
-        if (plugin.getPresetStore().load(presetName) == null) {
+        ArenaPresetStore.PresetData presetData = plugin.getPresetStore().load(presetName);
+        if (presetData == null) {
             event.setCancelled(true);
             player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
                     + "プリセットが見つかりません: " + presetName);
+            return;
+        }
+        if (isMobPresetBlocked(presetData)) {
+            event.setCancelled(true);
+            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                    + "Mobチームを含むプリセットは看板から開始できないため、看板を作成できません。");
             return;
         }
 
@@ -141,6 +150,11 @@ public class ArenaSignListener implements Listener {
                     + "プリセットが見つかりません: " + presetName);
             return;
         }
+        if (isMobPresetBlocked(data)) {
+            player.sendMessage(ArenaMessages.PREFIX + ChatColor.RED
+                    + "Mob戦のプリセットは看板から開始できません。管理者による開始をお待ちください。");
+            return;
+        }
 
         ArenaSession session = manager.createFromPreset(data);
         if (session == null) {
@@ -166,5 +180,20 @@ public class ArenaSignListener implements Listener {
 
         Bukkit.broadcastMessage(ArenaMessages.PREFIX + ChatColor.GRAY
                 + player.getName() + " が看板から募集を開始しました。");
+    }
+
+    /**
+     * Mobチームを含むプリセットの看板開始がブロックされるかを判定する。
+     *
+     * <p>Mob戦はモンスターの召喚・配置に管理者操作が必要で無人進行できないため、
+     * デフォルトでは看板開始を許可しない（{@code sign-start.allow-mob-presets} で変更可）。
+     *
+     * @param data プリセットデータ
+     * @return ブロックする場合 {@code true}
+     */
+    private boolean isMobPresetBlocked(ArenaPresetStore.PresetData data) {
+        boolean allowMobPresets = plugin.getConfig()
+                .getBoolean("sign-start.allow-mob-presets", false);
+        return !allowMobPresets && !data.mobTeams().isEmpty();
     }
 }

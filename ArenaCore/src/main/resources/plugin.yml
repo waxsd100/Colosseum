@@ -9,8 +9,8 @@ softdepend: [WorldEdit, WorldGuard]
 
 commands:
   arena:
-    description: 闘技場コマンド（管理 + デスマッチ提案・投票）
-    usage: /arena <create|team|area|region|field|preset|open|close|start|win|cancel|status|jackpot|deathmatch>
+    description: 闘技場コマンド（管理 + デスマッチ提案・投票 + 観客HP表示切替）
+    usage: /arena <create|team|area|region|field|preset|open|close|start|win|cancel|status|jackpot|deathmatch|hp>
   bet:
     description: ベット情報コマンド
     usage: /bet <odds|info>
