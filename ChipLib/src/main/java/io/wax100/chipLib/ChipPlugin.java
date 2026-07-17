@@ -422,15 +422,18 @@ public final class ChipPlugin extends JavaPlugin implements Listener {
      * プレイヤーのチップを全て換金し、Economy に入金する。
      * 外部プラグインから呼び出すための公開メソッド。
      *
+     * <p>チップを持っていない場合も、ゲームモード復元とハサミ回収は必ず行う
+     * （チップを全て失ったプレイヤーがアドベンチャーモードから抜けられなくなるのを防ぐ）。
+     *
      * @param player 対象プレイヤー
      * @return 換金された合計額。チップがなければ 0
      */
     public long cashoutPlayer(Player player) {
         long totalValue = chipManager.calculateTotalValue(player);
+        shearsHelper.removeShears(player);
 
         if (totalValue > 0) {
             chipManager.removeAllChips(player);
-            shearsHelper.removeShears(player);
             EconomyResponse resp = economy.depositPlayer(player, totalValue);
             if (!resp.transactionSuccess()) {
                 getLogger().severe("換金入金失敗: player=" + player.getName()

@@ -322,28 +322,17 @@ public class ChipCommand implements CommandExecutor, TabCompleter {
     /**
      * 手持ちチップを換金する。
      *
-     * <p>チップを持っていない場合はエラーメッセージを送信する。
-     * ChipLib 単独での換金は、チップの回収と Economy への直接入金で実装する。
+     * <p>換金処理は {@link ChipPlugin#cashoutPlayer(Player)} に委譲する。
+     * チップを持っていない場合もゲームモード復元・ハサミ回収は行われ、
+     * その上でエラーメッセージを送信する。
      *
      * @param player 対象プレイヤー
      */
     private void handleCashout(Player player) {
-        ChipManager cm = plugin.getChipManager();
-        long totalValue = cm.calculateTotalValue(player);
+        long totalValue = plugin.cashoutPlayer(player);
         if (totalValue == 0) {
             player.sendMessage(ChipMessages.NO_CHIPS_TO_CASHOUT);
             return;
-        }
-
-        cm.removeAllChips(player);
-        plugin.getShearsHelper().removeShears(player);
-        Economy economy = plugin.getEconomy();
-        economy.depositPlayer(player, totalValue);
-
-        // 元のゲームモードに復元
-        GameMode previous = plugin.getPreviousGameModes().remove(player.getUniqueId());
-        if (previous != null && player.getGameMode() == GameMode.ADVENTURE) {
-            player.setGameMode(previous);
         }
 
         // 換金リスナーに通知（CasinoCore のセッション購入記録の相殺等）
